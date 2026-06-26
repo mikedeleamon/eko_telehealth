@@ -42,7 +42,7 @@ Make sure you have the following installed before getting started:
 ### 1. Clone the repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/mikedeleamon/eko_telehealth.git
 cd eko_telehealth
 ```
 
