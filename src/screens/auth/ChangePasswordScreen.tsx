@@ -7,6 +7,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../constants/Colors';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -14,6 +15,7 @@ interface Props {
 
 export default function ChangePasswordScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const { isLoggedIn } = useAuth();
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [showNew, setShowNew] = useState(false);
@@ -30,7 +32,8 @@ export default function ChangePasswordScreen({ navigation }: Props) {
     setTimeout(() => {
       setLoading(false);
       Alert.alert('Success', 'Your password has been updated.', [
-        { text: 'OK', onPress: () => navigation.navigate('Login') },
+        // Logged-in users (Account / Settings) just return; the reset flow returns to Login.
+        { text: 'OK', onPress: () => (isLoggedIn ? navigation.goBack() : navigation.navigate('Login')) },
       ]);
     }, 1000);
   };

@@ -30,7 +30,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
         setErrorEmail(email);
         setShowError(true);
       } else {
-        navigation.navigate('VerifyEmail');
+        navigation.navigate('VerifyEmail', { reset: true });
       }
     }, 1000);
   };

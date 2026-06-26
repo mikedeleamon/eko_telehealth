@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
 import SCButton from '../../../components/common/SCButton';
+import { useAuth } from '../../../context/AuthContext';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -14,6 +15,9 @@ interface Props {
 
 export default function AppointmentConfirmedScreen({ navigation, route }: Props) {
   const { doctor, slot, date, type } = route.params ?? {};
+  const { isDoctor } = useAuth();
+  const appointmentsTab = isDoctor ? 'SchedulerTab' : 'AppointmentsTab';
+  const homeTab = isDoctor ? 'DashboardTab' : 'HomeTab';
 
   return (
     <View style={styles.container}>
@@ -34,8 +38,8 @@ export default function AppointmentConfirmedScreen({ navigation, route }: Props)
           <DetailRow icon="dollar" label="Fee" value={doctor?.fee ?? ''} last />
         </View>
 
-        <SCButton title="View Appointments" variant="accent" onPress={() => navigation.navigate('AppointmentsTab')} style={styles.primaryBtn} />
-        <SCButton title="Back to Home" onPress={() => navigation.navigate('HomeTab')} variant="outline" style={styles.secondaryBtn} />
+        <SCButton title="View Appointments" variant="accent" onPress={() => navigation.navigate(appointmentsTab)} style={styles.primaryBtn} />
+        <SCButton title="Back to Home" onPress={() => navigation.navigate(homeTab)} variant="outline" style={styles.secondaryBtn} />
       </View>
     </View>
   );

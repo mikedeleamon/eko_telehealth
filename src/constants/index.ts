@@ -160,6 +160,41 @@ export const MOCK_NOTIFICATIONS = [
   { id: '4', title: 'Payment Successful', body: 'Your payment of $80 for the video visit has been processed.', time: '3d ago' },
 ];
 
+// ---- Doctor-side mock data ----
+
+export const MOCK_PATIENT_REQUESTS = [
+  { id: 'r1', name: 'John Smith', reason: 'Consultation' },
+  { id: 'r2', name: 'Maria Garcia', reason: 'Consultation' },
+];
+
+// status drives the colored dot + soft row tint in the dashboard agenda
+export const MOCK_DOCTOR_APPOINTMENTS = [
+  { id: 'd1', name: 'Andrew Flintoff', type: 'Consultation', time: '12:30 am', status: 'confirmed' },
+  { id: 'd2', name: 'Jimmie Christian', type: 'First Visit', time: '11:30 am', status: 'cancelled' },
+  { id: 'd3', name: 'Alex Stewart', type: 'Consultation', time: '12:30 am', status: 'rescheduled' },
+  { id: 'd4', name: 'Augustine Watts', type: 'Consultation', time: '10:30 am', status: 'pending' },
+  { id: 'd5', name: 'Andrew Flintoff', type: 'Consultation', time: '12:30 am', status: 'confirmed' },
+];
+
+// Doctor's appointment list (Scheduler tab) — same shape as MOCK_APPOINTMENTS,
+// but the `doctor` field holds the patient's name and `specialty` the visit reason.
+export const MOCK_DOCTOR_SCHEDULE = [
+  { id: 's1', doctor: 'Andrew Flintoff', specialty: 'Consultation', date: 'Mon, Jun 29, 2026', time: '12:30 PM', type: 'Video Visit', status: 'upcoming' },
+  { id: 's2', doctor: 'Jimmie Christian', specialty: 'First Visit', date: 'Mon, Jun 29, 2026', time: '11:30 AM', type: 'Clinic Visit', status: 'upcoming' },
+  { id: 's3', doctor: 'Alex Stewart', specialty: 'Consultation', date: 'Tue, Jun 30, 2026', time: '12:30 PM', type: 'Video Visit', status: 'upcoming' },
+  { id: 's4', doctor: 'Augustine Watts', specialty: 'Consultation', date: 'Jun 10, 2026', time: '10:30 AM', type: 'Clinic Visit', status: 'past' },
+  { id: 's5', doctor: 'Maria Garcia', specialty: 'Follow-up', date: 'May 28, 2026', time: '3:00 PM', type: 'Video Visit', status: 'past' },
+];
+
+export const MOCK_PATIENTS = [
+  { id: 'p1', name: 'Andrew Flintoff', age: 34, gender: 'Male', condition: 'Hypertension', lastVisit: 'Jun 20, 2026' },
+  { id: 'p2', name: 'Jimmie Christian', age: 28, gender: 'Male', condition: 'First Visit', lastVisit: 'New patient' },
+  { id: 'p3', name: 'Alex Stewart', age: 45, gender: 'Male', condition: 'Diabetes Type 2', lastVisit: 'Jun 12, 2026' },
+  { id: 'p4', name: 'Augustine Watts', age: 52, gender: 'Female', condition: 'Migraine', lastVisit: 'Jun 5, 2026' },
+  { id: 'p5', name: 'Maria Garcia', age: 31, gender: 'Female', condition: 'Pregnancy care', lastVisit: 'May 29, 2026' },
+  { id: 'p6', name: 'John Smith', age: 40, gender: 'Male', condition: 'Annual checkup', lastVisit: 'May 14, 2026' },
+];
+
 export const TIME_SLOTS = [
   '9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM',
   '11:00 AM', '11:30 AM', '2:00 PM', '2:30 PM',

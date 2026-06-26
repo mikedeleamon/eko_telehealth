@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
-import { MOCK_APPOINTMENTS } from '../../../constants';
+import { MOCK_APPOINTMENTS, MOCK_DOCTOR_SCHEDULE } from '../../../constants';
 import AppointmentCard from '../../../components/appointments/AppointmentCard';
 import Cross from '../../../components/common/Cross';
 import { useAuth } from '../../../context/AuthContext';
@@ -19,7 +19,8 @@ export default function AppointmentsScreen({ navigation }: Props) {
   const { isDoctor } = useAuth();
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
 
-  const data = MOCK_APPOINTMENTS.filter((a) => a.status === tab);
+  const source = isDoctor ? MOCK_DOCTOR_SCHEDULE : MOCK_APPOINTMENTS;
+  const data = source.filter((a) => a.status === tab);
 
   return (
     <View style={styles.container}>
@@ -76,7 +77,7 @@ export default function AppointmentsScreen({ navigation }: Props) {
           <View style={styles.empty}>
             <FontAwesome name="calendar-o" size={48} color={Colors.textLight} />
             <Text style={styles.emptyText}>No {tab} appointments</Text>
-            {tab === 'upcoming' && (
+            {tab === 'upcoming' && !isDoctor && (
               <TouchableOpacity
                 style={styles.emptyBtn}
                 onPress={() => navigation.navigate('HomeTab')}

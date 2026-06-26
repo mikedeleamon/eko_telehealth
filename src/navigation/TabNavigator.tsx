@@ -6,13 +6,13 @@ import { FontAwesome } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../constants/Colors';
+import { useAuth } from '../context/AuthContext';
 
 // Home (Doctors) stack
 import MyDoctorsScreen from '../screens/main/doctors/MyDoctorsScreen';
 import DoctorOverviewScreen from '../screens/main/doctors/DoctorOverviewScreen';
 import CreateAppointmentScreen from '../screens/main/doctors/CreateAppointmentScreen';
 import AppointmentConfirmedScreen from '../screens/main/doctors/AppointmentConfirmedScreen';
-import AppointmentAlertScreen from '../screens/main/doctors/AppointmentAlertScreen';
 import VideoCallScreen from '../screens/main/doctors/VideoCallScreen';
 import AudioCallScreen from '../screens/main/doctors/AudioCallScreen';
 import ChatScreen from '../screens/main/doctors/ChatScreen';
@@ -23,6 +23,7 @@ import ReviewsScreen from '../screens/main/account/ReviewsScreen';
 
 // Appointments
 import AppointmentsScreen from '../screens/main/appointments/AppointmentsScreen';
+import AppointmentDetailsScreen from '../screens/main/appointments/AppointmentDetailsScreen';
 
 // Search
 import SearchScreen from '../screens/main/search/SearchScreen';
@@ -41,11 +42,19 @@ import PatientOverviewScreen from '../screens/main/account/PatientOverviewScreen
 import MyHealthScreen from '../screens/main/health/MyHealthScreen';
 import ChangePasswordScreen from '../screens/auth/ChangePasswordScreen';
 
+// Doctor
+import DashboardScreen from '../screens/main/dashboard/DashboardScreen';
+import PatientsScreen from '../screens/main/dashboard/PatientsScreen';
+import DoctorSettingsScreen from '../screens/main/dashboard/DoctorSettingsScreen';
+
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
 const AppointmentsStack = createNativeStackNavigator();
 const SearchStack = createNativeStackNavigator();
 const AccountStack = createNativeStackNavigator();
+const DashboardStack = createNativeStackNavigator();
+const PatientsStack = createNativeStackNavigator();
+const SettingsStack = createNativeStackNavigator();
 
 function HomeNavigator() {
   return (
@@ -54,7 +63,7 @@ function HomeNavigator() {
       <HomeStack.Screen name="DoctorOverview" component={DoctorOverviewScreen} />
       <HomeStack.Screen name="CreateAppointment" component={CreateAppointmentScreen} />
       <HomeStack.Screen name="AppointmentConfirmed" component={AppointmentConfirmedScreen} />
-      <HomeStack.Screen name="AppointmentAlert" component={AppointmentAlertScreen} options={{ presentation: 'transparentModal', animation: 'fade' }} />
+      <HomeStack.Screen name="AppointmentDetails" component={AppointmentDetailsScreen} />
       <HomeStack.Screen name="VideoCall" component={VideoCallScreen} options={{ presentation: 'fullScreenModal' }} />
       <HomeStack.Screen name="AudioCall" component={AudioCallScreen} options={{ presentation: 'fullScreenModal' }} />
       <HomeStack.Screen name="Chat" component={ChatScreen} />
@@ -71,8 +80,15 @@ function AppointmentsNavigator() {
   return (
     <AppointmentsStack.Navigator screenOptions={{ headerShown: false }}>
       <AppointmentsStack.Screen name="AppointmentsList" component={AppointmentsScreen} />
-      <AppointmentsStack.Screen name="AppointmentDetails" component={AppointmentAlertScreen} />
+      <AppointmentsStack.Screen name="AppointmentDetails" component={AppointmentDetailsScreen} />
+      <AppointmentsStack.Screen name="DoctorOverview" component={DoctorOverviewScreen} />
+      <AppointmentsStack.Screen name="CreateAppointment" component={CreateAppointmentScreen} />
+      <AppointmentsStack.Screen name="Payment" component={PaymentScreen} />
       <AppointmentsStack.Screen name="AppointmentConfirmed" component={AppointmentConfirmedScreen} />
+      <AppointmentsStack.Screen name="VideoCall" component={VideoCallScreen} options={{ presentation: 'fullScreenModal' }} />
+      <AppointmentsStack.Screen name="AudioCall" component={AudioCallScreen} options={{ presentation: 'fullScreenModal' }} />
+      <AppointmentsStack.Screen name="Chat" component={ChatScreen} />
+      <AppointmentsStack.Screen name="Reviews" component={ReviewsScreen} />
     </AppointmentsStack.Navigator>
   );
 }
@@ -85,7 +101,6 @@ function SearchNavigator() {
       <SearchStack.Screen name="CreateAppointment" component={CreateAppointmentScreen} />
       <SearchStack.Screen name="Payment" component={PaymentScreen} />
       <SearchStack.Screen name="AppointmentConfirmed" component={AppointmentConfirmedScreen} />
-      <SearchStack.Screen name="AppointmentAlert" component={AppointmentAlertScreen} options={{ presentation: 'transparentModal', animation: 'fade' }} />
       <SearchStack.Screen name="VideoCall" component={VideoCallScreen} options={{ presentation: 'fullScreenModal' }} />
       <SearchStack.Screen name="AudioCall" component={AudioCallScreen} options={{ presentation: 'fullScreenModal' }} />
       <SearchStack.Screen name="Chat" component={ChatScreen} />
@@ -115,19 +130,72 @@ function AccountNavigator() {
   );
 }
 
-const TAB_ITEMS = [
+// ---- Doctor stacks ----
+
+function DashboardNavigator() {
+  return (
+    <DashboardStack.Navigator screenOptions={{ headerShown: false }}>
+      <DashboardStack.Screen name="Dashboard" component={DashboardScreen} />
+      <DashboardStack.Screen name="Messages" component={MessagesScreen} />
+      <DashboardStack.Screen name="Chat" component={ChatScreen} />
+      <DashboardStack.Screen name="VideoCall" component={VideoCallScreen} options={{ presentation: 'fullScreenModal' }} />
+      <DashboardStack.Screen name="AudioCall" component={AudioCallScreen} options={{ presentation: 'fullScreenModal' }} />
+    </DashboardStack.Navigator>
+  );
+}
+
+function PatientsNavigator() {
+  return (
+    <PatientsStack.Navigator screenOptions={{ headerShown: false }}>
+      <PatientsStack.Screen name="Patients" component={PatientsScreen} />
+      <PatientsStack.Screen name="Chat" component={ChatScreen} />
+      <PatientsStack.Screen name="VideoCall" component={VideoCallScreen} options={{ presentation: 'fullScreenModal' }} />
+      <PatientsStack.Screen name="AudioCall" component={AudioCallScreen} options={{ presentation: 'fullScreenModal' }} />
+    </PatientsStack.Navigator>
+  );
+}
+
+function SettingsNavigator() {
+  return (
+    <SettingsStack.Navigator screenOptions={{ headerShown: false }}>
+      <SettingsStack.Screen name="DoctorSettings" component={DoctorSettingsScreen} />
+      <SettingsStack.Screen name="EditProfile" component={EditProfileScreen} />
+      <SettingsStack.Screen name="Notifications" component={NotificationsScreen} />
+      <SettingsStack.Screen name="Preferences" component={SettingsScreen} />
+      <SettingsStack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      <SettingsStack.Screen name="Reviews" component={ReviewsScreen} />
+      <SettingsStack.Screen name="AboutUs" component={AboutUsScreen} />
+    </SettingsStack.Navigator>
+  );
+}
+
+interface TabItem {
+  name: string;
+  label: string;
+  icon: string;
+}
+
+const PATIENT_TABS: TabItem[] = [
   { name: 'SearchTab', label: 'Search', icon: 'search' },
   { name: 'AppointmentsTab', label: 'Appointments', icon: 'calendar' },
   { name: 'HomeTab', label: 'Home', icon: 'stethoscope' },
   { name: 'AccountTab', label: 'My Account', icon: 'user' },
 ];
 
-function TabBarContent({ state, navigation }: any) {
+const DOCTOR_TABS: TabItem[] = [
+  { name: 'PatientsTab', label: 'Patients', icon: 'user' },
+  { name: 'DashboardTab', label: 'Dashboard', icon: 'dashboard' },
+  { name: 'SchedulerTab', label: 'Scheduler', icon: 'calendar' },
+  { name: 'SettingsTab', label: 'Settings', icon: 'sliders' },
+];
+
+function TabBarContent({ state, navigation, items }: any) {
   return (
     <>
       {state.routes.map((route: any, index: number) => {
         const focused = state.index === index;
-        const item = TAB_ITEMS[index];
+        const item = items[index];
+        if (!item) return null;
         return (
           <TouchableOpacity
             key={route.key}
@@ -152,7 +220,7 @@ function TabBarContent({ state, navigation }: any) {
   );
 }
 
-function CustomTabBar({ state, descriptors, navigation }: any) {
+function CustomTabBar({ state, navigation, items }: any) {
   const insets = useSafeAreaInsets();
   const pb = Math.max(insets.bottom, 8);
 
@@ -164,7 +232,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
         style={[tabStyles.container, { paddingBottom: pb }]}
       >
         <View style={tabStyles.row}>
-          <TabBarContent state={state} navigation={navigation} />
+          <TabBarContent state={state} navigation={navigation} items={items} />
         </View>
       </BlurView>
     );
@@ -173,7 +241,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
   return (
     <View style={[tabStyles.container, tabStyles.androidBg, { paddingBottom: pb }]}>
       <View style={tabStyles.row}>
-        <TabBarContent state={state} navigation={navigation} />
+        <TabBarContent state={state} navigation={navigation} items={items} />
       </View>
     </View>
   );
@@ -206,16 +274,30 @@ const tabStyles = StyleSheet.create({
 });
 
 export default function TabNavigator() {
+  const { isDoctor } = useAuth();
+  const items = isDoctor ? DOCTOR_TABS : PATIENT_TABS;
+
   return (
     <Tab.Navigator
-      initialRouteName="HomeTab"
-      tabBar={(props) => <CustomTabBar {...props} />}
+      initialRouteName={isDoctor ? 'DashboardTab' : 'HomeTab'}
+      tabBar={(props) => <CustomTabBar {...props} items={items} />}
       screenOptions={{ headerShown: false }}
     >
-      <Tab.Screen name="SearchTab" component={SearchNavigator} />
-      <Tab.Screen name="AppointmentsTab" component={AppointmentsNavigator} />
-      <Tab.Screen name="HomeTab" component={HomeNavigator} />
-      <Tab.Screen name="AccountTab" component={AccountNavigator} />
+      {isDoctor ? (
+        <>
+          <Tab.Screen name="PatientsTab" component={PatientsNavigator} />
+          <Tab.Screen name="DashboardTab" component={DashboardNavigator} />
+          <Tab.Screen name="SchedulerTab" component={AppointmentsNavigator} />
+          <Tab.Screen name="SettingsTab" component={SettingsNavigator} />
+        </>
+      ) : (
+        <>
+          <Tab.Screen name="SearchTab" component={SearchNavigator} />
+          <Tab.Screen name="AppointmentsTab" component={AppointmentsNavigator} />
+          <Tab.Screen name="HomeTab" component={HomeNavigator} />
+          <Tab.Screen name="AccountTab" component={AccountNavigator} />
+        </>
+      )}
     </Tab.Navigator>
   );
 }

@@ -5,14 +5,18 @@ import {
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../constants/Colors';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
+  route: RouteProp<any>;
 }
 
-export default function VerifyEmailScreen({ navigation }: Props) {
+export default function VerifyEmailScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
+  // When verifying as part of a password reset, continue to set a new password.
+  const isReset = route.params?.reset === true;
   const [otp, setOtp] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
   const inputs = useRef<(TextInput | null)[]>([]);
@@ -29,7 +33,7 @@ export default function VerifyEmailScreen({ navigation }: Props) {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      navigation.navigate('Login');
+      navigation.navigate(isReset ? 'ChangePassword' : 'Login');
     }, 1000);
   };
 

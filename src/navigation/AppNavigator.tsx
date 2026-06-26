@@ -16,11 +16,14 @@ import TabNavigator from './TabNavigator';
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, hasOnboarded } = useAuth();
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
+      <Stack.Navigator
+        screenOptions={{ headerShown: false, animation: 'fade' }}
+        initialRouteName={hasOnboarded ? 'Login' : 'Tutorial'}
+      >
         {!isLoggedIn ? (
           <>
             <Stack.Screen name="Tutorial" component={TutorialScreen} />

@@ -14,6 +14,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { TUTORIAL_DATA } from '../../constants';
 import { Colors } from '../../constants/Colors';
 import SCButton from '../../components/common/SCButton';
+import { useAuth } from '../../context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -24,14 +25,20 @@ interface Props {
 const tutorialIcons = ['stethoscope', 'calendar-check-o', 'heartbeat'];
 
 export default function TutorialScreen({ navigation }: Props) {
+  const { completeOnboarding } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
+
+  const goToLogin = () => {
+    completeOnboarding();
+    navigation.replace('Login');
+  };
 
   const goNext = () => {
     if (currentIndex < TUTORIAL_DATA.length - 1) {
       flatListRef.current?.scrollToIndex({ index: currentIndex + 1, animated: true });
     } else {
-      navigation.replace('Login');
+      goToLogin();
     }
   };
 
@@ -41,7 +48,7 @@ export default function TutorialScreen({ navigation }: Props) {
     }
   };
 
-  const skip = () => navigation.replace('Login');
+  const skip = () => goToLogin();
 
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems.length > 0) {

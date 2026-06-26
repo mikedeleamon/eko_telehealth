@@ -19,8 +19,10 @@ const TYPES = [
 ];
 
 export default function CreateAppointmentScreen({ navigation, route }: Props) {
-  const { doctor, slot, date } = route.params ?? {};
-  const [selectedType, setSelectedType] = useState('Video Visit');
+  const { doctor, slot, date, type } = route.params ?? {};
+  const [selectedType, setSelectedType] = useState(
+    TYPES.some((t) => t.label === type) ? type : 'Video Visit'
+  );
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = () => {

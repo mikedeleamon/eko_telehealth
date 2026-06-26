@@ -32,7 +32,9 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
     name: 'Dr. Julianna May', specialty: 'Therapist, Primary care doctor',
     rating: 4.5, reviews: 79, location: 'New York, NY', fee: '$80', available: true, avatar: null,
   };
-  const [activeTab, setActiveTab] = useState<'overview' | 'schedule'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'schedule'>(
+    route.params?.initialTab === 'schedule' ? 'schedule' : 'overview'
+  );
   const [selectedDay, setSelectedDay] = useState(0);
   const [visitType, setVisitType] = useState('Home Visit');
   const [selectedSlot, setSelectedSlot] = useState<string | null>('01-02:00');
