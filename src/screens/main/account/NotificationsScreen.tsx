@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
-import SCHeader from '../../../components/common/SCHeader';
-import { MOCK_NOTIFICATIONS } from '../../../constants';
+import EkoHeader from '../../../components/common/EkoHeader';
+import { useNotifications } from '../../../hooks/queries';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -18,11 +18,12 @@ const NOTIF_ICONS: Record<string, string> = {
 };
 
 export default function NotificationsScreen({ navigation }: Props) {
+  const { data: notifications = [] } = useNotifications();
   return (
     <View style={styles.container}>
-      <SCHeader title="Notifications" onBack={() => navigation.goBack()} />
+      <EkoHeader title="Notifications" onBack={() => navigation.goBack()} />
       <FlatList
-        data={MOCK_NOTIFICATIONS}
+        data={notifications}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
           <View style={[styles.card, { backgroundColor: Colors.cardColors[index % Colors.cardColors.length] }]}>

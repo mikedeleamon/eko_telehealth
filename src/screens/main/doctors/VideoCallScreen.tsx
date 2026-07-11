@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
+import { useCall } from '../../../hooks/useCall';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -13,10 +14,15 @@ interface Props {
 
 export default function VideoCallScreen({ navigation, route }: Props) {
   const doctor = route.params?.doctor;
-  const [muted, setMuted] = useState(false);
-  const [cameraOff, setCameraOff] = useState(false);
-  const [speakerOn, setSpeakerOn] = useState(true);
-  const [frontCamera, setFrontCamera] = useState(true);
+  const {
+    statusLabel, muted, cameraOff, speakerOn, frontCamera,
+    toggleMuted, toggleCamera, toggleSpeaker, flipCamera, hangUp,
+  } = useCall({ roomName: route.params?.roomName ?? `visit-${doctor?.id ?? 'demo'}` });
+
+  const endCall = async () => {
+    await hangUp();
+    navigation.goBack();
+  };
 
   return (
     <View style={styles.container}>
@@ -26,7 +32,7 @@ export default function VideoCallScreen({ navigation, route }: Props) {
       <View style={styles.remoteVideo}>
         <FontAwesome name="user-md" size={80} color="rgba(255,255,255,0.3)" />
         <Text style={styles.remoteName}>{doctor?.name ?? 'Dr. Johnson'}</Text>
-        <Text style={styles.callStatus}>00:03:42</Text>
+        <Text style={styles.callStatus}>{statusLabel}</Text>
       </View>
 
       <View style={styles.localVideo}>
@@ -35,12 +41,12 @@ export default function VideoCallScreen({ navigation, route }: Props) {
       </View>
 
       <View style={styles.controls}>
-        <CallBtn icon={muted ? 'microphone-slash' : 'microphone'} label={muted ? 'Unmute' : 'Mute'} onPress={() => setMuted(!muted)} active={muted} />
-        <CallBtn icon={speakerOn ? 'volume-up' : 'volume-off'} label="Speaker" onPress={() => setSpeakerOn(!speakerOn)} />
-        <CallBtn icon={cameraOff ? 'video-slash' : 'video-camera'} label={cameraOff ? 'Cam Off' : 'Cam On'} onPress={() => setCameraOff(!cameraOff)} active={cameraOff} />
-        <CallBtn icon="refresh" label="Flip" onPress={() => setFrontCamera((v) => !v)} />
+        <CallBtn icon={muted ? 'microphone-slash' : 'microphone'} label={muted ? 'Unmute' : 'Mute'} onPress={toggleMuted} active={muted} />
+        <CallBtn icon={speakerOn ? 'volume-up' : 'volume-off'} label="Speaker" onPress={toggleSpeaker} />
+        <CallBtn icon={cameraOff ? 'video-slash' : 'video-camera'} label={cameraOff ? 'Cam Off' : 'Cam On'} onPress={toggleCamera} active={cameraOff} />
+        <CallBtn icon="refresh" label="Flip" onPress={flipCamera} />
 
-        <TouchableOpacity style={styles.endBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.endBtn} onPress={endCall}>
           <FontAwesome name="phone" size={26} color={Colors.white} />
         </TouchableOpacity>
       </View>

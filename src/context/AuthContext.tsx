@@ -1,15 +1,9 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
+import { api } from '../api';
+import type { User, UserRole } from '../api/types';
+import { useAuthStore } from '../store/authStore';
 
-export type UserRole = 'Patient' | 'Doctor';
-
-interface User {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  token: string;
-  role: UserRole;
-}
+export type { UserRole };
 
 interface AuthContextType {
   user: User | null;
@@ -18,7 +12,9 @@ interface AuthContextType {
   // True once the user has gotten past onboarding (logged in at least once).
   // Lets sign-out return to Login instead of replaying the tutorial.
   hasOnboarded: boolean;
-  login: (user: User) => void;
+  /** False until the persisted session has been restored from disk. */
+  isRestoring: boolean;
+  login: (email: string, password: string, role: UserRole) => Promise<void>;
   logout: () => void;
   completeOnboarding: () => void;
 }
@@ -28,35 +24,43 @@ const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false,
   isDoctor: false,
   hasOnboarded: false,
-  login: () => {},
+  isRestoring: true,
+  login: async () => {},
   logout: () => {},
   completeOnboarding: () => {},
 });
 
+/**
+ * React-friendly view over the persisted auth store. Screens keep using
+ * useAuth(); the session itself lives in Zustand (src/store/authStore) so
+ * the API client can read the token outside React.
+ */
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [hasOnboarded, setHasOnboarded] = useState(false);
+  const session = useAuthStore((s) => s.session);
+  const hasOnboarded = useAuthStore((s) => s.hasOnboarded);
+  const hydrated = useAuthStore((s) => s.hydrated);
 
-  const login = (userData: User) => {
-    setHasOnboarded(true);
-    setUser(userData);
+  const login = async (email: string, password: string, role: UserRole) => {
+    const newSession = await api.auth.login(email, password, role);
+    useAuthStore.getState().setSession(newSession);
   };
 
   const logout = () => {
-    setUser(null);
+    useAuthStore.getState().clearSession();
   };
 
   const completeOnboarding = () => {
-    setHasOnboarded(true);
+    useAuthStore.getState().completeOnboarding();
   };
 
   return (
     <AuthContext.Provider
       value={{
-        user,
-        isLoggedIn: !!user,
-        isDoctor: user?.role === 'Doctor',
+        user: session?.user ?? null,
+        isLoggedIn: !!session,
+        isDoctor: session?.user.role === 'Doctor',
         hasOnboarded,
+        isRestoring: !hydrated,
         login,
         logout,
         completeOnboarding,

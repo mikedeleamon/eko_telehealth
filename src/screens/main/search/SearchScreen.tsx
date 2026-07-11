@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
-import { MOCK_DOCTORS } from '../../../constants';
+import { useDoctors } from '../../../hooks/queries';
 import RatingStars from '../../../components/common/RatingStars';
 import Cross from '../../../components/common/Cross';
 
@@ -15,14 +15,15 @@ interface Props {
   navigation: NativeStackNavigationProp<any>;
 }
 
-const RECENT = ['Primary Care', 'Eye Doctor', 'Cardiology', 'Dr. Brinx'];
+const RECENT = ['Primary Care', 'Eye Doctor', 'Cardiology', 'Dr. Okafor'];
 
 export default function SearchScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
 
+  const { data: doctors = [] } = useDoctors();
   const results = query.length > 1
-    ? MOCK_DOCTORS.filter(d =>
+    ? doctors.filter(d =>
         d.name.toLowerCase().includes(query.toLowerCase()) ||
         d.specialty.toLowerCase().includes(query.toLowerCase())
       )

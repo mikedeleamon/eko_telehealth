@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
+import { useCall } from '../../../hooks/useCall';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -13,9 +14,21 @@ interface Props {
 
 export default function AudioCallScreen({ navigation, route }: Props) {
   const doctor = route.params?.doctor;
-  const [muted, setMuted] = useState(false);
-  const [speakerOn, setSpeakerOn] = useState(false);
-  const [onVideo, setOnVideo] = useState(false);
+  const roomName = route.params?.roomName ?? `visit-${doctor?.id ?? 'demo'}`;
+  const {
+    statusLabel, muted, speakerOn,
+    toggleMuted, toggleSpeaker, hangUp,
+  } = useCall({ roomName, audioOnly: true });
+
+  const endCall = async () => {
+    await hangUp();
+    navigation.goBack();
+  };
+
+  const switchToVideo = async () => {
+    await hangUp();
+    navigation.replace('VideoCall', { doctor, roomName });
+  };
 
   return (
     <View style={styles.container}>
@@ -28,15 +41,15 @@ export default function AudioCallScreen({ navigation, route }: Props) {
         </View>
         <Text style={styles.name}>{doctor?.name ?? 'Dr. Johnson'}</Text>
         <Text style={styles.spec}>{doctor?.specialty ?? 'Primary Care'}</Text>
-        <Text style={styles.timer}>00:01:18</Text>
+        <Text style={styles.timer}>{statusLabel}</Text>
       </View>
 
       <View style={styles.controls}>
-        <CallBtn icon={muted ? 'microphone-slash' : 'microphone'} label={muted ? 'Unmute' : 'Mute'} onPress={() => setMuted(!muted)} active={muted} />
-        <CallBtn icon={speakerOn ? 'volume-up' : 'volume-off'} label="Speaker" onPress={() => setSpeakerOn(!speakerOn)} active={speakerOn} />
-        <CallBtn icon="video-camera" label="Video" onPress={() => { setOnVideo(true); navigation.replace('VideoCall', { doctor }); }} active={onVideo} />
+        <CallBtn icon={muted ? 'microphone-slash' : 'microphone'} label={muted ? 'Unmute' : 'Mute'} onPress={toggleMuted} active={muted} />
+        <CallBtn icon={speakerOn ? 'volume-up' : 'volume-off'} label="Speaker" onPress={toggleSpeaker} active={speakerOn} />
+        <CallBtn icon="video-camera" label="Video" onPress={switchToVideo} />
 
-        <TouchableOpacity style={styles.endBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.endBtn} onPress={endCall}>
           <FontAwesome name="phone" size={26} color={Colors.white} />
         </TouchableOpacity>
       </View>

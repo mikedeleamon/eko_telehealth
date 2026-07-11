@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Switch } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
-import SCHeader from '../../../components/common/SCHeader';
+import EkoHeader from '../../../components/common/EkoHeader';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -42,7 +42,7 @@ export default function SettingsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <SCHeader title="Settings" onBack={() => navigation.goBack()} />
+      <EkoHeader title="Settings" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.sectionTitle}>Notifications</Text>
         <View style={styles.card}>

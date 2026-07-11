@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
-import SCHeader from '../../../components/common/SCHeader';
-import SCTextField from '../../../components/common/SCTextField';
-import SCButton from '../../../components/common/SCButton';
+import EkoHeader from '../../../components/common/EkoHeader';
+import EkoTextField from '../../../components/common/EkoTextField';
+import EkoButton from '../../../components/common/EkoButton';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -30,14 +30,14 @@ export default function AddDependentScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <SCHeader title="Add Dependent" onBack={() => navigation.goBack()} />
+      <EkoHeader title="Add Dependent" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.info}>Add a family member or dependent to manage their healthcare appointments.</Text>
-        <SCTextField label="First Name" placeholder="First name" icon="user" value={firstName} onChangeText={setFirstName} />
-        <SCTextField label="Last Name" placeholder="Last name" icon="user" value={lastName} onChangeText={setLastName} />
-        <SCTextField label="Date of Birth" placeholder="DD-MM-YYYY" icon="calendar" value={dob} onChangeText={setDob} />
-        <SCTextField label="Relationship" placeholder="e.g. Child, Parent, Spouse" icon="heart" value={relation} onChangeText={setRelation} />
-        <SCButton title="Add Dependent" variant="accent" onPress={save} loading={loading} style={styles.btn} />
+        <EkoTextField label="First Name" placeholder="First name" icon="user" value={firstName} onChangeText={setFirstName} />
+        <EkoTextField label="Last Name" placeholder="Last name" icon="user" value={lastName} onChangeText={setLastName} />
+        <EkoTextField label="Date of Birth" placeholder="DD-MM-YYYY" icon="calendar" value={dob} onChangeText={setDob} />
+        <EkoTextField label="Relationship" placeholder="e.g. Child, Parent, Spouse" icon="heart" value={relation} onChangeText={setRelation} />
+        <EkoButton title="Add Dependent" variant="accent" onPress={save} loading={loading} style={styles.btn} />
       </ScrollView>
     </View>
   );

@@ -4,10 +4,12 @@ import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
-import SCHeader from '../../../components/common/SCHeader';
-import SCTextField from '../../../components/common/SCTextField';
-import SCButton from '../../../components/common/SCButton';
+import EkoHeader from '../../../components/common/EkoHeader';
+import EkoTextField from '../../../components/common/EkoTextField';
+import EkoButton from '../../../components/common/EkoButton';
 import RatingStars from '../../../components/common/RatingStars';
+import { api } from '../../../api';
+import { useCreateAppointment } from '../../../hooks/queries';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -28,24 +30,41 @@ export default function PaymentScreen({ navigation, route }: Props) {
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');
   const [loading, setLoading] = useState(false);
+  const createAppointment = useCreateAppointment();
 
-  const pay = () => {
+  const pay = async () => {
     if (method === 'card') {
       if (!cardName.trim()) return Alert.alert('', 'Please enter card holder name.');
       if (cardNumber.length < 16) return Alert.alert('', 'Please enter a valid card number.');
     }
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      // 1. Reserve the appointment, 2. open a payment intent against it.
+      // Card entries route through Flutterwave (the pitch's NGN processor);
+      // the backend redirects to the provider's checkout when live.
+      const appointment = await createAppointment.mutateAsync({
+        doctorId: doctor?.id ?? '',
+        date: date ?? '',
+        time: slot ?? '',
+        type: type ?? 'Video Visit',
+      });
+      await api.payments.createIntent({
+        appointmentId: appointment.id,
+        provider: method === 'paypal' ? 'paypal' : 'flutterwave',
+      });
       Alert.alert('Payment Successful', 'Your payment has been processed successfully.', [
         { text: 'OK', onPress: () => navigation.navigate('AppointmentConfirmed', { doctor, slot, date, type }) },
       ]);
-    }, 1500);
+    } catch (err) {
+      Alert.alert('Payment failed', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <View style={styles.container}>
-      <SCHeader title="Payment" onBack={() => navigation.goBack()} />
+      <EkoHeader title="Payment" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.doctorCard}>
           <View style={styles.avatar}>
@@ -57,7 +76,7 @@ export default function PaymentScreen({ navigation, route }: Props) {
             <RatingStars rating={doctor?.rating ?? 4.5} size={12} />
           </View>
           <View style={styles.feeBox}>
-            <Text style={styles.fee}>{doctor?.fee ?? '$80'}</Text>
+            <Text style={styles.fee}>{doctor?.fee ?? '₦15,000'}</Text>
             <Text style={styles.feeLabel}>Fee</Text>
           </View>
         </View>
@@ -78,21 +97,21 @@ export default function PaymentScreen({ navigation, route }: Props) {
         {method === 'card' && (
           <View style={styles.cardForm}>
             <Text style={styles.sectionLabel}>Card Details</Text>
-            <SCTextField placeholder="Card Holder Name" icon="user" value={cardName} onChangeText={setCardName} />
-            <SCTextField placeholder="Card Number" icon="credit-card" value={cardNumber} onChangeText={setCardNumber} keyboardType="number-pad" maxLength={16} />
+            <EkoTextField placeholder="Card Holder Name" icon="user" value={cardName} onChangeText={setCardName} />
+            <EkoTextField placeholder="Card Number" icon="credit-card" value={cardNumber} onChangeText={setCardNumber} keyboardType="number-pad" maxLength={16} />
             <View style={styles.row}>
-              <SCTextField placeholder="MM / YY" icon="calendar" value={expiry} onChangeText={setExpiry} containerStyle={styles.halfField} keyboardType="numbers-and-punctuation" />
-              <SCTextField placeholder="CVV" icon="lock" value={cvv} onChangeText={setCvv} containerStyle={styles.halfField} keyboardType="number-pad" maxLength={3} isPassword />
+              <EkoTextField placeholder="MM / YY" icon="calendar" value={expiry} onChangeText={setExpiry} containerStyle={styles.halfField} keyboardType="numbers-and-punctuation" />
+              <EkoTextField placeholder="CVV" icon="lock" value={cvv} onChangeText={setCvv} containerStyle={styles.halfField} keyboardType="number-pad" maxLength={3} isPassword />
             </View>
           </View>
         )}
 
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Total Amount</Text>
-          <Text style={styles.totalValue}>{doctor?.fee ?? '$80'}</Text>
+          <Text style={styles.totalValue}>{doctor?.fee ?? '₦15,000'}</Text>
         </View>
 
-        <SCButton title={`Pay ${doctor?.fee ?? '$80'}`} variant="accent" onPress={pay} loading={loading} />
+        <EkoButton title={`Pay ${doctor?.fee ?? '₦15,000'}`} variant="accent" onPress={pay} loading={loading} />
       </ScrollView>
     </View>
   );

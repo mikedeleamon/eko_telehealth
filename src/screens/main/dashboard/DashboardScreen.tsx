@@ -7,7 +7,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
-import { MOCK_PATIENT_REQUESTS, MOCK_DOCTOR_APPOINTMENTS, MOCK_CONVERSATIONS } from '../../../constants';
+import { MOCK_PATIENT_REQUESTS } from '../../../constants';
+import { useConversations, useDoctorAgenda } from '../../../hooks/queries';
 import Cross from '../../../components/common/Cross';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -28,8 +29,10 @@ export default function DashboardScreen({ navigation }: Props) {
   const [search, setSearch] = useState('');
 
   const firstName = user?.firstName ?? 'Doctor';
-  const unreadCount = MOCK_CONVERSATIONS.reduce((n, c) => n + c.unread, 0);
-  const remaining = MOCK_DOCTOR_APPOINTMENTS.length;
+  const { data: conversations = [] } = useConversations();
+  const { data: agenda = [] } = useDoctorAgenda();
+  const unreadCount = conversations.reduce((n, c) => n + c.unread, 0);
+  const remaining = agenda.length;
 
   return (
     <View style={styles.screen}>
@@ -134,7 +137,7 @@ export default function DashboardScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
 
-          {MOCK_DOCTOR_APPOINTMENTS.map((appt) => {
+          {agenda.map((appt) => {
             const meta = STATUS_META[appt.status] ?? STATUS_META.confirmed;
             return (
               <TouchableOpacity

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
-import SCHeader from '../../../components/common/SCHeader';
+import EkoHeader from '../../../components/common/EkoHeader';
 import RatingStars from '../../../components/common/RatingStars';
 
 interface Props {
@@ -22,7 +22,7 @@ const PEER_DATA = [
 export default function PeerReviewScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
-      <SCHeader title="Peer Reviews" onBack={() => navigation.goBack()} />
+      <EkoHeader title="Peer Reviews" onBack={() => navigation.goBack()} />
       <FlatList
         data={PEER_DATA}
         keyExtractor={(item) => item.id}

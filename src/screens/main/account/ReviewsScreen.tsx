@@ -4,9 +4,9 @@ import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
-import SCHeader from '../../../components/common/SCHeader';
+import EkoHeader from '../../../components/common/EkoHeader';
 import RatingStars from '../../../components/common/RatingStars';
-import SCButton from '../../../components/common/SCButton';
+import EkoButton from '../../../components/common/EkoButton';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -32,7 +32,7 @@ export default function ReviewsScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
-      <SCHeader title="Reviews" onBack={() => navigation.goBack()} />
+      <EkoHeader title="Reviews" onBack={() => navigation.goBack()} />
       <FlatList
         data={MOCK_REVIEWS}
         keyExtractor={(item) => item.id}
@@ -71,7 +71,7 @@ export default function ReviewsScreen({ navigation, route }: Props) {
               multiline
               numberOfLines={4}
             />
-            <SCButton title="Submit Review" variant="accent" onPress={submitReview} />
+            <EkoButton title="Submit Review" variant="accent" onPress={submitReview} />
           </View>
         }
       />

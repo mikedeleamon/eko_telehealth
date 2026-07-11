@@ -5,7 +5,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
-import { MOCK_APPOINTMENTS, MOCK_DOCTOR_SCHEDULE } from '../../../constants';
+import { MOCK_DOCTOR_SCHEDULE } from '../../../constants';
+import { useAppointments } from '../../../hooks/queries';
 import AppointmentCard from '../../../components/appointments/AppointmentCard';
 import Cross from '../../../components/common/Cross';
 import { useAuth } from '../../../context/AuthContext';
@@ -19,7 +20,9 @@ export default function AppointmentsScreen({ navigation }: Props) {
   const { isDoctor } = useAuth();
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
 
-  const source = isDoctor ? MOCK_DOCTOR_SCHEDULE : MOCK_APPOINTMENTS;
+  const { data: appointments = [] } = useAppointments();
+  // Doctor schedule keeps mock data until the practice-schedule endpoint exists.
+  const source = isDoctor ? MOCK_DOCTOR_SCHEDULE : appointments;
   const data = source.filter((a) => a.status === tab);
 
   return (

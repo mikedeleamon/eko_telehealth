@@ -5,8 +5,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
-import SCTextField from '../../../components/common/SCTextField';
-import SCButton from '../../../components/common/SCButton';
+import EkoTextField from '../../../components/common/EkoTextField';
+import EkoButton from '../../../components/common/EkoButton';
 import Cross from '../../../components/common/Cross';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -70,13 +70,13 @@ export default function EditProfileScreen({ navigation }: Props) {
 
         {/* Form (fields unchanged) */}
         <View style={styles.form}>
-          <SCTextField label="First Name" placeholder="First Name" icon="user" value={firstName} onChangeText={setFirstName} />
-          <SCTextField label="Last Name" placeholder="Last Name" icon="user" value={lastName} onChangeText={setLastName} />
-          <SCTextField label="Email" placeholder="Email" icon="envelope-o" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-          <SCTextField label="Phone" placeholder="Phone number" icon="phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-          <SCTextField label="City" placeholder="City" icon="map-marker" value={city} onChangeText={setCity} />
+          <EkoTextField label="First Name" placeholder="First Name" icon="user" value={firstName} onChangeText={setFirstName} />
+          <EkoTextField label="Last Name" placeholder="Last Name" icon="user" value={lastName} onChangeText={setLastName} />
+          <EkoTextField label="Email" placeholder="Email" icon="envelope-o" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          <EkoTextField label="Phone" placeholder="Phone number" icon="phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+          <EkoTextField label="City" placeholder="City" icon="map-marker" value={city} onChangeText={setCity} />
 
-          <SCButton title="UPDATE" variant="accent" onPress={save} loading={loading} style={styles.btn} />
+          <EkoButton title="UPDATE" variant="accent" onPress={save} loading={loading} style={styles.btn} />
         </View>
       </ScrollView>
     </View>

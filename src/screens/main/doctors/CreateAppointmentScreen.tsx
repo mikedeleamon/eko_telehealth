@@ -4,8 +4,8 @@ import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
-import SCHeader from '../../../components/common/SCHeader';
-import SCButton from '../../../components/common/SCButton';
+import EkoHeader from '../../../components/common/EkoHeader';
+import EkoButton from '../../../components/common/EkoButton';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -23,19 +23,17 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
   const [selectedType, setSelectedType] = useState(
     TYPES.some((t) => t.label === type) ? type : 'Video Visit'
   );
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
 
+  // The appointment is only committed once payment succeeds (PaymentScreen),
+  // so this step just carries the selection forward.
   const handleConfirm = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      navigation.navigate('Payment', { doctor, slot, date, type: selectedType });
-    }, 900);
+    navigation.navigate('Payment', { doctor, slot, date, type: selectedType });
   };
 
   return (
     <View style={styles.container}>
-      <SCHeader title="Create Appointment" onBack={() => navigation.goBack()} />
+      <EkoHeader title="Create Appointment" onBack={() => navigation.goBack()} />
       <ScrollView style={styles.body} contentContainerStyle={styles.content}>
         <View style={styles.doctorCard}>
           <View style={styles.avatar}>
@@ -78,7 +76,7 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
           <Text style={styles.feeValue}>{doctor?.fee ?? '$0'}</Text>
         </View>
 
-        <SCButton title="Proceed to Payment" variant="accent" onPress={handleConfirm} loading={loading} style={styles.btn} />
+        <EkoButton title="Proceed to Payment" variant="accent" onPress={handleConfirm} loading={loading} style={styles.btn} />
       </ScrollView>
     </View>
   );

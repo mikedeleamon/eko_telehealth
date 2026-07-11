@@ -103,18 +103,39 @@ npm run web
 ```
 eko_telehealth/
 ├── src/
+│   ├── api/            # Typed API client, endpoint modules, domain types, mock adapter
 │   ├── components/     # Shared UI components
-│   ├── constants/      # App-wide constants (colors, fonts, etc.)
+│   ├── config/         # Runtime config from EXPO_PUBLIC_* env vars
+│   ├── constants/      # App-wide constants (colors, mock/demo data, etc.)
 │   ├── context/        # React context providers (auth, etc.)
+│   ├── hooks/          # React Query hooks + useCall (call lifecycle)
 │   ├── navigation/     # Stack and tab navigators
 │   ├── screens/        # Screen components grouped by flow
-│   └── utils/          # Helper functions
+│   ├── services/       # Provider-agnostic messaging + video services (mock/Twilio)
+│   └── store/          # Zustand stores (persisted auth session)
 ├── assets/             # Images, fonts, and other static assets
-├── ios/                # Native iOS project
+├── ios/                # Native iOS project (generated — `npx expo prebuild`)
 ├── App.tsx             # App entry point
 ├── app.json            # Expo configuration
 └── package.json
 ```
+
+---
+
+## Backend & services configuration
+
+The app runs entirely on built-in mock data until a backend is configured, so
+every flow is demoable out of the box.
+
+1. Copy `.env.example` to `.env`.
+2. Set `EXPO_PUBLIC_API_URL` to the backend base URL and
+   `EXPO_PUBLIC_USE_MOCK_API=false` to go live.
+3. Set `EXPO_PUBLIC_REALTIME_PROVIDER=twilio` once the Twilio integrations in
+   `src/services/messaging` and `src/services/video` are configured.
+
+The full list of backend endpoints the app expects, plus Twilio /
+Flutterwave / PayPal setup steps, is in `Eko_Telehealth_Integration_Guide.pdf`
+(repo root's parent folder).
 
 ---
 

@@ -3,22 +3,24 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Platform } from 're
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
-import SCHeader from '../../../components/common/SCHeader';
-import { MOCK_CONVERSATIONS, MOCK_DOCTORS } from '../../../constants';
+import EkoHeader from '../../../components/common/EkoHeader';
+import { useConversations, useDoctors } from '../../../hooks/queries';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
 }
 
 export default function MessagesScreen({ navigation }: Props) {
-  const conversations = MOCK_CONVERSATIONS.map((c) => ({
+  const { data: convList = [] } = useConversations();
+  const { data: doctors = [] } = useDoctors();
+  const conversations = convList.map((c) => ({
     ...c,
-    doctor: MOCK_DOCTORS.find((d) => d.id === c.doctorId),
+    doctor: doctors.find((d) => d.id === c.doctorId),
   }));
 
   return (
     <View style={styles.container}>
-      <SCHeader title="Messages" onBack={() => navigation.goBack()} />
+      <EkoHeader title="Messages" onBack={() => navigation.goBack()} />
 
       <FlatList
         data={conversations}

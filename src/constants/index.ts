@@ -3,20 +3,20 @@ export const APP_NAME = 'Eko Telehealth';
 export const TUTORIAL_DATA = [
   {
     id: '1',
-    title: 'Locate and Book a Doctor in a Snap!',
-    subtitle: 'Conveniently locate competent doctors and specialists near you, other states and abroad!',
+    title: 'Care, delivered to where you are',
+    subtitle: 'Find verified doctors and specialists near you, in other states, and abroad — all in one trusted place.',
     color: '#E8F4FD',
   },
   {
     id: '2',
-    title: 'Many ways to book an appointment with a doctor in a snap!',
-    subtitle: 'Video visit, clinic visit, home visit — choose what works best for you.',
+    title: 'Every kind of visit, your choice',
+    subtitle: 'Video visit, clinic visit, home visit — book the type of care that works best for you.',
     color: '#FDE8EC',
   },
   {
     id: '3',
-    title: 'Flexible and High Quality Healthcare at the snap of your Finger',
-    subtitle: "Schedule a healthcare appointment, either for yourself, your dependent or a parent, even while you're living in diaspora!",
+    title: 'Care for the people you love, from anywhere',
+    subtitle: "Book appointments for yourself, a dependent or a parent — and stay on top of their care even from the diaspora.",
     color: '#FFFDE7',
   },
 ];
@@ -42,65 +42,65 @@ export const APPOINTMENT_TYPES = [
 export const MOCK_DOCTORS = [
   {
     id: '1',
-    name: 'Dr. Julianna May MD',
+    name: 'Dr. Amara Okafor MD',
     specialty: 'Therapist, Primary care doctor',
     category: 'Primary Care',
     rating: 4.9,
     reviews: 79,
-    location: '9044 W.Houston St. New York, NY 10012',
-    fee: '$80',
+    location: 'Victoria Island, Lagos',
+    fee: '₦15,000',
     available: true,
     nextAvailable: '29, June',
     avatar: null,
   },
   {
     id: '2',
-    name: 'Dr. Mike Brinx MD',
+    name: 'Dr. Chinedu Eze MD',
     specialty: 'Eye Specialist, Eye Doctor',
     category: 'Eye Doctor',
     rating: 4.9,
     reviews: 79,
-    location: '9044 W.Houston St. New York, NY 10012',
-    fee: '$120',
+    location: 'Ikeja, Lagos',
+    fee: '₦22,000',
     available: true,
     nextAvailable: '29, June',
     avatar: null,
   },
   {
     id: '3',
-    name: 'Dr. Emily Rodriguez',
+    name: 'Dr. Funmilayo Adeyemi',
     specialty: 'OBGYN Specialist',
     category: 'OBGYN',
     rating: 4.7,
     reviews: 213,
-    location: 'Chicago, IL',
-    fee: '$150',
+    location: 'Garki, Abuja',
+    fee: '₦28,000',
     available: false,
     nextAvailable: '2, July',
     avatar: null,
   },
   {
     id: '4',
-    name: 'Dr. James Williams MD',
+    name: 'Dr. James Whitfield MD',
     specialty: 'Cardiologist, Internal Medicine',
     category: 'Cardiology',
     rating: 4.6,
     reviews: 87,
-    location: '200 Medical Plaza, Houston, TX',
-    fee: '$200',
+    location: 'London, UK · Remote',
+    fee: '₦38,000',
     available: true,
     nextAvailable: '30, June',
     avatar: null,
   },
   {
     id: '5',
-    name: 'Dr. Aisha Patel MD',
+    name: 'Dr. Aisha Bello MD',
     specialty: 'Dermatologist',
     category: 'Dermatology',
     rating: 4.9,
     reviews: 301,
-    location: 'Miami, FL',
-    fee: '$110',
+    location: 'Port Harcourt, Rivers',
+    fee: '₦20,000',
     available: true,
     nextAvailable: '1, July',
     avatar: null,
@@ -110,7 +110,7 @@ export const MOCK_DOCTORS = [
 export const MOCK_APPOINTMENTS = [
   {
     id: '1',
-    doctor: 'Dr. Julianna May MD',
+    doctor: 'Dr. Amara Okafor MD',
     specialty: 'Primary Care',
     date: 'Mon, Jun 29, 2026',
     time: '10:00 AM',
@@ -119,7 +119,7 @@ export const MOCK_APPOINTMENTS = [
   },
   {
     id: '2',
-    doctor: 'Dr. Mike Brinx MD',
+    doctor: 'Dr. Chinedu Eze MD',
     specialty: 'Eye Doctor',
     date: 'Wed, Jul 2, 2026',
     time: '2:30 PM',
@@ -128,7 +128,7 @@ export const MOCK_APPOINTMENTS = [
   },
   {
     id: '3',
-    doctor: 'Dr. Emily Rodriguez',
+    doctor: 'Dr. Funmilayo Adeyemi',
     specialty: 'OBGYN',
     date: 'May 15, 2026',
     time: '11:00 AM',
@@ -137,7 +137,7 @@ export const MOCK_APPOINTMENTS = [
   },
   {
     id: '4',
-    doctor: 'Dr. James Williams MD',
+    doctor: 'Dr. James Whitfield MD',
     specialty: 'Cardiology',
     date: 'Apr 28, 2026',
     time: '3:00 PM',
@@ -154,45 +154,45 @@ export const MOCK_CONVERSATIONS = [
 ];
 
 export const MOCK_NOTIFICATIONS = [
-  { id: '1', title: 'Appointment Reminder', body: 'Your appointment with Dr. Julianna May is tomorrow at 10:00 AM.', time: '2h ago' },
-  { id: '2', title: 'Appointment Confirmed', body: 'Dr. Mike Brinx confirmed your Jul 2 appointment.', time: '1d ago' },
-  { id: '3', title: 'New Message', body: 'You have a new message from Dr. Emily Rodriguez.', time: '2d ago' },
-  { id: '4', title: 'Payment Successful', body: 'Your payment of $80 for the video visit has been processed.', time: '3d ago' },
+  { id: '1', title: 'Appointment Reminder', body: 'Your appointment with Dr. Amara Okafor is tomorrow at 10:00 AM.', time: '2h ago' },
+  { id: '2', title: 'Appointment Confirmed', body: 'Dr. Chinedu Eze confirmed your Jul 2 appointment.', time: '1d ago' },
+  { id: '3', title: 'New Message', body: 'You have a new message from Dr. Funmilayo Adeyemi.', time: '2d ago' },
+  { id: '4', title: 'Payment Successful', body: 'Your payment of ₦15,000 for the video visit has been processed.', time: '3d ago' },
 ];
 
 // ---- Doctor-side mock data ----
 
 export const MOCK_PATIENT_REQUESTS = [
-  { id: 'r1', name: 'John Smith', reason: 'Consultation' },
-  { id: 'r2', name: 'Maria Garcia', reason: 'Consultation' },
+  { id: 'r1', name: 'Tunde Bakare', reason: 'Consultation' },
+  { id: 'r2', name: 'Ngozi Nwosu', reason: 'Consultation' },
 ];
 
 // status drives the colored dot + soft row tint in the dashboard agenda
 export const MOCK_DOCTOR_APPOINTMENTS = [
-  { id: 'd1', name: 'Andrew Flintoff', type: 'Consultation', time: '12:30 am', status: 'confirmed' },
-  { id: 'd2', name: 'Jimmie Christian', type: 'First Visit', time: '11:30 am', status: 'cancelled' },
-  { id: 'd3', name: 'Alex Stewart', type: 'Consultation', time: '12:30 am', status: 'rescheduled' },
+  { id: 'd1', name: 'Emeka Obi', type: 'Consultation', time: '12:30 pm', status: 'confirmed' },
+  { id: 'd2', name: 'Yusuf Ibrahim', type: 'First Visit', time: '11:30 am', status: 'cancelled' },
+  { id: 'd3', name: 'Bisi Alade', type: 'Consultation', time: '12:30 pm', status: 'rescheduled' },
   { id: 'd4', name: 'Augustine Watts', type: 'Consultation', time: '10:30 am', status: 'pending' },
-  { id: 'd5', name: 'Andrew Flintoff', type: 'Consultation', time: '12:30 am', status: 'confirmed' },
+  { id: 'd5', name: 'Emeka Obi', type: 'Consultation', time: '12:30 pm', status: 'confirmed' },
 ];
 
 // Doctor's appointment list (Scheduler tab) — same shape as MOCK_APPOINTMENTS,
 // but the `doctor` field holds the patient's name and `specialty` the visit reason.
 export const MOCK_DOCTOR_SCHEDULE = [
-  { id: 's1', doctor: 'Andrew Flintoff', specialty: 'Consultation', date: 'Mon, Jun 29, 2026', time: '12:30 PM', type: 'Video Visit', status: 'upcoming' },
-  { id: 's2', doctor: 'Jimmie Christian', specialty: 'First Visit', date: 'Mon, Jun 29, 2026', time: '11:30 AM', type: 'Clinic Visit', status: 'upcoming' },
-  { id: 's3', doctor: 'Alex Stewart', specialty: 'Consultation', date: 'Tue, Jun 30, 2026', time: '12:30 PM', type: 'Video Visit', status: 'upcoming' },
+  { id: 's1', doctor: 'Emeka Obi', specialty: 'Consultation', date: 'Mon, Jun 29, 2026', time: '12:30 PM', type: 'Video Visit', status: 'upcoming' },
+  { id: 's2', doctor: 'Yusuf Ibrahim', specialty: 'First Visit', date: 'Mon, Jun 29, 2026', time: '11:30 AM', type: 'Clinic Visit', status: 'upcoming' },
+  { id: 's3', doctor: 'Bisi Alade', specialty: 'Consultation', date: 'Tue, Jun 30, 2026', time: '12:30 PM', type: 'Video Visit', status: 'upcoming' },
   { id: 's4', doctor: 'Augustine Watts', specialty: 'Consultation', date: 'Jun 10, 2026', time: '10:30 AM', type: 'Clinic Visit', status: 'past' },
-  { id: 's5', doctor: 'Maria Garcia', specialty: 'Follow-up', date: 'May 28, 2026', time: '3:00 PM', type: 'Video Visit', status: 'past' },
+  { id: 's5', doctor: 'Ngozi Nwosu', specialty: 'Follow-up', date: 'May 28, 2026', time: '3:00 PM', type: 'Video Visit', status: 'past' },
 ];
 
 export const MOCK_PATIENTS = [
-  { id: 'p1', name: 'Andrew Flintoff', age: 34, gender: 'Male', condition: 'Hypertension', lastVisit: 'Jun 20, 2026' },
-  { id: 'p2', name: 'Jimmie Christian', age: 28, gender: 'Male', condition: 'First Visit', lastVisit: 'New patient' },
+  { id: 'p1', name: 'Emeka Obi', age: 34, gender: 'Male', condition: 'Hypertension', lastVisit: 'Jun 20, 2026' },
+  { id: 'p2', name: 'Yusuf Ibrahim', age: 28, gender: 'Male', condition: 'First Visit', lastVisit: 'New patient' },
   { id: 'p3', name: 'Alex Stewart', age: 45, gender: 'Male', condition: 'Diabetes Type 2', lastVisit: 'Jun 12, 2026' },
   { id: 'p4', name: 'Augustine Watts', age: 52, gender: 'Female', condition: 'Migraine', lastVisit: 'Jun 5, 2026' },
-  { id: 'p5', name: 'Maria Garcia', age: 31, gender: 'Female', condition: 'Pregnancy care', lastVisit: 'May 29, 2026' },
-  { id: 'p6', name: 'John Smith', age: 40, gender: 'Male', condition: 'Annual checkup', lastVisit: 'May 14, 2026' },
+  { id: 'p5', name: 'Ngozi Nwosu', age: 31, gender: 'Female', condition: 'Pregnancy care', lastVisit: 'May 29, 2026' },
+  { id: 'p6', name: 'Tunde Bakare', age: 40, gender: 'Male', condition: 'Annual checkup', lastVisit: 'May 14, 2026' },
 ];
 
 export const TIME_SLOTS = [

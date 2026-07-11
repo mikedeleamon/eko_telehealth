@@ -16,18 +16,20 @@ import TabNavigator from './TabNavigator';
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
-  const { isLoggedIn, hasOnboarded } = useAuth();
+  const { isLoggedIn } = useAuth();
 
   return (
     <NavigationContainer>
       <Stack.Navigator
         screenOptions={{ headerShown: false, animation: 'fade' }}
-        initialRouteName={hasOnboarded ? 'Login' : 'Tutorial'}
+        initialRouteName="Login"
       >
         {!isLoggedIn ? (
           <>
-            <Stack.Screen name="Tutorial" component={TutorialScreen} />
-            <Stack.Screen name="Login" component={LoginScreen} options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            {/* Reached only after Signup + VerifyEmail — onboarding is a
+                post-signup welcome, not a pre-login gate. */}
+            <Stack.Screen name="Tutorial" component={TutorialScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="Signup" component={SignupScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="ForgotPassLanding" component={ForgotPassLandingScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ animation: 'slide_from_right' }} />

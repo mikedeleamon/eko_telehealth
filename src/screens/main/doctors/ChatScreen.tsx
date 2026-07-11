@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
   TouchableOpacity, KeyboardAvoidingView, Platform, Alert,
@@ -7,52 +7,45 @@ import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
-import SCHeader from '../../../components/common/SCHeader';
+import EkoHeader from '../../../components/common/EkoHeader';
+import { chatService } from '../../../services/messaging';
+import type { ChatMessage } from '../../../api/types';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
   route: RouteProp<any>;
 }
 
-interface Message {
-  id: string;
-  text: string;
-  fromMe: boolean;
-  time: string;
-}
-
-const INITIAL_MESSAGES: Message[] = [
-  { id: '1', text: 'Hello! How can I help you today?', fromMe: false, time: '2:00 PM' },
-  { id: '2', text: 'Hi doctor, I\'ve been having some headaches lately.', fromMe: true, time: '2:01 PM' },
-  { id: '3', text: 'I see. How long have you been experiencing them? Are they accompanied by any other symptoms?', fromMe: false, time: '2:02 PM' },
-  { id: '4', text: 'About a week. I also feel a bit dizzy sometimes.', fromMe: true, time: '2:03 PM' },
-];
-
 export default function ChatScreen({ navigation, route }: Props) {
   const doctor = route.params?.doctor;
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
+  const conversationId: string = route.params?.conversationId ?? `doctor-${doctor?.id ?? 'unknown'}`;
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState('');
   const listRef = useRef<FlatList>(null);
 
-  const send = () => {
-    if (!text.trim()) return;
-    const newMsg: Message = {
-      id: Date.now().toString(),
-      text: text.trim(),
-      fromMe: true,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  useEffect(() => {
+    let cancelled = false;
+    chatService.loadMessages(conversationId).then((history) => {
+      if (!cancelled) setMessages(history);
+    });
+    const unsubscribe = chatService.onMessage(conversationId, (incoming) => {
+      setMessages((prev) => [...prev, incoming]);
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
     };
-    setMessages((prev) => [...prev, newMsg]);
+  }, [conversationId]);
+
+  const send = async () => {
+    if (!text.trim()) return;
+    const body = text.trim();
     setText('');
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { id: (Date.now() + 1).toString(), text: 'Thank you, I\'ll review your information shortly.', fromMe: false, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
-      ]);
-    }, 1200);
+    const sent = await chatService.sendMessage(conversationId, body);
+    setMessages((prev) => [...prev, sent]);
   };
 
-  const renderMsg = ({ item }: { item: Message }) => (
+  const renderMsg = ({ item }: { item: ChatMessage }) => (
     <View style={[styles.msgRow, item.fromMe ? styles.msgRowMe : styles.msgRowThem]}>
       <View style={[styles.bubble, item.fromMe ? styles.bubbleMe : styles.bubbleThem]}>
         <Text style={[styles.msgText, item.fromMe && styles.msgTextMe]}>{item.text}</Text>
@@ -63,7 +56,7 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <SCHeader
+      <EkoHeader
         title={doctor?.name ?? 'Chat'}
         onBack={() => navigation.goBack()}
         rightAction={{ icon: 'video-camera', onPress: () => navigation.navigate('VideoCall', { doctor }) }}

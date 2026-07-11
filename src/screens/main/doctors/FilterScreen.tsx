@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
-import SCHeader from '../../../components/common/SCHeader';
-import SCButton from '../../../components/common/SCButton';
+import EkoHeader from '../../../components/common/EkoHeader';
+import EkoButton from '../../../components/common/EkoButton';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -34,7 +34,7 @@ export default function FilterScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <SCHeader title="Filter" onBack={() => navigation.goBack()} />
+      <EkoHeader title="Filter" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content}>
         <Section title="Specialty">
           <View style={styles.chipRow}>
@@ -85,7 +85,7 @@ export default function FilterScreen({ navigation }: Props) {
         </Section>
 
         <View style={styles.actions}>
-          <SCButton
+          <EkoButton
             title="Reset"
             variant="outline"
             onPress={() => {
@@ -97,7 +97,7 @@ export default function FilterScreen({ navigation }: Props) {
             }}
             style={styles.resetBtn}
           />
-          <SCButton title="Apply Filters" variant="accent" onPress={() => navigation.goBack()} style={styles.applyBtn} />
+          <EkoButton title="Apply Filters" variant="accent" onPress={() => navigation.goBack()} style={styles.applyBtn} />
         </View>
       </ScrollView>
     </View>

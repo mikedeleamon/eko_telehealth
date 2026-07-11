@@ -4,9 +4,9 @@ import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
-import { MOCK_DOCTORS } from '../../../constants';
-import SCHeader from '../../../components/common/SCHeader';
-import SCButton from '../../../components/common/SCButton';
+import { useDoctors } from '../../../hooks/queries';
+import EkoHeader from '../../../components/common/EkoHeader';
+import EkoButton from '../../../components/common/EkoButton';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -30,9 +30,10 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
   const { doctor: doctorName, specialty, date, time, type = 'Video Visit', status = 'upcoming' } = appointment;
 
   // Resolve the full doctor record so calls / chat / rescheduling have what they need.
+  const { data: doctors = [] } = useDoctors();
   const doctor =
-    MOCK_DOCTORS.find((d) => d.name === doctorName) ??
-    { name: doctorName ?? 'Doctor', specialty: specialty ?? '', fee: '$80', rating: 4.8 };
+    doctors.find((d) => d.name === doctorName) ??
+    { name: doctorName ?? 'Doctor', specialty: specialty ?? '', fee: '₦15,000', rating: 4.8 };
 
   const isUpcoming = status === 'upcoming';
   const statusColor = STATUS_COLORS[status] ?? Colors.textGray;
@@ -60,7 +61,7 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
-      <SCHeader title="Appointment Details" onBack={() => navigation.goBack()} />
+      <EkoHeader title="Appointment Details" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Doctor hero card */}
@@ -84,25 +85,25 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
           <DetailRow icon="calendar" label="Date" value={date ?? '—'} />
           <DetailRow icon="clock-o" label="Time" value={time ?? '—'} />
           <DetailRow icon={typeIcon} label="Type" value={type} />
-          <DetailRow icon="dollar" label="Fee" value={doctor.fee ?? '$80'} last />
+          <DetailRow icon="dollar" label="Fee" value={doctor.fee ?? '₦15,000'} last />
         </View>
 
         {/* Actions */}
         {isUpcoming ? (
           <>
-            <SCButton
+            <EkoButton
               title={type === 'Video Visit' ? 'Join Video Call' : 'Join Audio Call'}
               variant="accent"
               onPress={joinCall}
               style={styles.btn}
             />
-            <SCButton
+            <EkoButton
               title="Send Message"
               variant="outline"
               onPress={() => navigation.navigate('Chat', { doctor })}
               style={styles.btn}
             />
-            <SCButton
+            <EkoButton
               title="Reschedule"
               variant="outline"
               onPress={() => navigation.navigate('DoctorOverview', { doctor, initialTab: 'schedule' })}
@@ -114,13 +115,13 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
           </>
         ) : (
           <>
-            <SCButton
+            <EkoButton
               title="Book Again"
               variant="accent"
               onPress={() => navigation.navigate('DoctorOverview', { doctor, initialTab: 'schedule' })}
               style={styles.btn}
             />
-            <SCButton
+            <EkoButton
               title="Send Message"
               variant="outline"
               onPress={() => navigation.navigate('Chat', { doctor })}

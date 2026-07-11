@@ -8,7 +8,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
-import { MOCK_DOCTORS, MOCK_APPOINTMENTS, SPECIALTY_CHIPS, MOCK_CONVERSATIONS } from '../../../constants';
+import { SPECIALTY_CHIPS } from '../../../constants';
+import { useAppointments, useConversations, useDoctors } from '../../../hooks/queries';
 import DoctorCard from '../../../components/doctors/DoctorCard';
 import AppointmentCard from '../../../components/appointments/AppointmentCard';
 import Cross from '../../../components/common/Cross';
@@ -26,7 +27,11 @@ export default function MyDoctorsScreen({ navigation }: Props) {
 
   const chips = [{ label: 'All', count: null, color: Colors.primary }, ...SPECIALTY_CHIPS];
 
-  const filtered = MOCK_DOCTORS.filter(d => {
+  const { data: doctors = [] } = useDoctors();
+  const { data: appointments = [] } = useAppointments();
+  const { data: conversationList = [] } = useConversations();
+
+  const filtered = doctors.filter(d => {
     const matchSearch = !search ||
       d.name.toLowerCase().includes(search.toLowerCase()) ||
       d.specialty.toLowerCase().includes(search.toLowerCase());
@@ -34,8 +39,8 @@ export default function MyDoctorsScreen({ navigation }: Props) {
     return matchSearch && matchChip;
   });
 
-  const todayAppts = MOCK_APPOINTMENTS.filter(a => a.status === 'upcoming').slice(0, 2);
-  const unreadCount = MOCK_CONVERSATIONS.reduce((n, c) => n + c.unread, 0);
+  const todayAppts = appointments.filter(a => a.status === 'upcoming').slice(0, 2);
+  const unreadCount = conversationList.reduce((n, c) => n + c.unread, 0);
 
   return (
     <View style={styles.screen}>

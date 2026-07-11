@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "Eko Telehealth",
-    "slug": "snappy-care",
+    "slug": "eko-telehealth",
+    "scheme": "ekotelehealth",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,14 +14,14 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.ekotelehealth.snappycare"
+      "bundleIdentifier": "com.ekotelehealth.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1565C0"
       },
-      "package": "com.ekotelehealth.snappycare"
+      "package": "com.ekotelehealth.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"

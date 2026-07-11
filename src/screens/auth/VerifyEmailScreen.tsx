@@ -33,7 +33,9 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      navigation.navigate(isReset ? 'ChangePassword' : 'Login');
+      // Fresh signup: show the onboarding tutorial once, then land on Login.
+      // Password reset: continue straight to setting a new password.
+      navigation.navigate(isReset ? 'ChangePassword' : 'Tutorial');
     }, 1000);
   };
 

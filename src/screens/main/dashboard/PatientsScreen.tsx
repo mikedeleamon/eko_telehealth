@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
-import { MOCK_PATIENTS } from '../../../constants';
+import { usePatients } from '../../../hooks/queries';
 import Cross from '../../../components/common/Cross';
 
 interface Props {
@@ -18,7 +18,8 @@ export default function PatientsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
 
-  const data = MOCK_PATIENTS.filter(
+  const { data: patients = [] } = usePatients();
+  const data = patients.filter(
     (p) =>
       !search ||
       p.name.toLowerCase().includes(search.toLowerCase()) ||

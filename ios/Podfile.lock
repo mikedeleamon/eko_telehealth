@@ -2077,6 +2077,28 @@ PODS:
     - React-utils (= 0.83.6)
     - ReactNativeDependencies
   - ReactNativeDependencies (0.83.6)
+  - RNCAsyncStorage (2.2.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - RNScreens (4.23.0):
     - hermes-engine
     - RCTRequired
@@ -2221,6 +2243,7 @@ DEPENDENCIES:
   - ReactCodegen (from `build/generated/ios/ReactCodegen`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - ReactNativeDependencies (from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
+  - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
   - RNScreens (from `../node_modules/react-native-screens`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
@@ -2412,6 +2435,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   ReactNativeDependencies:
     :podspec: "../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec"
+  RNCAsyncStorage:
+    :path: "../node_modules/@react-native-async-storage/async-storage"
   RNScreens:
     :path: "../node_modules/react-native-screens"
   Yoga:
@@ -2511,9 +2536,10 @@ SPEC CHECKSUMS:
   ReactCodegen: 169fa6c4ad3c3065f98fa2364bf95e9a21c3afec
   ReactCommon: ba28cd4e7d9e24014d2772a80e32da020c732b00
   ReactNativeDependencies: 57cee984b80aaf6a84b119ef02b9bac3cb3de671
+  RNCAsyncStorage: 3a4f5e2777dae1688b781a487923a08569e27fe4
   RNScreens: 14243fa0d9842ffa7f8bb2d00b6c3cfd3ca817e8
   Yoga: e41d64347f52d634dd8c2f6bac33f95081959fd3
 
-PODFILE CHECKSUM: f929545a20ae2268099d39bc70eb014ea7a2cada
+PODFILE CHECKSUM: e2ad4881fed48d37f038449580e04cf1d01ce979
 
 COCOAPODS: 1.16.2

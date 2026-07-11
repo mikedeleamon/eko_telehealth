@@ -29,8 +29,8 @@ const SLOTS = ['09-10:00', '10-11:00', '11-12:00', '01-02:00', '02-03:00', '03-0
 export default function DoctorOverviewScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const doctor = route.params?.doctor ?? {
-    name: 'Dr. Julianna May', specialty: 'Therapist, Primary care doctor',
-    rating: 4.5, reviews: 79, location: 'New York, NY', fee: '$80', available: true, avatar: null,
+    name: 'Dr. Amara Okafor', specialty: 'Therapist, Primary care doctor',
+    rating: 4.5, reviews: 79, location: 'Victoria Island, Lagos', fee: '₦15,000', available: true, avatar: null,
   };
   const [activeTab, setActiveTab] = useState<'overview' | 'schedule'>(
     route.params?.initialTab === 'schedule' ? 'schedule' : 'overview'

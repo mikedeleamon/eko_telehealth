@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
-import SCButton from '../../../components/common/SCButton';
+import EkoButton from '../../../components/common/EkoButton';
 import { useAuth } from '../../../context/AuthContext';
 
 interface Props {
@@ -38,8 +38,8 @@ export default function AppointmentConfirmedScreen({ navigation, route }: Props)
           <DetailRow icon="dollar" label="Fee" value={doctor?.fee ?? ''} last />
         </View>
 
-        <SCButton title="View Appointments" variant="accent" onPress={() => navigation.navigate(appointmentsTab)} style={styles.primaryBtn} />
-        <SCButton title="Back to Home" onPress={() => navigation.navigate(homeTab)} variant="outline" style={styles.secondaryBtn} />
+        <EkoButton title="View Appointments" variant="accent" onPress={() => navigation.navigate(appointmentsTab)} style={styles.primaryBtn} />
+        <EkoButton title="Back to Home" onPress={() => navigation.navigate(homeTab)} variant="outline" style={styles.secondaryBtn} />
       </View>
     </View>
   );

@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
-import SCHeader from '../../../components/common/SCHeader';
-import SCTextField from '../../../components/common/SCTextField';
-import SCButton from '../../../components/common/SCButton';
+import EkoHeader from '../../../components/common/EkoHeader';
+import EkoTextField from '../../../components/common/EkoTextField';
+import EkoButton from '../../../components/common/EkoButton';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -29,12 +29,12 @@ export default function PreferredPharmacyScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <SCHeader title="Preferred Pharmacy" onBack={() => navigation.goBack()} />
+      <EkoHeader title="Preferred Pharmacy" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <SCTextField label="Pharmacy Name" placeholder="Pharmacy name" icon="medkit" value={name} onChangeText={setName} />
-        <SCTextField label="Address" placeholder="Full address" icon="map-marker" value={address} onChangeText={setAddress} />
-        <SCTextField label="Fax Number" placeholder="Fax number" icon="fax" value={fax} onChangeText={setFax} keyboardType="phone-pad" />
-        <SCButton title="Save Pharmacy" variant="accent" onPress={save} loading={loading} style={styles.btn} />
+        <EkoTextField label="Pharmacy Name" placeholder="Pharmacy name" icon="medkit" value={name} onChangeText={setName} />
+        <EkoTextField label="Address" placeholder="Full address" icon="map-marker" value={address} onChangeText={setAddress} />
+        <EkoTextField label="Fax Number" placeholder="Fax number" icon="fax" value={fax} onChangeText={setFax} keyboardType="phone-pad" />
+        <EkoButton title="Save Pharmacy" variant="accent" onPress={save} loading={loading} style={styles.btn} />
       </ScrollView>
     </View>
   );

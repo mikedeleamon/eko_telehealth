@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView, Platform, TextInput, StatusBar,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../constants/Colors';
@@ -24,19 +25,19 @@ export default function LoginScreen({ navigation }: Props) {
   const [emailFocused, setEmailFocused] = useState(false);
   const [pwFocused, setPwFocused] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      login({
-        id: '1',
-        firstName: userType === 'Doctor' ? 'Sarah' : 'Martin',
-        lastName: userType === 'Doctor' ? 'Johnson' : 'Doe',
-        email: email || (userType === 'Doctor' ? 'dr.johnson@ekotelehealth.com' : 'martin@ekotelehealth.com'),
-        token: 'mock-token',
-        role: userType,
+    try {
+      await login(email.trim(), password, userType);
+    } catch (err) {
+      Toast.show({
+        type: 'error',
+        text1: 'Login failed',
+        text2: err instanceof Error ? err.message : 'Please try again.',
       });
-    }, 1000);
+      setLoading(false);
+    }
+    // On success the navigator swaps to Main, so no need to reset loading.
   };
 
   return (

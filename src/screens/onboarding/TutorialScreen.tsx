@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { TUTORIAL_DATA } from '../../constants';
 import { Colors } from '../../constants/Colors';
-import SCButton from '../../components/common/SCButton';
+import EkoButton from '../../components/common/EkoButton';
 import { useAuth } from '../../context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
@@ -121,7 +121,7 @@ export default function TutorialScreen({ navigation }: Props) {
             <View style={styles.prevBtn} />
           )}
 
-          <SCButton
+          <EkoButton
             title={currentIndex === TUTORIAL_DATA.length - 1 ? 'Get Started' : 'Next'}
             onPress={goNext}
             style={styles.nextBtn}

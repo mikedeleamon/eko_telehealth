@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
-import SCHeader from '../../../components/common/SCHeader';
+import EkoHeader from '../../../components/common/EkoHeader';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -12,7 +12,7 @@ interface Props {
 export default function AboutUsScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
-      <SCHeader title="About Us" onBack={() => navigation.goBack()} />
+      <EkoHeader title="About Us" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.logoArea}>
           <FontAwesome name="heartbeat" size={56} color={Colors.primary} />
@@ -23,8 +23,8 @@ export default function AboutUsScreen({ navigation }: Props) {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Our Mission</Text>
           <Text style={styles.cardText}>
-            Eko Telehealth makes quality healthcare accessible to everyone, everywhere. We connect patients
-            with trusted doctors for video visits, clinic appointments, and home care — all at the snap of a finger.
+            Eko Telehealth connects Lagos and the diaspora to trusted, verified doctors — for video visits, clinic
+            appointments, and home care. Wherever you or the people you love are, quality healthcare is a tap away.
           </Text>
         </View>
 
@@ -53,7 +53,7 @@ export default function AboutUsScreen({ navigation }: Props) {
           </Text>
         </View>
 
-        <Text style={styles.copyright}>© 2024 Eko Telehealth. All rights reserved.</Text>
+        <Text style={styles.copyright}>© 2026 Eko Telehealth. All rights reserved.</Text>
       </ScrollView>
     </View>
   );
