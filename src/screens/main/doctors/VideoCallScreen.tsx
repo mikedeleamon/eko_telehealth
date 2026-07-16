@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -6,6 +6,11 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
 import { useCall } from '../../../hooks/useCall';
+import { env } from '../../../config/env';
+
+// Live Stream video tracks. Lazy-loaded so the native WebRTC SDK is pulled in
+// only during an actual Stream call — mock/chat builds never touch it.
+const StreamCallView = lazy(() => import('../../../components/call/StreamCallView'));
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -15,9 +20,13 @@ interface Props {
 export default function VideoCallScreen({ navigation, route }: Props) {
   const doctor = route.params?.doctor;
   const {
-    statusLabel, muted, cameraOff, speakerOn, frontCamera,
+    state, statusLabel, muted, cameraOff, speakerOn, frontCamera,
     toggleMuted, toggleCamera, toggleSpeaker, flipCamera, hangUp,
   } = useCall({ roomName: route.params?.roomName ?? `visit-${doctor?.id ?? 'demo'}` });
+
+  // Show real video only for a connected Stream call; mock mode keeps the
+  // placeholder avatars so demos work with no backend or native rebuild.
+  const showLiveVideo = env.realtimeProvider === 'stream' && state === 'connected';
 
   const endCall = async () => {
     await hangUp();
@@ -29,16 +38,31 @@ export default function VideoCallScreen({ navigation, route }: Props) {
       <StatusBar barStyle="light-content" hidden />
       <LinearGradient colors={['#1A1A3E', '#0D47A1']} style={styles.bg} />
 
-      <View style={styles.remoteVideo}>
-        <FontAwesome name="user-md" size={80} color="rgba(255,255,255,0.3)" />
-        <Text style={styles.remoteName}>{doctor?.name ?? 'Dr. Johnson'}</Text>
-        <Text style={styles.callStatus}>{statusLabel}</Text>
-      </View>
+      {showLiveVideo ? (
+        <>
+          {/* StreamCallView draws the remote video full-bleed + a local PiP tile */}
+          <Suspense fallback={null}>
+            <StreamCallView />
+          </Suspense>
+          <View style={styles.topBar} pointerEvents="none">
+            <Text style={styles.topBarName}>{doctor?.name ?? 'Dr. Johnson'}</Text>
+            <Text style={styles.topBarStatus}>{statusLabel}</Text>
+          </View>
+        </>
+      ) : (
+        <>
+          <View style={styles.remoteVideo}>
+            <FontAwesome name="user-md" size={80} color="rgba(255,255,255,0.3)" />
+            <Text style={styles.remoteName}>{doctor?.name ?? 'Dr. Johnson'}</Text>
+            <Text style={styles.callStatus}>{statusLabel}</Text>
+          </View>
 
-      <View style={styles.localVideo}>
-        <FontAwesome name="user" size={28} color="rgba(255,255,255,0.6)" />
-        <Text style={styles.cameraOffText}>{cameraOff ? 'Camera off' : frontCamera ? 'Front' : 'Back'}</Text>
-      </View>
+          <View style={styles.localVideo}>
+            <FontAwesome name="user" size={28} color="rgba(255,255,255,0.6)" />
+            <Text style={styles.cameraOffText}>{cameraOff ? 'Camera off' : frontCamera ? 'Front' : 'Back'}</Text>
+          </View>
+        </>
+      )}
 
       <View style={styles.controls}>
         <CallBtn icon={muted ? 'microphone-slash' : 'microphone'} label={muted ? 'Unmute' : 'Mute'} onPress={toggleMuted} active={muted} />
@@ -78,6 +102,9 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
   },
   cameraOffText: { fontSize: 9, color: Colors.white, marginTop: 4 },
+  topBar: { position: 'absolute', top: 54, left: 0, right: 0, alignItems: 'center' },
+  topBarName: { fontSize: 16, fontWeight: '700', color: Colors.white },
+  topBarStatus: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 2, fontVariant: ['tabular-nums'] },
   controls: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',
     paddingHorizontal: 20, paddingBottom: 48, paddingTop: 20,

@@ -112,10 +112,22 @@ export interface PaymentIntent {
   status: 'pending' | 'succeeded' | 'failed';
 }
 
-/** Access token grant for joining a video/audio room (e.g. Twilio). */
+/** Access token grant for joining a video/audio room (Stream Video). */
 export interface CallTokenGrant {
   token: string;
   roomName: string;
   identity: string;
+  expiresAt: string;
+  /** Public Stream API key + call type, so the SDK can init from the grant. */
+  apiKey?: string;
+  callType?: string;
+}
+
+/** Access token grant for connecting to Stream Chat. */
+export interface ChatTokenGrant {
+  token: string;
+  apiKey: string;
+  identity: string;
+  userId: string;
   expiresAt: string;
 }

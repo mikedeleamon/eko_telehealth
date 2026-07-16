@@ -14,7 +14,11 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.ekotelehealth.app"
+      "bundleIdentifier": "com.ekotelehealth.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Eko Telehealth uses your camera for video visits with your doctor.",
+        "NSMicrophoneUsageDescription": "Eko Telehealth uses your microphone for audio and video visits with your doctor."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -25,6 +29,9 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "@stream-io/video-react-native-sdk"
+    ]
   }
 }

@@ -1,6 +1,6 @@
 /**
  * Video/audio call abstraction. The call screens drive this interface only;
- * the Twilio Video SDK slots in behind it without touching UI code.
+ * the Stream Video SDK slots in behind it without touching UI code.
  */
 export type CallState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'ended' | 'failed';
 

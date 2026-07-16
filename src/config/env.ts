@@ -18,8 +18,14 @@ export const env = {
    */
   useMockApi: process.env.EXPO_PUBLIC_USE_MOCK_API === 'true' || !apiUrl,
 
-  /** Realtime provider for chat + calls: 'mock' today, 'twilio' once wired. */
-  realtimeProvider: (process.env.EXPO_PUBLIC_REALTIME_PROVIDER ?? 'mock') as 'mock' | 'twilio',
+  /** Realtime provider for chat + calls: 'mock' today, 'stream' once wired. */
+  realtimeProvider: (process.env.EXPO_PUBLIC_REALTIME_PROVIDER ?? 'mock') as 'mock' | 'stream',
+
+  /**
+   * Public Stream API key (safe to ship in the bundle). The backend returns it
+   * in the token grants too; this is the fallback used to init the SDK.
+   */
+  streamApiKey: process.env.EXPO_PUBLIC_STREAM_API_KEY ?? '',
 
   /** Request timeout in ms for API calls. */
   requestTimeoutMs: 15000,

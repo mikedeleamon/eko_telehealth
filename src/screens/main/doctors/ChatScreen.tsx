@@ -9,6 +9,7 @@ import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
 import EkoHeader from '../../../components/common/EkoHeader';
 import { chatService } from '../../../services/messaging';
+import { api } from '../../../api';
 import type { ChatMessage } from '../../../api/types';
 
 interface Props {
@@ -18,12 +19,31 @@ interface Props {
 
 export default function ChatScreen({ navigation, route }: Props) {
   const doctor = route.params?.doctor;
-  const conversationId: string = route.params?.conversationId ?? `doctor-${doctor?.id ?? 'unknown'}`;
+  const [conversationId, setConversationId] = useState<string | null>(route.params?.conversationId ?? null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState('');
   const listRef = useRef<FlatList>(null);
 
+  // Start (or fetch) the thread so chat runs on the backend-owned Stream
+  // channel. POST /conversations is idempotent and ensures both members;
+  // on failure we fall back to a local id so the screen still works.
   useEffect(() => {
+    if (conversationId) return;
+    const doctorId = doctor?.id;
+    if (!doctorId) {
+      setConversationId('doctor-unknown');
+      return;
+    }
+    let cancelled = false;
+    api.messaging
+      .createConversation(doctorId)
+      .then((conv) => { if (!cancelled) setConversationId(conv.id); })
+      .catch(() => { if (!cancelled) setConversationId(`doctor-${doctorId}`); });
+    return () => { cancelled = true; };
+  }, [conversationId, doctor?.id]);
+
+  useEffect(() => {
+    if (!conversationId) return;
     let cancelled = false;
     chatService.loadMessages(conversationId).then((history) => {
       if (!cancelled) setMessages(history);
@@ -38,7 +58,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   }, [conversationId]);
 
   const send = async () => {
-    if (!text.trim()) return;
+    if (!text.trim() || !conversationId) return;
     const body = text.trim();
     setText('');
     const sent = await chatService.sendMessage(conversationId, body);

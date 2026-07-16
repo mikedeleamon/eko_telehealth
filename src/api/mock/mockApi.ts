@@ -18,6 +18,7 @@ import type {
   AuthSession,
   CallTokenGrant,
   ChatMessage,
+  ChatTokenGrant,
   Conversation,
   CreateAppointmentInput,
   Doctor,
@@ -98,6 +99,11 @@ export const mockApi = {
     return MOCK_CONVERSATIONS as Conversation[];
   },
 
+  async createConversation(doctorId: string): Promise<Conversation> {
+    await delay(300);
+    return { id: `mock-conv-${doctorId}`, doctorId, lastMessage: '', time: 'now', unread: 0 };
+  },
+
   async getMessages(conversationId: string): Promise<ChatMessage[]> {
     await delay(300);
     return [
@@ -138,9 +144,22 @@ export const mockApi = {
   async getCallToken(roomName: string): Promise<CallTokenGrant> {
     await delay(300);
     return {
-      token: 'mock-twilio-token',
+      token: 'mock-stream-token',
       roomName,
       identity: 'mock-user',
+      expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      apiKey: 'mock-stream-key',
+      callType: 'default',
+    };
+  },
+
+  async getChatToken(): Promise<ChatTokenGrant> {
+    await delay(200);
+    return {
+      token: 'mock-stream-token',
+      apiKey: 'mock-stream-key',
+      identity: 'mock-user',
+      userId: 'mock-user',
       expiresAt: new Date(Date.now() + 3600_000).toISOString(),
     };
   },

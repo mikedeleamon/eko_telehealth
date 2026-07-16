@@ -15,6 +15,7 @@ import type {
   AuthSession,
   CallTokenGrant,
   ChatMessage,
+  ChatTokenGrant,
   Conversation,
   CreateAppointmentInput,
   Doctor,
@@ -42,6 +43,12 @@ export const api = {
     requestPasswordReset(email: string): Promise<void> {
       if (env.useMockApi) return Promise.resolve();
       return request<void>('/auth/forgot-password', { method: 'POST', body: { email }, anonymous: true });
+    },
+
+    /** POST /auth/send-code — send an email/SMS verification code. */
+    requestCode(channel: 'email' | 'sms', destination: string): Promise<void> {
+      if (env.useMockApi) return Promise.resolve();
+      return request<void>('/auth/send-code', { method: 'POST', body: { channel, destination }, anonymous: true });
     },
 
     /** POST /auth/verify — email or SMS OTP verification. */
@@ -96,6 +103,13 @@ export const api = {
       return request<Conversation[]>('/conversations');
     },
 
+    /** POST /conversations — start (or return) a thread with a doctor; the
+     *  backend also ensures the Stream channel exists with both members. */
+    createConversation(doctorId: string): Promise<Conversation> {
+      if (env.useMockApi) return mockApi.createConversation(doctorId);
+      return request<Conversation>('/conversations', { method: 'POST', body: { doctorId } });
+    },
+
     /** GET /conversations/:id/messages */
     messages(conversationId: string): Promise<ChatMessage[]> {
       if (env.useMockApi) return mockApi.getMessages(conversationId);
@@ -135,10 +149,18 @@ export const api = {
   },
 
   calls: {
-    /** POST /calls/token — backend mints a Twilio access token for the room. */
+    /** POST /calls/token — backend mints a Stream Video access token for the room. */
     token(roomName: string): Promise<CallTokenGrant> {
       if (env.useMockApi) return mockApi.getCallToken(roomName);
       return request<CallTokenGrant>('/calls/token', { method: 'POST', body: { roomName } });
+    },
+  },
+
+  chat: {
+    /** POST /chat/token — backend mints a Stream Chat access token for the user. */
+    token(): Promise<ChatTokenGrant> {
+      if (env.useMockApi) return mockApi.getChatToken();
+      return request<ChatTokenGrant>('/chat/token', { method: 'POST' });
     },
   },
 };

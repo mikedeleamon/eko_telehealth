@@ -2,7 +2,7 @@ import type { ChatMessage } from '../../api/types';
 
 /**
  * Realtime chat abstraction. The UI only ever talks to this interface, so
- * swapping the mock for Twilio Conversations (or a WebSocket backend) is a
+ * swapping the mock for Stream Chat (or a WebSocket backend) is a
  * one-file change in src/services/messaging/index.ts.
  */
 export interface ChatService {
