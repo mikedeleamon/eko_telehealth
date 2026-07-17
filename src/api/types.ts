@@ -147,6 +147,40 @@ export interface PaymentStatus extends PaymentIntent {
   appointmentStatus: AppointmentStatus;
 }
 
+/** A person the account holder can book on behalf of (proxy access). */
+export interface Dependent {
+  id: string;
+  firstName: string;
+  lastName: string;
+  /** Display string, as collected: DD-MM-YYYY. */
+  dob: string;
+  relationship?: string;
+}
+
+export interface Insurance {
+  provider: string;
+  memberId: string;
+  groupNumber?: string;
+}
+
+export interface Pharmacy {
+  name?: string;
+  address: string;
+  fax: string;
+}
+
+/**
+ * Per-user preferences. The notification flags are advisory for future
+ * push/email fan-out — transactional messages (OTP, resets) ignore them.
+ */
+export interface UserSettings {
+  pushNotifications: boolean;
+  emailNotifications: boolean;
+  smsNotifications: boolean;
+  darkMode: boolean;
+  locationAccess: boolean;
+}
+
 /** GET /providers/me — a Doctor account's onboarding state. */
 export interface ProviderState {
   /** 'live' = bookable profile exists; 'pending' = awaiting admin review. */

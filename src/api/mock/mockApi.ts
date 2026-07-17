@@ -24,15 +24,36 @@ import type {
   CreateAppointmentInput,
   Doctor,
   AppointmentStatus,
+  Dependent,
   DoctorAgendaItem,
+  Insurance,
   PatientSummary,
   PaymentIntent,
   PaymentStatus,
+  Pharmacy,
   ProviderState,
   Review,
   User,
   UserRole,
+  UserSettings,
 } from '../types';
+
+/**
+ * Mock mode keeps per-user records in memory so the screens behave like the
+ * real thing within a session (they reset on reload — there's no backend).
+ */
+const mockDependents: Dependent[] = [
+  { id: 'dep-1', firstName: 'Chidi', lastName: 'Doe', dob: '12-04-2015', relationship: 'Son' },
+];
+let mockInsurance: Insurance | null = null;
+let mockPharmacy: Pharmacy | null = null;
+let mockSettings: UserSettings = {
+  pushNotifications: true,
+  emailNotifications: true,
+  smsNotifications: false,
+  darkMode: false,
+  locationAccess: true,
+};
 
 const MOCK_REVIEWS: Review[] = [
   { id: 'r1', author: 'Jane D.', rating: 5, text: 'Excellent doctor! Very thorough and caring.', date: 'Nov 20, 2025' },
@@ -159,6 +180,51 @@ export const mockApi = {
     await delay(400);
     const found = (MOCK_DOCTOR_SCHEDULE as Appointment[]).find((a) => a.id === id);
     return { ...(found ?? (MOCK_DOCTOR_SCHEDULE[0] as Appointment)), id, status };
+  },
+
+  async getDependents(): Promise<Dependent[]> {
+    await delay();
+    return [...mockDependents];
+  },
+
+  async addDependent(input: { firstName: string; lastName: string; dob: string; relationship?: string }): Promise<Dependent> {
+    await delay(500);
+    const dep = { id: `dep-${Date.now()}`, ...input };
+    mockDependents.push(dep);
+    return dep;
+  },
+
+  async getInsurance(): Promise<Insurance | null> {
+    await delay(300);
+    return mockInsurance;
+  },
+
+  async saveInsurance(input: Insurance): Promise<Insurance> {
+    await delay(500);
+    mockInsurance = input;
+    return input;
+  },
+
+  async getPharmacy(): Promise<Pharmacy | null> {
+    await delay(300);
+    return mockPharmacy;
+  },
+
+  async savePharmacy(input: Pharmacy): Promise<Pharmacy> {
+    await delay(500);
+    mockPharmacy = input;
+    return input;
+  },
+
+  async getSettings(): Promise<UserSettings> {
+    await delay(300);
+    return { ...mockSettings };
+  },
+
+  async saveSettings(input: Partial<UserSettings>): Promise<UserSettings> {
+    await delay(300);
+    mockSettings = { ...mockSettings, ...input };
+    return { ...mockSettings };
   },
 
   async getProviderState(): Promise<ProviderState> {

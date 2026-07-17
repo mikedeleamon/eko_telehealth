@@ -6,7 +6,7 @@ import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
-import { useCreateAppointment } from '../../../hooks/queries';
+import { useCreateAppointment, useDependents } from '../../../hooks/queries';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -44,6 +44,9 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
   );
   const createAppointment = useCreateAppointment();
   const loading = createAppointment.isPending;
+  const { data: dependents = [] } = useDependents();
+  // null = booking for yourself (the default).
+  const [dependentId, setDependentId] = useState<string | null>(null);
 
   /**
    * Sends a REQUEST — the doctor has to accept before any payment is taken,
@@ -58,6 +61,7 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
         date: toDateLabel(date),
         time: slot,
         type: selectedType,
+        ...(dependentId ? { dependentId } : {}),
       });
       navigation.navigate('AppointmentConfirmed', { doctor, appointment });
     } catch (err) {
@@ -84,6 +88,33 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
           <Row icon="calendar" label="Date" value={date ? `${date.day}, ${date.date}` : 'Selected Date'} />
           <Row icon="clock-o" label="Time" value={slot ?? 'Selected Slot'} />
         </View>
+
+        {/* Only shown when the account actually has dependents — this is what
+            makes the API's dependentId param reachable. */}
+        {dependents.length > 0 && (
+          <>
+            <Text style={styles.sectionLabel}>Who is this visit for?</Text>
+            <View style={styles.forRow}>
+              <TouchableOpacity
+                style={[styles.forChip, dependentId === null && styles.forChipActive]}
+                onPress={() => setDependentId(null)}
+              >
+                <Text style={[styles.forChipText, dependentId === null && styles.forChipTextActive]}>Myself</Text>
+              </TouchableOpacity>
+              {dependents.map((d) => (
+                <TouchableOpacity
+                  key={d.id}
+                  style={[styles.forChip, dependentId === d.id && styles.forChipActive]}
+                  onPress={() => setDependentId(d.id)}
+                >
+                  <Text style={[styles.forChipText, dependentId === d.id && styles.forChipTextActive]}>
+                    {d.firstName}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
 
         <Text style={styles.sectionLabel}>Appointment Type</Text>
         <View style={styles.typeRow}>
@@ -151,6 +182,16 @@ const styles = StyleSheet.create({
   rowLabel: { flex: 1, fontSize: 14, color: Colors.textMedium },
   rowValue: { fontSize: 14, fontWeight: '600', color: Colors.textDark },
   sectionLabel: { fontSize: 16, fontWeight: '700', color: Colors.textDark, marginBottom: 12 },
+
+  forRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
+  forChip: {
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
+    borderWidth: 1.5, borderColor: Colors.borderGray, backgroundColor: Colors.white,
+  },
+  forChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  forChipText: { fontSize: 13, fontWeight: '600', color: Colors.textMedium, fontFamily: 'Poppins_600SemiBold' },
+  forChipTextActive: { color: Colors.white },
+
   typeRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
   typeBtn: {
     flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 14,

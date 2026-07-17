@@ -20,7 +20,7 @@ const MENU_ITEMS = [
   { icon: 'medkit', label: 'My Health', screen: 'MyHealth', color: '#3FBE6E' },
   { icon: 'shield', label: 'Insurance', screen: 'Insurance', color: '#00CAAE' },
   { icon: 'medkit', label: 'Preferred Pharmacy', screen: 'PreferredPharmacy', color: '#FF7043' },
-  { icon: 'users', label: 'Add Dependent', screen: 'AddDependent', color: '#7C4DFF' },
+  { icon: 'users', label: 'Dependents', screen: 'AddDependent', color: '#7C4DFF' },
   { icon: 'bell', label: 'Notifications', screen: 'Notifications', color: '#0097A7' },
   { icon: 'cog', label: 'Settings', screen: 'Settings', color: '#607D8B' },
   { icon: 'lock', label: 'Change Password', screen: 'ChangePassword', color: '#E91E63' },

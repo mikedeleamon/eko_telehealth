@@ -18,15 +18,19 @@ import type {
   ChatTokenGrant,
   Conversation,
   CreateAppointmentInput,
+  Dependent,
   Doctor,
   DoctorAgendaItem,
+  Insurance,
   PatientSummary,
+  Pharmacy,
   PaymentIntent,
   PaymentStatus,
   ProviderState,
   Review,
   User,
   UserRole,
+  UserSettings,
 } from './types';
 
 export const api = {
@@ -231,6 +235,63 @@ export const api = {
     get(id: string): Promise<PaymentStatus> {
       if (env.useMockApi) return mockApi.getPaymentStatus(id);
       return request<PaymentStatus>(`/payments/${id}`);
+    },
+  },
+
+  /** Per-user records: dependents, insurance, pharmacy, settings. */
+  me: {
+    /** GET /me/dependents */
+    dependents(): Promise<Dependent[]> {
+      if (env.useMockApi) return mockApi.getDependents();
+      return request<Dependent[]>('/me/dependents');
+    },
+
+    /** POST /me/dependents */
+    addDependent(input: { firstName: string; lastName: string; dob: string; relationship?: string }): Promise<Dependent> {
+      if (env.useMockApi) return mockApi.addDependent(input);
+      return request<Dependent>('/me/dependents', { method: 'POST', body: input });
+    },
+
+    /** DELETE /me/dependents/:id */
+    removeDependent(id: string): Promise<void> {
+      if (env.useMockApi) return Promise.resolve();
+      return request<void>(`/me/dependents/${id}`, { method: 'DELETE' });
+    },
+
+    /** GET /me/insurance — null when none saved. */
+    insurance(): Promise<Insurance | null> {
+      if (env.useMockApi) return mockApi.getInsurance();
+      return request<Insurance | null>('/me/insurance');
+    },
+
+    /** PUT /me/insurance — upsert. */
+    saveInsurance(input: Insurance): Promise<Insurance> {
+      if (env.useMockApi) return mockApi.saveInsurance(input);
+      return request<Insurance>('/me/insurance', { method: 'PUT', body: input });
+    },
+
+    /** GET /me/pharmacy — null when none saved. */
+    pharmacy(): Promise<Pharmacy | null> {
+      if (env.useMockApi) return mockApi.getPharmacy();
+      return request<Pharmacy | null>('/me/pharmacy');
+    },
+
+    /** PUT /me/pharmacy — upsert. */
+    savePharmacy(input: Pharmacy): Promise<Pharmacy> {
+      if (env.useMockApi) return mockApi.savePharmacy(input);
+      return request<Pharmacy>('/me/pharmacy', { method: 'PUT', body: input });
+    },
+
+    /** GET /me/settings — returns defaults before the first save. */
+    settings(): Promise<UserSettings> {
+      if (env.useMockApi) return mockApi.getSettings();
+      return request<UserSettings>('/me/settings');
+    },
+
+    /** PATCH /me/settings — partial update. */
+    saveSettings(input: Partial<UserSettings>): Promise<UserSettings> {
+      if (env.useMockApi) return mockApi.saveSettings(input);
+      return request<UserSettings>('/me/settings', { method: 'PATCH', body: input });
     },
   },
 

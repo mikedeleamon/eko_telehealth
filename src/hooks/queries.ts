@@ -20,6 +20,10 @@ export const queryKeys = {
   providerState: ['provider-state'] as const,
   payment: (id: string) => ['payments', id] as const,
   reviews: (subject?: string) => ['reviews', subject ?? 'all'] as const,
+  dependents: ['dependents'] as const,
+  insurance: ['insurance'] as const,
+  pharmacy: ['pharmacy'] as const,
+  settings: ['settings'] as const,
 };
 
 export function useDoctors(params?: { category?: string; query?: string }) {
@@ -89,6 +93,66 @@ export function useAppointmentDecision() {
       qc.invalidateQueries({ queryKey: queryKeys.practiceAppointments });
       qc.invalidateQueries({ queryKey: queryKeys.agenda });
     },
+  });
+}
+
+// ── Per-user records ────────────────────────────────────────────────────────
+
+export function useDependents() {
+  return useQuery({ queryKey: queryKeys.dependents, queryFn: api.me.dependents });
+}
+
+export function useAddDependent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { firstName: string; lastName: string; dob: string; relationship?: string }) =>
+      api.me.addDependent(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.dependents }),
+  });
+}
+
+export function useRemoveDependent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.me.removeDependent(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.dependents }),
+  });
+}
+
+export function useInsurance() {
+  return useQuery({ queryKey: queryKeys.insurance, queryFn: api.me.insurance });
+}
+
+export function useSaveInsurance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.me.saveInsurance,
+    onSuccess: (data) => qc.setQueryData(queryKeys.insurance, data),
+  });
+}
+
+export function usePharmacy() {
+  return useQuery({ queryKey: queryKeys.pharmacy, queryFn: api.me.pharmacy });
+}
+
+export function useSavePharmacy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.me.savePharmacy,
+    onSuccess: (data) => qc.setQueryData(queryKeys.pharmacy, data),
+  });
+}
+
+export function useSettings() {
+  return useQuery({ queryKey: queryKeys.settings, queryFn: api.me.settings });
+}
+
+export function useSaveSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.me.saveSettings,
+    // Write the server's copy back so a rejected toggle can't drift from it.
+    onSuccess: (data) => qc.setQueryData(queryKeys.settings, data),
   });
 }
 
