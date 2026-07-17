@@ -99,11 +99,17 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
       </View>
 
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
-        {/* Name + rating */}
+        {/* Name + rating (tap the rating to read/write reviews) */}
         <View style={styles.nameRow}>
           <Text style={styles.name} numberOfLines={1}>{doctor.name}</Text>
-          <FontAwesome name="star" size={18} color="#F5A623" style={{ marginLeft: 8 }} />
-          <Text style={styles.ratingText}>{doctor.rating}</Text>
+          <TouchableOpacity
+            style={{ flexDirection: 'row', alignItems: 'center' }}
+            onPress={() => navigation.navigate('Reviews', { doctor })}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <FontAwesome name="star" size={18} color="#F5A623" style={{ marginLeft: 8 }} />
+            <Text style={styles.ratingText}>{doctor.rating}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Specialty pill */}

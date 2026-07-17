@@ -13,29 +13,40 @@ interface Props {
   route: RouteProp<any>;
 }
 
+/**
+ * Terminal screen for the booking flow. It reports what actually happened,
+ * which is usually a REQUEST awaiting the doctor's approval — not a confirmed
+ * visit. Only a paid appointment ('upcoming') is genuinely confirmed.
+ */
 export default function AppointmentConfirmedScreen({ navigation, route }: Props) {
-  const { doctor, slot, date, type } = route.params ?? {};
+  const { doctor, appointment } = route.params ?? {};
   const { isDoctor } = useAuth();
   const appointmentsTab = isDoctor ? 'SchedulerTab' : 'AppointmentsTab';
   const homeTab = isDoctor ? 'DashboardTab' : 'HomeTab';
+
+  const isRequest = appointment?.status === 'pending_approval';
+  const title = isRequest ? `Request\nSent!` : `Appointment\nConfirmed!`;
+  const sub = isRequest
+    ? `${doctor?.name ?? 'The doctor'} will review your request. You'll be notified to pay once it's accepted — the visit is confirmed after payment.`
+    : 'Your appointment has been successfully booked.';
 
   return (
     <View style={styles.container}>
       <LinearGradient colors={[Colors.gradientStart, Colors.gradientEnd]} style={styles.topGrad} />
       <View style={styles.content}>
         <View style={styles.checkCircle}>
-          <FontAwesome name="check" size={44} color={Colors.white} />
+          <FontAwesome name={isRequest ? 'paper-plane' : 'check'} size={isRequest ? 36 : 44} color={Colors.white} />
         </View>
-        <Text style={styles.title}>Appointment{'\n'}Confirmed!</Text>
-        <Text style={styles.sub}>Your appointment has been successfully booked.</Text>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.sub}>{sub}</Text>
 
         <View style={styles.detailCard}>
           <DetailRow icon="user-md" label="Doctor" value={doctor?.name ?? 'Doctor'} />
           <DetailRow icon="stethoscope" label="Specialty" value={doctor?.specialty ?? ''} />
-          <DetailRow icon="calendar" label="Date" value={date ? `${date.day}, ${date.date}` : ''} />
-          <DetailRow icon="clock-o" label="Time" value={slot ?? ''} />
-          <DetailRow icon="tag" label="Type" value={type ?? ''} />
-          <DetailRow icon="dollar" label="Fee" value={doctor?.fee ?? ''} last />
+          <DetailRow icon="calendar" label="Date" value={appointment?.date ?? ''} />
+          <DetailRow icon="clock-o" label="Time" value={appointment?.time ?? ''} />
+          <DetailRow icon="tag" label="Type" value={appointment?.type ?? ''} />
+          <DetailRow icon="dollar" label={isRequest ? 'Fee (payable on approval)' : 'Fee'} value={appointment?.fee ?? doctor?.fee ?? ''} last />
         </View>
 
         <EkoButton title="View Appointments" variant="accent" onPress={() => navigation.navigate(appointmentsTab)} style={styles.primaryBtn} />

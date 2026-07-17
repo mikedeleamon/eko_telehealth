@@ -7,6 +7,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../constants/Colors';
+import { api } from '../../api';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -20,19 +21,20 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
   const [errorEmail, setErrorEmail] = useState('');
   const [showError, setShowError] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!email.trim()) return;
     setLoading(true);
-    setTimeout(() => {
+    try {
+      // Always 200 from the backend (it never reveals whether the email is
+      // registered), so the error modal only shows on network failure.
+      await api.auth.requestPasswordReset(email.trim());
+      navigation.navigate('VerifyEmail', { reset: true, email: email.trim() });
+    } catch {
+      setErrorEmail(email);
+      setShowError(true);
+    } finally {
       setLoading(false);
-      // Mock: simulate wrong email for demo
-      if (!email.endsWith('@ekotelehealth.com') && !email.includes('test')) {
-        setErrorEmail(email);
-        setShowError(true);
-      } else {
-        navigation.navigate('VerifyEmail', { reset: true });
-      }
-    }, 1000);
+    }
   };
 
   return (

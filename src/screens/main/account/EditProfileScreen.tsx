@@ -9,6 +9,8 @@ import EkoTextField from '../../../components/common/EkoTextField';
 import EkoButton from '../../../components/common/EkoButton';
 import Cross from '../../../components/common/Cross';
 import { useAuth } from '../../../context/AuthContext';
+import { api } from '../../../api';
+import { useAuthStore } from '../../../store/authStore';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -19,17 +21,27 @@ export default function EditProfileScreen({ navigation }: Props) {
   const { user } = useAuth();
   const [firstName, setFirstName] = useState(user?.firstName ?? '');
   const [lastName, setLastName] = useState(user?.lastName ?? '');
-  const [email, setEmail] = useState(user?.email ?? '');
   const [phone, setPhone] = useState('');
-  const [city, setCity] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const save = () => {
+  const save = async () => {
+    if (!firstName.trim() || !lastName.trim()) return Alert.alert('', 'Name fields cannot be empty.');
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const updated = await api.auth.updateProfile({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        ...(phone.trim() ? { phone: phone.trim() } : {}),
+      });
+      // Refresh the persisted session so the whole app shows the new name.
+      const session = useAuthStore.getState().session;
+      if (session) useAuthStore.getState().setSession({ ...session, user: updated });
       Alert.alert('Success', 'Profile updated successfully.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
-    }, 800);
+    } catch (err) {
+      Alert.alert('Could not update profile', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -72,9 +84,11 @@ export default function EditProfileScreen({ navigation }: Props) {
         <View style={styles.form}>
           <EkoTextField label="First Name" placeholder="First Name" icon="user" value={firstName} onChangeText={setFirstName} />
           <EkoTextField label="Last Name" placeholder="Last Name" icon="user" value={lastName} onChangeText={setLastName} />
-          <EkoTextField label="Email" placeholder="Email" icon="envelope-o" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          {/* Email is the login identifier + password-reset destination, so it
+              can't be changed from a profile save — it would need a verified
+              email-change flow. Shown read-only. */}
+          <EkoTextField label="Email" placeholder="Email" icon="envelope-o" value={user?.email ?? ''} editable={false} />
           <EkoTextField label="Phone" placeholder="Phone number" icon="phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-          <EkoTextField label="City" placeholder="City" icon="map-marker" value={city} onChangeText={setCity} />
 
           <EkoButton title="UPDATE" variant="accent" onPress={save} loading={loading} style={styles.btn} />
         </View>

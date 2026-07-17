@@ -4,7 +4,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
-import { useDoctors } from '../../../hooks/queries';
+import { useCancelAppointment, useDoctors } from '../../../hooks/queries';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
 
@@ -20,14 +20,28 @@ const TYPE_ICONS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
+  pending_approval: Colors.accent,
+  pending_payment: Colors.accent,
   upcoming: Colors.primary,
-  past: Colors.textGray,
+  declined: Colors.red,
   cancelled: Colors.red,
+  past: Colors.textGray,
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pending_approval: 'Awaiting approval',
+  pending_payment: 'Payment required',
+  upcoming: 'Confirmed',
+  declined: 'Declined',
+  cancelled: 'Cancelled',
+  past: 'Completed',
 };
 
 export default function AppointmentDetailsScreen({ navigation, route }: Props) {
   const appointment = route.params?.appointment ?? {};
   const { doctor: doctorName, specialty, date, time, type = 'Video Visit', status = 'upcoming' } = appointment;
+
+  const cancelAppointment = useCancelAppointment();
 
   // Resolve the full doctor record so calls / chat / rescheduling have what they need.
   const { data: doctors = [] } = useDoctors();
@@ -35,8 +49,14 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
     doctors.find((d) => d.name === doctorName) ??
     { name: doctorName ?? 'Doctor', specialty: specialty ?? '', fee: '₦15,000', rating: 4.8 };
 
-  const isUpcoming = status === 'upcoming';
+  // Only a paid, confirmed visit can be joined; a request or an unpaid
+  // acceptance is not a booking yet.
+  const isConfirmed = status === 'upcoming';
+  const awaitingPayment = status === 'pending_payment';
+  const awaitingApproval = status === 'pending_approval';
+  const isLive = isConfirmed || awaitingPayment || awaitingApproval;
   const statusColor = STATUS_COLORS[status] ?? Colors.textGray;
+  const statusLabel = STATUS_LABELS[status] ?? status;
   const typeIcon = TYPE_ICONS[type] ?? 'calendar';
 
   const joinCall = () => {
@@ -50,10 +70,15 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
       {
         text: 'Cancel Appointment',
         style: 'destructive',
-        onPress: () => {
-          Alert.alert('Appointment Cancelled', 'Your appointment has been cancelled.', [
-            { text: 'OK', onPress: () => navigation.goBack() },
-          ]);
+        onPress: async () => {
+          try {
+            await cancelAppointment.mutateAsync(appointment.id);
+            Alert.alert('Appointment Cancelled', 'Your appointment has been cancelled.', [
+              { text: 'OK', onPress: () => navigation.goBack() },
+            ]);
+          } catch (err) {
+            Alert.alert('Could not cancel', err instanceof Error ? err.message : 'Please try again.');
+          }
         },
       },
     ]);
@@ -75,7 +100,7 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
           </View>
           <View style={[styles.statusBadge, { backgroundColor: statusColor + '18' }]}>
             <Text style={[styles.statusText, { color: statusColor }]}>
-              {status.charAt(0).toUpperCase() + status.slice(1)}
+              {statusLabel}
             </Text>
           </View>
         </View>
@@ -85,32 +110,66 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
           <DetailRow icon="calendar" label="Date" value={date ?? '—'} />
           <DetailRow icon="clock-o" label="Time" value={time ?? '—'} />
           <DetailRow icon={typeIcon} label="Type" value={type} />
-          <DetailRow icon="dollar" label="Fee" value={doctor.fee ?? '₦15,000'} last />
+          <DetailRow icon="dollar" label="Fee" value={appointment.fee ?? doctor.fee ?? '₦15,000'} last />
         </View>
 
+        {/* What the patient is waiting on, in plain words. */}
+        {awaitingApproval && (
+          <View style={[styles.notice, { backgroundColor: Colors.accent + '14' }]}>
+            <FontAwesome name="hourglass-half" size={14} color={Colors.accent} />
+            <Text style={styles.noticeText}>
+              {'  '}Waiting for {doctor.name ?? 'the doctor'} to accept. You'll be asked to pay once they do.
+            </Text>
+          </View>
+        )}
+        {status === 'declined' && (
+          <View style={[styles.notice, { backgroundColor: Colors.red + '14' }]}>
+            <FontAwesome name="times-circle" size={14} color={Colors.red} />
+            <Text style={styles.noticeText}>
+              {'  '}{appointment.declineReason
+                ? `Declined: ${appointment.declineReason}`
+                : 'The doctor could not take this appointment.'}
+            </Text>
+          </View>
+        )}
+
         {/* Actions */}
-        {isUpcoming ? (
+        {isLive ? (
           <>
-            <EkoButton
-              title={type === 'Video Visit' ? 'Join Video Call' : 'Join Audio Call'}
-              variant="accent"
-              onPress={joinCall}
-              style={styles.btn}
-            />
+            {awaitingPayment && (
+              <EkoButton
+                title={`Pay ${appointment.fee ?? doctor.fee ?? '₦15,000'}`}
+                variant="accent"
+                onPress={() => navigation.navigate('Payment', { appointment, doctor })}
+                style={styles.btn}
+              />
+            )}
+            {isConfirmed && (
+              <EkoButton
+                title={type === 'Video Visit' ? 'Join Video Call' : 'Join Audio Call'}
+                variant="accent"
+                onPress={joinCall}
+                style={styles.btn}
+              />
+            )}
             <EkoButton
               title="Send Message"
               variant="outline"
               onPress={() => navigation.navigate('Chat', { doctor })}
               style={styles.btn}
             />
-            <EkoButton
-              title="Reschedule"
-              variant="outline"
-              onPress={() => navigation.navigate('DoctorOverview', { doctor, initialTab: 'schedule' })}
-              style={styles.btn}
-            />
+            {isConfirmed && (
+              <EkoButton
+                title="Reschedule"
+                variant="outline"
+                onPress={() => navigation.navigate('DoctorOverview', { doctor, initialTab: 'schedule' })}
+                style={styles.btn}
+              />
+            )}
             <TouchableOpacity style={styles.cancelLink} onPress={cancel}>
-              <Text style={styles.cancelText}>Cancel Appointment</Text>
+              <Text style={styles.cancelText}>
+                {awaitingApproval ? 'Withdraw Request' : 'Cancel Appointment'}
+              </Text>
             </TouchableOpacity>
           </>
         ) : (
@@ -173,6 +232,11 @@ const styles = StyleSheet.create({
   rowValue: { fontSize: 14, fontWeight: '700', color: Colors.textDark, fontFamily: 'Poppins_600SemiBold' },
 
   btn: { width: '100%', marginBottom: 12 },
+  notice: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    borderRadius: 12, padding: 12, marginBottom: 16,
+  },
+  noticeText: { flex: 1, fontSize: 12, color: Colors.textDark, lineHeight: 18, fontFamily: 'Poppins_400Regular' },
   cancelLink: { alignItems: 'center', paddingVertical: 12 },
   cancelText: { fontSize: 14, color: Colors.red, fontWeight: '600', fontFamily: 'Poppins_600SemiBold' },
 });

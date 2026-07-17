@@ -1,60 +1,64 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Linking } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
 import EkoHeader from '../../../components/common/EkoHeader';
-import EkoTextField from '../../../components/common/EkoTextField';
 import EkoButton from '../../../components/common/EkoButton';
 import RatingStars from '../../../components/common/RatingStars';
 import { api } from '../../../api';
-import { useCreateAppointment } from '../../../hooks/queries';
+import { queryKeys } from '../../../hooks/queries';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
   route: RouteProp<any>;
 }
 
+// Card details are collected by the provider's hosted checkout, not here, so
+// "card" simply routes through Flutterwave (the pitch's NGN processor).
 const PAYMENT_METHODS = [
-  { id: 'card', label: 'Credit / Debit Card', icon: 'credit-card' },
+  { id: 'flutterwave', label: 'Card / Bank / Transfer (Flutterwave)', icon: 'money' },
   { id: 'paypal', label: 'PayPal', icon: 'paypal' },
-  { id: 'flutterwave', label: 'Flutterwave', icon: 'money' },
 ];
 
+/**
+ * Pays for an appointment the doctor has already ACCEPTED — it no longer
+ * creates the booking. Reached from AppointmentDetails when a visit is
+ * awaiting payment; the visit is only confirmed once the provider webhook
+ * settles, which is why this hands off and then polls rather than declaring
+ * success on its own.
+ */
 export default function PaymentScreen({ navigation, route }: Props) {
-  const { doctor, slot, date, type } = route.params ?? {};
-  const [method, setMethod] = useState('card');
-  const [cardName, setCardName] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cvv, setCvv] = useState('');
+  const { appointment, doctor } = route.params ?? {};
+  const [method, setMethod] = useState('flutterwave');
   const [loading, setLoading] = useState(false);
-  const createAppointment = useCreateAppointment();
+  const qc = useQueryClient();
+
+  const fee = appointment?.fee ?? doctor?.fee ?? '₦15,000';
 
   const pay = async () => {
-    if (method === 'card') {
-      if (!cardName.trim()) return Alert.alert('', 'Please enter card holder name.');
-      if (cardNumber.length < 16) return Alert.alert('', 'Please enter a valid card number.');
-    }
+    if (!appointment?.id) return Alert.alert('', 'This appointment is no longer available to pay.');
     setLoading(true);
     try {
-      // 1. Reserve the appointment, 2. open a payment intent against it.
-      // Card entries route through Flutterwave (the pitch's NGN processor);
-      // the backend redirects to the provider's checkout when live.
-      const appointment = await createAppointment.mutateAsync({
-        doctorId: doctor?.id ?? '',
-        date: date ?? '',
-        time: slot ?? '',
-        type: type ?? 'Video Visit',
-      });
-      await api.payments.createIntent({
+      const intent = await api.payments.createIntent({
         appointmentId: appointment.id,
         provider: method === 'paypal' ? 'paypal' : 'flutterwave',
       });
-      Alert.alert('Payment Successful', 'Your payment has been processed successfully.', [
-        { text: 'OK', onPress: () => navigation.navigate('AppointmentConfirmed', { doctor, slot, date, type }) },
-      ]);
+
+      if (/^https?:\/\//.test(intent.checkoutRef)) {
+        // Live: hand off to the provider's hosted checkout, then verify with
+        // the backend — the redirect back carries no trustworthy result.
+        await Linking.openURL(intent.checkoutRef);
+        navigation.replace('PaymentPending', { paymentId: intent.id, doctor, appointment });
+      } else {
+        // Mock: no real checkout exists, so the intent stands in for settlement.
+        qc.invalidateQueries({ queryKey: queryKeys.appointments });
+        Alert.alert('Payment Successful', 'Your payment has been processed successfully.', [
+          { text: 'OK', onPress: () => navigation.navigate('AppointmentConfirmed', { doctor, appointment }) },
+        ]);
+      }
     } catch (err) {
       Alert.alert('Payment failed', err instanceof Error ? err.message : 'Please try again.');
     } finally {
@@ -76,10 +80,19 @@ export default function PaymentScreen({ navigation, route }: Props) {
             <RatingStars rating={doctor?.rating ?? 4.5} size={12} />
           </View>
           <View style={styles.feeBox}>
-            <Text style={styles.fee}>{doctor?.fee ?? '₦15,000'}</Text>
+            <Text style={styles.fee}>{fee}</Text>
             <Text style={styles.feeLabel}>Fee</Text>
           </View>
         </View>
+
+        {appointment ? (
+          <View style={styles.visitRow}>
+            <FontAwesome name="calendar-o" size={12} color={Colors.textGray} />
+            <Text style={styles.visitText}>
+              {'  '}{appointment.date} · {appointment.time} · {appointment.type}
+            </Text>
+          </View>
+        ) : null}
 
         <Text style={styles.sectionLabel}>Payment Method</Text>
         {PAYMENT_METHODS.map((pm) => (
@@ -94,24 +107,20 @@ export default function PaymentScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         ))}
 
-        {method === 'card' && (
-          <View style={styles.cardForm}>
-            <Text style={styles.sectionLabel}>Card Details</Text>
-            <EkoTextField placeholder="Card Holder Name" icon="user" value={cardName} onChangeText={setCardName} />
-            <EkoTextField placeholder="Card Number" icon="credit-card" value={cardNumber} onChangeText={setCardNumber} keyboardType="number-pad" maxLength={16} />
-            <View style={styles.row}>
-              <EkoTextField placeholder="MM / YY" icon="calendar" value={expiry} onChangeText={setExpiry} containerStyle={styles.halfField} keyboardType="numbers-and-punctuation" />
-              <EkoTextField placeholder="CVV" icon="lock" value={cvv} onChangeText={setCvv} containerStyle={styles.halfField} keyboardType="number-pad" maxLength={3} isPassword />
-            </View>
-          </View>
-        )}
+        {/* No card fields here on purpose: card details are entered on the
+            provider's hosted checkout page, so collecting them in-app would
+            gather data that goes nowhere (and put us in PCI scope). */}
+        <Text style={styles.handoffNote}>
+          You'll be taken to a secure checkout page to complete payment. Your visit is confirmed once
+          payment clears.
+        </Text>
 
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Total Amount</Text>
-          <Text style={styles.totalValue}>{doctor?.fee ?? '₦15,000'}</Text>
+          <Text style={styles.totalValue}>{fee}</Text>
         </View>
 
-        <EkoButton title={`Pay ${doctor?.fee ?? '₦15,000'}`} variant="accent" onPress={pay} loading={loading} />
+        <EkoButton title={`Pay ${fee}`} variant="accent" onPress={pay} loading={loading} />
       </ScrollView>
     </View>
   );
@@ -142,9 +151,12 @@ const styles = StyleSheet.create({
   methodBtnActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryFaded },
   methodText: { flex: 1, fontSize: 15, color: Colors.textMedium, marginLeft: 12 },
   methodTextActive: { color: Colors.primary, fontWeight: '600' },
-  cardForm: { marginTop: 16 },
-  row: { flexDirection: 'row', gap: 12 },
-  halfField: { flex: 1 },
+  visitRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, marginTop: -4 },
+  visitText: { fontSize: 12, color: Colors.textGray, fontFamily: 'Poppins_400Regular' },
+  handoffNote: {
+    fontSize: 12, color: Colors.textGray, lineHeight: 18,
+    marginTop: 16, fontFamily: 'Poppins_400Regular',
+  },
   totalRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     backgroundColor: Colors.bgLight, borderRadius: 12, padding: 16, marginBottom: 20, marginTop: 8,

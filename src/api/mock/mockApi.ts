@@ -9,6 +9,7 @@ import {
   MOCK_CONVERSATIONS,
   MOCK_DOCTORS,
   MOCK_DOCTOR_APPOINTMENTS,
+  MOCK_DOCTOR_SCHEDULE,
   MOCK_NOTIFICATIONS,
   MOCK_PATIENTS,
 } from '../../constants';
@@ -22,11 +23,22 @@ import type {
   Conversation,
   CreateAppointmentInput,
   Doctor,
+  AppointmentStatus,
   DoctorAgendaItem,
   PatientSummary,
   PaymentIntent,
+  PaymentStatus,
+  ProviderState,
+  Review,
+  User,
   UserRole,
 } from '../types';
+
+const MOCK_REVIEWS: Review[] = [
+  { id: 'r1', author: 'Jane D.', rating: 5, text: 'Excellent doctor! Very thorough and caring.', date: 'Nov 20, 2025' },
+  { id: 'r2', author: 'Mark S.', rating: 4, text: 'Great experience overall. Short wait time.', date: 'Nov 15, 2025' },
+  { id: 'r3', author: 'Alice M.', rating: 5, text: 'Highly recommend! Very knowledgeable and professional.', date: 'Oct 30, 2025' },
+];
 
 /** Simulated network latency so loading states are visible during development. */
 const delay = (ms = 450) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -50,10 +62,18 @@ export const mockApi = {
     };
   },
 
-  async signup(input: { firstName: string; lastName: string; email: string; role: UserRole }): Promise<AuthSession> {
+  async signup(input: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: UserRole;
+    /** Accepted to match the live contract; the mock user model has no phone. */
+    phone?: string;
+  }): Promise<AuthSession> {
     await delay(700);
+    const { phone: _phone, ...user } = input;
     return {
-      user: { id: 'new-1', ...input },
+      user: { id: 'new-1', ...user },
       accessToken: 'mock-access-token',
       refreshToken: 'mock-refresh-token',
     };
@@ -129,6 +149,38 @@ export const mockApi = {
     return MOCK_DOCTOR_APPOINTMENTS as DoctorAgendaItem[];
   },
 
+  async getDoctorAppointments(): Promise<Appointment[]> {
+    await delay();
+    return MOCK_DOCTOR_SCHEDULE as Appointment[];
+  },
+
+  /** Mock accept/decline — echoes the requested status back to the caller. */
+  async decideAppointment(id: string, status: AppointmentStatus): Promise<Appointment> {
+    await delay(400);
+    const found = (MOCK_DOCTOR_SCHEDULE as Appointment[]).find((a) => a.id === id);
+    return { ...(found ?? (MOCK_DOCTOR_SCHEDULE[0] as Appointment)), id, status };
+  },
+
+  async getProviderState(): Promise<ProviderState> {
+    await delay(300);
+    // Mock doctors are always live, so the dashboard shows the real practice UI.
+    return { state: 'live', doctorId: 'doc-1', application: null };
+  },
+
+  async getPaymentStatus(id: string): Promise<PaymentStatus> {
+    await delay(500);
+    // No real checkout in mock mode, so a poll always reads as settled.
+    return {
+      id,
+      provider: 'flutterwave',
+      amount: 15000,
+      currency: 'NGN',
+      checkoutRef: 'mock-checkout-ref',
+      status: 'succeeded',
+      appointmentStatus: 'upcoming',
+    };
+  },
+
   async createPaymentIntent(input: { appointmentId: string; provider: string }): Promise<PaymentIntent> {
     await delay(600);
     return {
@@ -151,6 +203,27 @@ export const mockApi = {
       apiKey: 'mock-stream-key',
       callType: 'default',
     };
+  },
+
+  async updateProfile(input: { firstName?: string; lastName?: string; phone?: string }): Promise<User> {
+    await delay(500);
+    return {
+      id: 'pat-1',
+      firstName: input.firstName ?? 'Martin',
+      lastName: input.lastName ?? 'Doe',
+      email: 'martin@ekotelehealth.com',
+      role: 'Patient',
+    };
+  },
+
+  async getReviews(): Promise<Review[]> {
+    await delay();
+    return MOCK_REVIEWS;
+  },
+
+  async submitReview(input: { subject: string; rating: number; text: string }): Promise<Review> {
+    await delay(600);
+    return { id: `r-${Date.now()}`, author: 'You', rating: input.rating, text: input.text, date: 'Today' };
   },
 
   async getChatToken(): Promise<ChatTokenGrant> {

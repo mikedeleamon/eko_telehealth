@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, StatusBar,
 } from 'react-native';
@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../constants/Colors';
+import { api } from '../../api';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -17,26 +18,58 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   // When verifying as part of a password reset, continue to set a new password.
   const isReset = route.params?.reset === true;
-  const [otp, setOtp] = useState(['', '', '', '']);
+  const email: string | undefined = route.params?.email;
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const inputs = useRef<(TextInput | null)[]>([]);
+
+  // Signup flow: nothing has issued a code yet, so send one on arrival.
+  // Reset flow: /auth/forgot-password already sent it — don't double-send.
+  useEffect(() => {
+    if (!isReset && email) {
+      api.auth.requestCode('email', email).catch(() => {
+        // Non-fatal: the user can tap Resend.
+      });
+    }
+  }, [isReset, email]);
 
   const handleChange = (val: string, index: number) => {
     const next = [...otp];
     next[index] = val;
     setOtp(next);
-    if (val && index < 3) inputs.current[index + 1]?.focus();
+    if (val && index < otp.length - 1) inputs.current[index + 1]?.focus();
   };
 
-  const handleVerify = () => {
-    if (otp.join('').length < 4) return Alert.alert('', 'Please enter the 4-digit code.');
+  const handleResend = async () => {
+    if (!email) return Alert.alert('', 'Go back and re-enter your email to get a new code.');
+    try {
+      await api.auth.requestCode('email', email);
+      Alert.alert('', 'A new code is on its way to your email.');
+    } catch (err) {
+      Alert.alert('Could not resend code', err instanceof Error ? err.message : 'Please try again.');
+    }
+  };
+
+  const handleVerify = async () => {
+    const code = otp.join('');
+    if (code.length < otp.length) return Alert.alert('', `Please enter the ${otp.length}-digit code.`);
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      if (!email) return Alert.alert('', 'Go back and re-enter your email address.');
+      await api.auth.verifyCode('email', email, code);
       // Fresh signup: show the onboarding tutorial once, then land on Login.
-      // Password reset: continue straight to setting a new password.
-      navigation.navigate(isReset ? 'ChangePassword' : 'Tutorial');
-    }, 1000);
+      // Password reset: carry the code forward — /auth/reset-password needs it
+      // (and the destination it was issued to) to authorise the change.
+      if (isReset) {
+        navigation.navigate('ChangePassword', { channel: 'email', destination: email, code });
+      } else {
+        navigation.navigate('Tutorial');
+      }
+    } catch (err) {
+      Alert.alert('Verification failed', err instanceof Error ? err.message : 'Invalid or expired code.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -55,7 +88,7 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
         </View>
 
         <Text style={styles.title}>Verify Email</Text>
-        <Text style={styles.sub}>We sent a 4-digit code to your email. Enter it below to continue.</Text>
+        <Text style={styles.sub}>We sent a 6-digit code to your email. Enter it below to continue.</Text>
 
         <View style={styles.otpRow}>
           {otp.map((val, i) => (
@@ -78,7 +111,7 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
           <Text style={styles.btnText}>{loading ? 'VERIFYING...' : 'VERIFY'}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.resendRow}>
+        <TouchableOpacity style={styles.resendRow} onPress={handleResend}>
           <Text style={styles.resendText}>Didn't receive the code? </Text>
           <Text style={styles.resendLink}>Resend</Text>
         </TouchableOpacity>
@@ -105,10 +138,10 @@ const styles = StyleSheet.create({
     marginBottom: 36, lineHeight: 22, fontFamily: 'Poppins_400Regular',
   },
 
-  otpRow: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 36 },
+  otpRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 36 },
   otpBox: {
-    width: 60, height: 60, borderRadius: 16, borderWidth: 2,
-    borderColor: Colors.borderGray, textAlign: 'center', fontSize: 24,
+    width: 44, height: 54, borderRadius: 12, borderWidth: 2,
+    borderColor: Colors.borderGray, textAlign: 'center', fontSize: 20,
     fontWeight: '700', color: Colors.textDark, backgroundColor: '#F5F6FA',
   },
   otpBoxFilled: { borderColor: Colors.accent, backgroundColor: '#FFF5F2' },

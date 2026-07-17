@@ -29,9 +29,22 @@ const TYPE_ICONS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
+  pending_approval: Colors.accent,
+  pending_payment: Colors.accent,
   upcoming: Colors.primary,
-  past: Colors.textGray,
+  declined: Colors.red,
   cancelled: Colors.red,
+  past: Colors.textGray,
+};
+
+/** Lifecycle states are snake_case; never show the raw value to a user. */
+const STATUS_LABELS: Record<string, string> = {
+  pending_approval: 'Awaiting approval',
+  pending_payment: 'Payment required',
+  upcoming: 'Confirmed',
+  declined: 'Declined',
+  cancelled: 'Cancelled',
+  past: 'Completed',
 };
 
 export default function AppointmentCard({
@@ -39,6 +52,9 @@ export default function AppointmentCard({
 }: Props) {
   const icon = TYPE_ICONS[appointment.type] ?? 'calendar';
   const statusColor = STATUS_COLORS[appointment.status] ?? Colors.textGray;
+  const statusLabel =
+    STATUS_LABELS[appointment.status] ??
+    appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1);
 
   return (
     <TouchableOpacity
@@ -65,9 +81,7 @@ export default function AppointmentCard({
         </View>
 
         <View style={[styles.statusBadge, { backgroundColor: statusColor + '18' }]}>
-          <Text style={[styles.statusText, { color: statusColor }]}>
-            {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-          </Text>
+          <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
         </View>
       </View>
 
@@ -76,7 +90,9 @@ export default function AppointmentCard({
         <Text style={styles.typeBadgeText}>  {appointment.type}</Text>
       </View>
 
-      {showActions && appointment.status === 'upcoming' && (
+      {/* The caller decides when actions apply (a doctor answering a request);
+          gating on a status here as well would just suppress them. */}
+      {showActions && (
         <View style={styles.actions}>
           <TouchableOpacity style={[styles.actionBtn, styles.declineBtn]} onPress={onDecline}>
             <Text style={styles.declineText}>Decline</Text>

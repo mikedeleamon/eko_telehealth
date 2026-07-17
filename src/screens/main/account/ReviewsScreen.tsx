@@ -7,34 +7,41 @@ import { Colors } from '../../../constants/Colors';
 import EkoHeader from '../../../components/common/EkoHeader';
 import RatingStars from '../../../components/common/RatingStars';
 import EkoButton from '../../../components/common/EkoButton';
+import { useReviews, useSubmitReview } from '../../../hooks/queries';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
   route: RouteProp<any>;
 }
 
-const MOCK_REVIEWS = [
-  { id: '1', author: 'Jane D.', rating: 5, text: 'Excellent doctor! Very thorough and caring.', date: 'Nov 20, 2024' },
-  { id: '2', author: 'Mark S.', rating: 4, text: 'Great experience overall. Short wait time.', date: 'Nov 15, 2024' },
-  { id: '3', author: 'Alice M.', rating: 5, text: 'Highly recommend! Very knowledgeable and professional.', date: 'Oct 30, 2024' },
-];
-
 export default function ReviewsScreen({ navigation, route }: Props) {
   const { doctor } = route.params ?? {};
   const [myRating, setMyRating] = useState(0);
   const [myReview, setMyReview] = useState('');
 
-  const submitReview = () => {
+  // With a doctor param this is that doctor's public reviews (+ write form);
+  // opened bare (doctor settings menu) it lists all published reviews.
+  const { data: reviews = [] } = useReviews(doctor?.name);
+  const submitMutation = useSubmitReview();
+
+  const submitReview = async () => {
     if (myRating === 0) return Alert.alert('', 'Please select a rating.');
     if (!myReview.trim()) return Alert.alert('', 'Please enter your review.');
-    Alert.alert('Thank you!', 'Your review has been submitted.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+    try {
+      await submitMutation.mutateAsync({ subject: doctor.name, rating: myRating, text: myReview.trim() });
+      Alert.alert('Thank you!', 'Your review has been submitted and will appear once approved.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch (err) {
+      Alert.alert('Could not submit review', err instanceof Error ? err.message : 'Please try again.');
+    }
   };
 
   return (
     <View style={styles.container}>
       <EkoHeader title="Reviews" onBack={() => navigation.goBack()} />
       <FlatList
-        data={MOCK_REVIEWS}
+        data={reviews}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
           <View style={[styles.reviewCard, { backgroundColor: Colors.cardColors[index % Colors.cardColors.length] }]}>
@@ -53,6 +60,8 @@ export default function ReviewsScreen({ navigation, route }: Props) {
         )}
         contentContainerStyle={styles.list}
         ListFooterComponent={
+          // Writing needs a subject — only offered when opened for a doctor.
+          !doctor ? null : (
           <View style={styles.writeReview}>
             <Text style={styles.writeTitle}>Write a Review</Text>
             <View style={styles.starRow}>
@@ -71,8 +80,9 @@ export default function ReviewsScreen({ navigation, route }: Props) {
               multiline
               numberOfLines={4}
             />
-            <EkoButton title="Submit Review" variant="accent" onPress={submitReview} />
+            <EkoButton title="Submit Review" variant="accent" onPress={submitReview} loading={submitMutation.isPending} />
           </View>
+          )
         }
       />
     </View>

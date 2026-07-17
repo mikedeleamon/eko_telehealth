@@ -5,8 +5,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
-import { MOCK_DOCTOR_SCHEDULE } from '../../../constants';
-import { useAppointments } from '../../../hooks/queries';
+import { ACTIVE_STATUSES } from '../../../api/types';
+import { useAppointmentDecision, useAppointments, usePracticeAppointments } from '../../../hooks/queries';
 import AppointmentCard from '../../../components/appointments/AppointmentCard';
 import Cross from '../../../components/common/Cross';
 import { useAuth } from '../../../context/AuthContext';
@@ -21,9 +21,38 @@ export default function AppointmentsScreen({ navigation }: Props) {
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
 
   const { data: appointments = [] } = useAppointments();
-  // Doctor schedule keeps mock data until the practice-schedule endpoint exists.
-  const source = isDoctor ? MOCK_DOCTOR_SCHEDULE : appointments;
-  const data = source.filter((a) => a.status === tab);
+  const { data: practiceAppointments = [] } = usePracticeAppointments(isDoctor);
+  const decision = useAppointmentDecision();
+
+  // Doctors read their own practice list; patients read theirs. Both come back
+  // in the same shape, with `doctor` holding the counterparty's name.
+  const source = isDoctor ? practiceAppointments : appointments;
+  // Anything still live (requested / awaiting payment / confirmed) belongs in
+  // Upcoming; everything terminal is History. Matching status === tab directly
+  // would drop cancelled and declined rows out of both tabs entirely.
+  const data = source.filter((a) =>
+    tab === 'upcoming' ? ACTIVE_STATUSES.includes(a.status) : !ACTIVE_STATUSES.includes(a.status),
+  );
+
+  const respond = (id: string, decide: 'accept' | 'decline') => {
+    const label = decide === 'accept' ? 'Accept' : 'Decline';
+    Alert.alert(`${label} request?`, decide === 'accept'
+      ? 'The patient will be asked to pay to confirm the visit.'
+      : 'The patient will be told you could not take this request.', [
+      { text: 'Back', style: 'cancel' },
+      {
+        text: label,
+        style: decide === 'decline' ? 'destructive' : 'default',
+        onPress: async () => {
+          try {
+            await decision.mutateAsync({ id, decision: decide });
+          } catch (err) {
+            Alert.alert(`Could not ${decide}`, err instanceof Error ? err.message : 'Please try again.');
+          }
+        },
+      },
+    ]);
+  };
 
   return (
     <View style={styles.container}>
@@ -69,9 +98,11 @@ export default function AppointmentsScreen({ navigation }: Props) {
           <AppointmentCard
             appointment={item}
             onPress={() => navigation.navigate('AppointmentDetails', { appointment: item })}
-            showActions={isDoctor && item.status === 'upcoming'}
-            onAccept={() => Alert.alert('Appointment Accepted', `You accepted the appointment with ${item.doctor}.`)}
-            onDecline={() => Alert.alert('Appointment Declined', `You declined the appointment with ${item.doctor}.`)}
+            // Accept/Decline only make sense on a request the doctor hasn't
+            // answered yet.
+            showActions={isDoctor && item.status === 'pending_approval'}
+            onAccept={() => respond(item.id, 'accept')}
+            onDecline={() => respond(item.id, 'decline')}
           />
         )}
         contentContainerStyle={styles.list}

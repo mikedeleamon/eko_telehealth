@@ -2,25 +2,35 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
+  route: RouteProp<any>;
 }
 
-const SPECIALTIES = ['Primary Care', 'Eye Doctor', 'OBGYN', 'Cardiology', 'Dermatology', 'Neurology'];
-const AVAILABILITY = ['Any Time', 'Morning', 'Afternoon', 'Evening'];
-const VISIT_TYPES = ['Video Visit', 'Clinic Visit', 'Home Visit'];
-const INSURANCE = ['All', 'Blue Cross', 'Aetna', 'Cigna', 'UnitedHealth'];
+/** Filter state passed between MyDoctors and this screen. */
+export interface DoctorFilters {
+  specialties: string[];
+  minRating: number;
+  availableOnly: boolean;
+}
 
-export default function FilterScreen({ navigation }: Props) {
-  const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
-  const [selectedAvailability, setSelectedAvailability] = useState('Any Time');
-  const [selectedType, setSelectedType] = useState<string[]>([]);
-  const [selectedInsurance, setSelectedInsurance] = useState('All');
-  const [minRating, setMinRating] = useState(0);
+export const EMPTY_FILTERS: DoctorFilters = { specialties: [], minRating: 0, availableOnly: false };
+
+// Only dimensions the Doctor model can actually filter on: `category`,
+// `rating`, and `available`. Availability windows, visit type, and insurance
+// have no backing fields — chips for them would be decoration.
+const SPECIALTIES = ['Primary Care', 'Eye Doctor', 'OBGYN', 'Cardiology', 'Dermatology', 'Neurology'];
+
+export default function FilterScreen({ navigation, route }: Props) {
+  const initial: DoctorFilters = route.params?.filters ?? EMPTY_FILTERS;
+  const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>(initial.specialties);
+  const [minRating, setMinRating] = useState(initial.minRating);
+  const [availableOnly, setAvailableOnly] = useState(initial.availableOnly);
 
   const toggle = (arr: string[], setArr: (v: string[]) => void, val: string) => {
     setArr(arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]);
@@ -46,25 +56,8 @@ export default function FilterScreen({ navigation }: Props) {
 
         <Section title="Availability">
           <View style={styles.chipRow}>
-            {AVAILABILITY.map((a) => (
-              <ChipBtn key={a} label={a} active={selectedAvailability === a} onPress={() => setSelectedAvailability(a)} />
-            ))}
-          </View>
-        </Section>
-
-        <Section title="Visit Type">
-          <View style={styles.chipRow}>
-            {VISIT_TYPES.map((v) => (
-              <ChipBtn key={v} label={v} active={selectedType.includes(v)} onPress={() => toggle(selectedType, setSelectedType, v)} />
-            ))}
-          </View>
-        </Section>
-
-        <Section title="Insurance">
-          <View style={styles.chipRow}>
-            {INSURANCE.map((ins) => (
-              <ChipBtn key={ins} label={ins} active={selectedInsurance === ins} onPress={() => setSelectedInsurance(ins)} />
-            ))}
+            <ChipBtn label="Any" active={!availableOnly} onPress={() => setAvailableOnly(false)} />
+            <ChipBtn label="Available now" active={availableOnly} onPress={() => setAvailableOnly(true)} />
           </View>
         </Section>
 
@@ -90,14 +83,25 @@ export default function FilterScreen({ navigation }: Props) {
             variant="outline"
             onPress={() => {
               setSelectedSpecialties([]);
-              setSelectedAvailability('Any Time');
-              setSelectedType([]);
-              setSelectedInsurance('All');
               setMinRating(0);
+              setAvailableOnly(false);
             }}
             style={styles.resetBtn}
           />
-          <EkoButton title="Apply Filters" variant="accent" onPress={() => navigation.goBack()} style={styles.applyBtn} />
+          <EkoButton
+            title="Apply Filters"
+            variant="accent"
+            onPress={() =>
+              // merge:true updates MyDoctors' params in place instead of
+              // pushing a new instance of it onto the stack.
+              navigation.navigate({
+                name: 'MyDoctors',
+                params: { filters: { specialties: selectedSpecialties, minRating, availableOnly } },
+                merge: true,
+              } as never)
+            }
+            style={styles.applyBtn}
+          />
         </View>
       </ScrollView>
     </View>

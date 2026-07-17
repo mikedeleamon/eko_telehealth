@@ -7,6 +7,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
 import { SPECIALTY_CHIPS } from '../../../constants';
 import { useAppointments, useConversations, useDoctors } from '../../../hooks/queries';
@@ -14,16 +15,20 @@ import DoctorCard from '../../../components/doctors/DoctorCard';
 import AppointmentCard from '../../../components/appointments/AppointmentCard';
 import Cross from '../../../components/common/Cross';
 import { useAuth } from '../../../context/AuthContext';
+import { EMPTY_FILTERS, type DoctorFilters } from './FilterScreen';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
+  route: RouteProp<any>;
 }
 
-export default function MyDoctorsScreen({ navigation }: Props) {
+export default function MyDoctorsScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [activeChip, setActiveChip] = useState('All');
+  // Set by FilterScreen navigating back with merge:true.
+  const filters: DoctorFilters = route.params?.filters ?? EMPTY_FILTERS;
 
   const chips = [{ label: 'All', count: null, color: Colors.primary }, ...SPECIALTY_CHIPS];
 
@@ -36,7 +41,10 @@ export default function MyDoctorsScreen({ navigation }: Props) {
       d.name.toLowerCase().includes(search.toLowerCase()) ||
       d.specialty.toLowerCase().includes(search.toLowerCase());
     const matchChip = activeChip === 'All' || d.specialty.toLowerCase().includes(activeChip.toLowerCase()) || d.category === activeChip;
-    return matchSearch && matchChip;
+    const matchSpecialty = !filters.specialties.length || filters.specialties.includes(d.category);
+    const matchRating = d.rating >= filters.minRating;
+    const matchAvailable = !filters.availableOnly || d.available;
+    return matchSearch && matchChip && matchSpecialty && matchRating && matchAvailable;
   });
 
   const todayAppts = appointments.filter(a => a.status === 'upcoming').slice(0, 2);
@@ -110,8 +118,16 @@ export default function MyDoctorsScreen({ navigation }: Props) {
             </TouchableOpacity>
           )}
           <View style={styles.searchDivider} />
-          <TouchableOpacity onPress={() => navigation.navigate('Filter')}>
-            <FontAwesome name="sliders" size={16} color={Colors.textGray} />
+          <TouchableOpacity onPress={() => navigation.navigate('Filter', { filters })}>
+            <FontAwesome
+              name="sliders"
+              size={16}
+              color={
+                filters.specialties.length || filters.minRating > 0 || filters.availableOnly
+                  ? Colors.primary
+                  : Colors.textGray
+              }
+            />
           </TouchableOpacity>
         </View>
       </LinearGradient>

@@ -1,0 +1,43 @@
+{
+  "cli": {
+    "version": ">= 20.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ekotelehealth-production.up.railway.app",
+        "EXPO_PUBLIC_USE_MOCK_API": "false",
+        "EXPO_PUBLIC_REALTIME_PROVIDER": "stream",
+        "EXPO_PUBLIC_STREAM_API_KEY": "3pnzxnqxansx"
+      }
+    },
+    "demo": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_USE_MOCK_API": "true",
+        "EXPO_PUBLIC_REALTIME_PROVIDER": "mock"
+      }
+    },
+    "production": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ekotelehealth-production.up.railway.app",
+        "EXPO_PUBLIC_USE_MOCK_API": "false",
+        "EXPO_PUBLIC_REALTIME_PROVIDER": "stream",
+        "EXPO_PUBLIC_STREAM_API_KEY": "3pnzxnqxansx"
+      }
+    }
+  },
+  "submit": {
+    "production": {},
+    "demo": {}
+  }
+}

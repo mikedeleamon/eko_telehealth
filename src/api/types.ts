@@ -39,16 +39,36 @@ export interface Doctor {
   avatar: string | null;
 }
 
-export type AppointmentStatus = 'upcoming' | 'past' | 'cancelled';
+/**
+ * Booking lifecycle. A visit is only real once it reads 'upcoming', which
+ * only a verified payment webhook can set:
+ *   pending_approval → pending_payment → upcoming
+ * with declined / cancelled / past as terminal states.
+ */
+export type AppointmentStatus =
+  | 'pending_approval'
+  | 'pending_payment'
+  | 'upcoming'
+  | 'declined'
+  | 'cancelled'
+  | 'past';
+
+/** Statuses that belong in the "Upcoming" tab; everything else is history. */
+export const ACTIVE_STATUSES: AppointmentStatus[] = ['pending_approval', 'pending_payment', 'upcoming'];
 
 export interface Appointment {
   id: string;
+  /** The counterparty's name — the doctor for patients, the patient for doctors. */
   doctor: string;
   specialty: string;
   date: string;
   time: string;
   type: VisitType;
   status: AppointmentStatus;
+  /** Display fee, e.g. "₦15,000" — needed to prompt for payment. */
+  fee?: string;
+  /** Why the doctor declined, when they gave a reason. */
+  declineReason?: string;
 }
 
 export interface CreateAppointmentInput {
@@ -101,6 +121,15 @@ export interface DoctorAgendaItem {
   status: 'confirmed' | 'cancelled' | 'rescheduled' | 'pending';
 }
 
+export interface Review {
+  id: string;
+  author: string;
+  rating: number;
+  text: string;
+  /** Display date, e.g. "Jul 16, 2026". */
+  date: string;
+}
+
 export interface PaymentIntent {
   id: string;
   /** 'flutterwave' | 'paypal' — the two providers named in the pitch. */
@@ -110,6 +139,20 @@ export interface PaymentIntent {
   /** Provider checkout URL or client secret, depending on provider. */
   checkoutRef: string;
   status: 'pending' | 'succeeded' | 'failed';
+}
+
+/** GET /payments/:id — the post-checkout truth, since the redirect proves nothing. */
+export interface PaymentStatus extends PaymentIntent {
+  /** The visit is only booked once this reads 'upcoming'. */
+  appointmentStatus: AppointmentStatus;
+}
+
+/** GET /providers/me — a Doctor account's onboarding state. */
+export interface ProviderState {
+  /** 'live' = bookable profile exists; 'pending' = awaiting admin review. */
+  state: 'live' | 'pending' | 'rejected' | 'none';
+  doctorId: string | null;
+  application: { id: string; status: string; submittedAt: string } | null;
 }
 
 /** Access token grant for joining a video/audio room (Stream Video). */

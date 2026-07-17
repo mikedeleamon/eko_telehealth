@@ -162,11 +162,6 @@ export const MOCK_NOTIFICATIONS = [
 
 // ---- Doctor-side mock data ----
 
-export const MOCK_PATIENT_REQUESTS = [
-  { id: 'r1', name: 'Tunde Bakare', reason: 'Consultation' },
-  { id: 'r2', name: 'Ngozi Nwosu', reason: 'Consultation' },
-];
-
 // status drives the colored dot + soft row tint in the dashboard agenda
 export const MOCK_DOCTOR_APPOINTMENTS = [
   { id: 'd1', name: 'Emeka Obi', type: 'Consultation', time: '12:30 pm', status: 'confirmed' },
@@ -176,14 +171,15 @@ export const MOCK_DOCTOR_APPOINTMENTS = [
   { id: 'd5', name: 'Emeka Obi', type: 'Consultation', time: '12:30 pm', status: 'confirmed' },
 ];
 
-// Doctor's appointment list (Scheduler tab) — same shape as MOCK_APPOINTMENTS,
-// but the `doctor` field holds the patient's name and `specialty` the visit reason.
+// Mock source for GET /practice/appointments — same shape as MOCK_APPOINTMENTS,
+// but `doctor` holds the patient's name and `specialty` the visit reason.
+// Includes pending requests so the Accept/Decline actions have real targets.
 export const MOCK_DOCTOR_SCHEDULE = [
-  { id: 's1', doctor: 'Emeka Obi', specialty: 'Consultation', date: 'Mon, Jun 29, 2026', time: '12:30 PM', type: 'Video Visit', status: 'upcoming' },
-  { id: 's2', doctor: 'Yusuf Ibrahim', specialty: 'First Visit', date: 'Mon, Jun 29, 2026', time: '11:30 AM', type: 'Clinic Visit', status: 'upcoming' },
-  { id: 's3', doctor: 'Bisi Alade', specialty: 'Consultation', date: 'Tue, Jun 30, 2026', time: '12:30 PM', type: 'Video Visit', status: 'upcoming' },
-  { id: 's4', doctor: 'Augustine Watts', specialty: 'Consultation', date: 'Jun 10, 2026', time: '10:30 AM', type: 'Clinic Visit', status: 'past' },
-  { id: 's5', doctor: 'Ngozi Nwosu', specialty: 'Follow-up', date: 'May 28, 2026', time: '3:00 PM', type: 'Video Visit', status: 'past' },
+  { id: 's1', doctor: 'Emeka Obi', specialty: 'Consultation', date: 'Fri, Jul 24, 2026', time: '12:30 PM', type: 'Video Visit', status: 'pending_approval', fee: '₦15,000' },
+  { id: 's2', doctor: 'Yusuf Ibrahim', specialty: 'First Visit', date: 'Fri, Jul 24, 2026', time: '11:30 AM', type: 'Clinic Visit', status: 'pending_approval', fee: '₦15,000' },
+  { id: 's3', doctor: 'Bisi Alade', specialty: 'Consultation', date: 'Thu, Jul 23, 2026', time: '12:30 PM', type: 'Video Visit', status: 'pending_payment', fee: '₦15,000' },
+  { id: 's4', doctor: 'Ngozi Nwosu', specialty: 'Follow-up', date: 'Tue, Jun 30, 2026', time: '3:00 PM', type: 'Video Visit', status: 'upcoming', fee: '₦15,000' },
+  { id: 's5', doctor: 'Augustine Watts', specialty: 'Consultation', date: 'Jun 10, 2026', time: '10:30 AM', type: 'Clinic Visit', status: 'past', fee: '₦15,000' },
 ];
 
 export const MOCK_PATIENTS = [

@@ -46,8 +46,10 @@ export default function VerifyMobileScreen({ navigation }: Props) {
     if (code.length < 6) return Alert.alert('', 'Please enter the 6-digit code.');
     setLoading(true);
     try {
-      await api.auth.verifyCode('sms', code);
-      navigation.navigate('ChangePassword');
+      await api.auth.verifyCode('sms', phone.trim(), code);
+      // Carry the number + code on: /auth/reset-password resolves the account
+      // from the phone and re-checks the code before changing anything.
+      navigation.navigate('ChangePassword', { channel: 'sms', destination: phone.trim(), code });
     } catch (err) {
       Alert.alert('Verification failed', err instanceof Error ? err.message : 'Invalid or expired code.');
     } finally {

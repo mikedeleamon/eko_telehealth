@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../constants/Colors';
 import { GENDER_OPTIONS } from '../../constants';
+import { api } from '../../api';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -28,6 +29,7 @@ export default function SignupScreen({ navigation }: Props) {
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
   const [dob, setDob] = useState('');
   const [gender, setGender] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -46,6 +48,9 @@ export default function SignupScreen({ navigation }: Props) {
     if (password.length < 8) return 'Password must be at least 8 characters.';
     if (!firstName.trim()) return 'Please enter your first name.';
     if (!lastName.trim()) return 'Please enter your last name.';
+    // Required here (though optional server-side, where seeded accounts have
+    // none): it's the only way to reset this account's password by SMS.
+    if (phone.replace(/\D/g, '').length < 10) return 'Please enter a valid mobile number.';
     if (!dob) return 'Please enter your date of birth.';
     if (!gender) return 'Please select your gender.';
     if (!termsAccepted) return 'Please accept the Terms of Use.';
@@ -53,14 +58,27 @@ export default function SignupScreen({ navigation }: Props) {
     return null;
   };
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     const err = validate();
     if (err) return Alert.alert('', err);
     setLoading(true);
-    setTimeout(() => {
+    try {
+      // Creates the account; the session it returns is discarded on purpose —
+      // the flow verifies the email, shows the tutorial, then lands on Login.
+      await api.auth.signup({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        password,
+        role: userType,
+        phone: phone.trim(),
+      });
+      navigation.navigate('VerifyEmail', { email: email.trim() });
+    } catch (err) {
+      Alert.alert('Could not create account', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
       setLoading(false);
-      navigation.navigate('VerifyEmail');
-    }, 1200);
+    }
   };
 
   const pwCriteria = criteria(password);
@@ -134,6 +152,7 @@ export default function SignupScreen({ navigation }: Props) {
 
         <AuthField icon="user" placeholder="First Name" value={firstName} onChangeText={setFirstName} />
         <AuthField icon="user" placeholder="Last Name" value={lastName} onChangeText={setLastName} />
+        <AuthField icon="mobile" placeholder="Mobile Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
         <AuthField icon="calendar" placeholder="Date of Birth (DD-MM-YYYY)" value={dob} onChangeText={setDob} keyboardType="numbers-and-punctuation" />
 
         {/* Gender picker */}

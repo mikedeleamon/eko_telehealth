@@ -6,6 +6,7 @@ import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
+import { useCreateAppointment } from '../../../hooks/queries';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -18,17 +19,50 @@ const TYPES = [
   { label: 'Home Visit', icon: 'home' },
 ];
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * DoctorOverview's calendar passes the selected day as {day, date, month,
+ * year}; the appointments contract wants a display string ("Mon, Jun 29,
+ * 2026" — the shape the backend seeds).
+ */
+function toDateLabel(date: unknown): string {
+  if (typeof date === 'string') return date;
+  if (date && typeof date === 'object' && 'date' in date && 'month' in date && 'year' in date) {
+    const d = date as { date: number; month: number; year: number };
+    const day = new Date(d.year, d.month, d.date);
+    return `${WEEKDAYS[day.getDay()]}, ${MONTHS[day.getMonth()]} ${day.getDate()}, ${day.getFullYear()}`;
+  }
+  return '';
+}
+
 export default function CreateAppointmentScreen({ navigation, route }: Props) {
   const { doctor, slot, date, type } = route.params ?? {};
   const [selectedType, setSelectedType] = useState(
     TYPES.some((t) => t.label === type) ? type : 'Video Visit'
   );
-  const [loading] = useState(false);
+  const createAppointment = useCreateAppointment();
+  const loading = createAppointment.isPending;
 
-  // The appointment is only committed once payment succeeds (PaymentScreen),
-  // so this step just carries the selection forward.
-  const handleConfirm = () => {
-    navigation.navigate('Payment', { doctor, slot, date, type: selectedType });
+  /**
+   * Sends a REQUEST — the doctor has to accept before any payment is taken,
+   * so this no longer routes straight to checkout.
+   */
+  const handleConfirm = async () => {
+    if (!doctor?.id) return Alert.alert('', 'Pick a doctor before requesting a visit.');
+    if (!slot) return Alert.alert('', 'Pick a time slot first.');
+    try {
+      const appointment = await createAppointment.mutateAsync({
+        doctorId: doctor.id,
+        date: toDateLabel(date),
+        time: slot,
+        type: selectedType,
+      });
+      navigation.navigate('AppointmentConfirmed', { doctor, appointment });
+    } catch (err) {
+      Alert.alert('Could not send request', err instanceof Error ? err.message : 'Please try again.');
+    }
   };
 
   return (
@@ -76,7 +110,7 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
           <Text style={styles.feeValue}>{doctor?.fee ?? '$0'}</Text>
         </View>
 
-        <EkoButton title="Proceed to Payment" variant="accent" onPress={handleConfirm} loading={loading} style={styles.btn} />
+        <EkoButton title="Request Appointment" variant="accent" onPress={handleConfirm} loading={loading} style={styles.btn} />
       </ScrollView>
     </View>
   );

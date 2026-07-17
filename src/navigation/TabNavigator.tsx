@@ -18,6 +18,7 @@ import AudioCallScreen from '../screens/main/doctors/AudioCallScreen';
 import ChatScreen from '../screens/main/doctors/ChatScreen';
 import MessagesScreen from '../screens/main/doctors/MessagesScreen';
 import PaymentScreen from '../screens/main/doctors/PaymentScreen';
+import PaymentPendingScreen from '../screens/main/doctors/PaymentPendingScreen';
 import FilterScreen from '../screens/main/doctors/FilterScreen';
 import ReviewsScreen from '../screens/main/account/ReviewsScreen';
 
@@ -44,6 +45,7 @@ import ChangePasswordScreen from '../screens/auth/ChangePasswordScreen';
 
 // Doctor
 import DashboardScreen from '../screens/main/dashboard/DashboardScreen';
+import ProviderApplyScreen from '../screens/main/dashboard/ProviderApplyScreen';
 import PatientsScreen from '../screens/main/dashboard/PatientsScreen';
 import DoctorSettingsScreen from '../screens/main/dashboard/DoctorSettingsScreen';
 
@@ -69,6 +71,7 @@ function HomeNavigator() {
       <HomeStack.Screen name="Chat" component={ChatScreen} />
       <HomeStack.Screen name="Messages" component={MessagesScreen} />
       <HomeStack.Screen name="Payment" component={PaymentScreen} />
+      <HomeStack.Screen name="PaymentPending" component={PaymentPendingScreen} />
       <HomeStack.Screen name="Filter" component={FilterScreen} />
       <HomeStack.Screen name="Reviews" component={ReviewsScreen} />
       <HomeStack.Screen name="Notifications" component={NotificationsScreen} />
@@ -84,6 +87,7 @@ function AppointmentsNavigator() {
       <AppointmentsStack.Screen name="DoctorOverview" component={DoctorOverviewScreen} />
       <AppointmentsStack.Screen name="CreateAppointment" component={CreateAppointmentScreen} />
       <AppointmentsStack.Screen name="Payment" component={PaymentScreen} />
+      <AppointmentsStack.Screen name="PaymentPending" component={PaymentPendingScreen} />
       <AppointmentsStack.Screen name="AppointmentConfirmed" component={AppointmentConfirmedScreen} />
       <AppointmentsStack.Screen name="VideoCall" component={VideoCallScreen} options={{ presentation: 'fullScreenModal' }} />
       <AppointmentsStack.Screen name="AudioCall" component={AudioCallScreen} options={{ presentation: 'fullScreenModal' }} />
@@ -100,6 +104,7 @@ function SearchNavigator() {
       <SearchStack.Screen name="DoctorOverview" component={DoctorOverviewScreen} />
       <SearchStack.Screen name="CreateAppointment" component={CreateAppointmentScreen} />
       <SearchStack.Screen name="Payment" component={PaymentScreen} />
+      <SearchStack.Screen name="PaymentPending" component={PaymentPendingScreen} />
       <SearchStack.Screen name="AppointmentConfirmed" component={AppointmentConfirmedScreen} />
       <SearchStack.Screen name="VideoCall" component={VideoCallScreen} options={{ presentation: 'fullScreenModal' }} />
       <SearchStack.Screen name="AudioCall" component={AudioCallScreen} options={{ presentation: 'fullScreenModal' }} />
@@ -136,6 +141,7 @@ function DashboardNavigator() {
   return (
     <DashboardStack.Navigator screenOptions={{ headerShown: false }}>
       <DashboardStack.Screen name="Dashboard" component={DashboardScreen} />
+      <DashboardStack.Screen name="ProviderApply" component={ProviderApplyScreen} />
       <DashboardStack.Screen name="Messages" component={MessagesScreen} />
       <DashboardStack.Screen name="Chat" component={ChatScreen} />
       <DashboardStack.Screen name="VideoCall" component={VideoCallScreen} options={{ presentation: 'fullScreenModal' }} />

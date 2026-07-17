@@ -16,6 +16,10 @@ export const queryKeys = {
   notifications: ['notifications'] as const,
   patients: ['patients'] as const,
   agenda: ['agenda'] as const,
+  practiceAppointments: ['practice-appointments'] as const,
+  providerState: ['provider-state'] as const,
+  payment: (id: string) => ['payments', id] as const,
+  reviews: (subject?: string) => ['reviews', subject ?? 'all'] as const,
 };
 
 export function useDoctors(params?: { category?: string; query?: string }) {
@@ -34,6 +38,14 @@ export function useCreateAppointment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateAppointmentInput) => api.appointments.create(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.appointments }),
+  });
+}
+
+export function useCancelAppointment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.appointments.cancel(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.appointments }),
   });
 }
@@ -58,6 +70,48 @@ export function usePatients() {
   return useQuery({ queryKey: queryKeys.patients, queryFn: api.practice.patients });
 }
 
-export function useDoctorAgenda() {
-  return useQuery({ queryKey: queryKeys.agenda, queryFn: api.practice.agenda });
+/** The doctor's own appointments (/appointments is patient-scoped). */
+export function usePracticeAppointments(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.practiceAppointments,
+    queryFn: api.practice.appointments,
+    enabled,
+  });
+}
+
+/** Accept or decline a request; both refresh the practice list. */
+export function useAppointmentDecision() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, decision, reason }: { id: string; decision: 'accept' | 'decline'; reason?: string }) =>
+      decision === 'accept' ? api.practice.accept(id) : api.practice.decline(id, reason),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.practiceAppointments });
+      qc.invalidateQueries({ queryKey: queryKeys.agenda });
+    },
+  });
+}
+
+/** Doctor onboarding state — gates the practice UI until a profile is live. */
+export function useProviderState(enabled = true) {
+  return useQuery({ queryKey: queryKeys.providerState, queryFn: api.providers.me, enabled });
+}
+
+export function useReviews(subject?: string) {
+  return useQuery({ queryKey: queryKeys.reviews(subject), queryFn: () => api.reviews.list(subject) });
+}
+
+export function useSubmitReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { subject: string; rating: number; text: string }) => api.reviews.submit(input),
+    // Submissions are 'pending' until moderated, so the published list won't
+    // change yet — invalidate anyway for when moderation is instant (mock).
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['reviews'] }),
+  });
+}
+
+export function useDoctorAgenda(enabled = true) {
+  // Gate on role at the call site: /practice/agenda 403s for non-doctors.
+  return useQuery({ queryKey: queryKeys.agenda, queryFn: api.practice.agenda, enabled });
 }

@@ -7,9 +7,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
-import { MOCK_PATIENT_REQUESTS } from '../../../constants';
-import { useConversations, useDoctorAgenda } from '../../../hooks/queries';
+import {
+  useAppointmentDecision,
+  useConversations,
+  useDoctorAgenda,
+  usePracticeAppointments,
+  useProviderState,
+} from '../../../hooks/queries';
 import Cross from '../../../components/common/Cross';
+import EkoButton from '../../../components/common/EkoButton';
 import { useAuth } from '../../../context/AuthContext';
 
 interface Props {
@@ -29,10 +35,32 @@ export default function DashboardScreen({ navigation }: Props) {
   const [search, setSearch] = useState('');
 
   const firstName = user?.firstName ?? 'Doctor';
+  const { data: provider } = useProviderState();
+  // Until an application is approved there's no doctors profile, so the
+  // practice queries would all return empty — don't fire them.
+  const isLive = provider?.state === 'live';
   const { data: conversations = [] } = useConversations();
-  const { data: agenda = [] } = useDoctorAgenda();
+  const { data: agenda = [] } = useDoctorAgenda(isLive);
+  const { data: practiceAppointments = [] } = usePracticeAppointments(isLive);
+  const decision = useAppointmentDecision();
   const unreadCount = conversations.reduce((n, c) => n + c.unread, 0);
   const remaining = agenda.length;
+
+  // Real requests: appointments this doctor hasn't answered yet.
+  const requests = practiceAppointments.filter((a) => a.status === 'pending_approval');
+
+  const respond = (id: string, name: string, decide: 'accept' | 'decline') => {
+    decision.mutate(
+      { id, decision: decide },
+      {
+        onError: (err) =>
+          Alert.alert(
+            `Could not ${decide}`,
+            err instanceof Error ? err.message : `Could not ${decide} ${name}'s request.`,
+          ),
+      },
+    );
+  };
 
   return (
     <View style={styles.screen}>
@@ -92,41 +120,83 @@ export default function DashboardScreen({ navigation }: Props) {
       </LinearGradient>
 
       <ScrollView style={styles.body} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+        {/* A Doctor account isn't bookable until an admin approves its
+            application, so say so rather than showing an empty practice. */}
+        {provider && !isLive && (
+          <View style={styles.section}>
+            <View style={styles.onboardCard}>
+              <FontAwesome
+                name={provider.state === 'pending' ? 'hourglass-half' : provider.state === 'rejected' ? 'times-circle' : 'id-card-o'}
+                size={28}
+                color={Colors.primary}
+              />
+              <Text style={styles.onboardTitle}>
+                {provider.state === 'pending'
+                  ? 'Application under review'
+                  : provider.state === 'rejected'
+                    ? 'Application not approved'
+                    : 'Finish setting up your practice'}
+              </Text>
+              <Text style={styles.onboardText}>
+                {provider.state === 'pending'
+                  ? `Submitted ${provider.application?.submittedAt ?? 'recently'}. We'll notify you once it's reviewed — patients can book you as soon as it's approved.`
+                  : provider.state === 'rejected'
+                    ? 'Your application was not approved. Contact support if you think this is a mistake.'
+                    : 'Submit your details for verification. Once approved, your profile goes live and patients can book you.'}
+              </Text>
+              {(provider.state === 'none' || provider.state === 'rejected') && (
+                <EkoButton
+                  title="Apply Now"
+                  variant="accent"
+                  onPress={() => navigation.navigate('ProviderApply')}
+                  style={styles.onboardBtn}
+                />
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Requests */}
+        {isLive && (
         <View style={styles.section}>
           <View style={styles.sectionRow}>
             <Text style={styles.sectionTitle}>Requests</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('PatientsTab')}>
+            <TouchableOpacity onPress={() => navigation.navigate('SchedulerTab')}>
               <Text style={styles.viewAll}>View List</Text>
             </TouchableOpacity>
           </View>
 
-          {MOCK_PATIENT_REQUESTS.map((req, i) => (
-            <View key={req.id} style={[styles.requestCard, { backgroundColor: Colors.cardColors[i % 2 === 0 ? 0 : 1] }]}>
-              <View style={styles.reqAvatar}>
-                <FontAwesome name="user" size={22} color={Colors.primary} />
+          {requests.length === 0 ? (
+            <Text style={styles.emptyRequests}>No pending requests right now.</Text>
+          ) : (
+            requests.map((req, i) => (
+              <View key={req.id} style={[styles.requestCard, { backgroundColor: Colors.cardColors[i % 2 === 0 ? 0 : 1] }]}>
+                <View style={styles.reqAvatar}>
+                  <FontAwesome name="user" size={22} color={Colors.primary} />
+                </View>
+                <View style={styles.reqInfo}>
+                  <Text style={styles.reqName}>{req.doctor}</Text>
+                  <Text style={styles.reqReason}>{req.date} · {req.time} · {req.type}</Text>
+                </View>
+                <View style={styles.reqActions}>
+                  <TouchableOpacity
+                    style={[styles.reqBtn, styles.acceptBtn]}
+                    onPress={() => respond(req.id, req.doctor, 'accept')}
+                  >
+                    <Text style={styles.acceptText}>Accept</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.reqBtn, styles.declineBtn]}
+                    onPress={() => respond(req.id, req.doctor, 'decline')}
+                  >
+                    <Text style={styles.declineText}>Decline</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              <View style={styles.reqInfo}>
-                <Text style={styles.reqName}>{req.name}</Text>
-                <Text style={styles.reqReason}>{req.reason}</Text>
-              </View>
-              <View style={styles.reqActions}>
-                <TouchableOpacity
-                  style={[styles.reqBtn, styles.acceptBtn]}
-                  onPress={() => Alert.alert('Request Accepted', `You accepted ${req.name}'s consultation.`)}
-                >
-                  <Text style={styles.acceptText}>Accept</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.reqBtn, styles.declineBtn]}
-                  onPress={() => Alert.alert('Request Declined', `You declined ${req.name}'s consultation.`)}
-                >
-                  <Text style={styles.declineText}>Decline</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
+            ))
+          )}
         </View>
+        )}
 
         {/* Today's Appointment */}
         <View style={styles.section}>
@@ -210,6 +280,32 @@ const styles = StyleSheet.create({
 
   body: { flex: 1 },
   section: { paddingHorizontal: 16, paddingTop: 20 },
+
+  onboardCard: {
+    backgroundColor: Colors.white, borderRadius: 20, padding: 20, alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(39, 42, 58, 0.10)',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 1,
+        shadowRadius: 10,
+      },
+      android: { elevation: 3 },
+    }),
+  },
+  onboardTitle: {
+    fontSize: 16, fontWeight: '700', color: Colors.textDark,
+    marginTop: 12, marginBottom: 6, textAlign: 'center', fontFamily: 'Poppins_700Bold',
+  },
+  onboardText: {
+    fontSize: 13, color: Colors.textGray, textAlign: 'center',
+    lineHeight: 20, fontFamily: 'Poppins_400Regular',
+  },
+  onboardBtn: { marginTop: 16, alignSelf: 'stretch' },
+  emptyRequests: {
+    fontSize: 13, color: Colors.textGray, paddingVertical: 12,
+    fontFamily: 'Poppins_400Regular',
+  },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitle: { fontSize: 18, fontWeight: '800', color: Colors.textDark, fontFamily: 'Poppins_700Bold' },
   viewAll: { fontSize: 13, color: Colors.primary, fontWeight: '600', fontFamily: 'Poppins_600SemiBold' },

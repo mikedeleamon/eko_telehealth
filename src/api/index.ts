@@ -22,6 +22,10 @@ import type {
   DoctorAgendaItem,
   PatientSummary,
   PaymentIntent,
+  PaymentStatus,
+  ProviderState,
+  Review,
+  User,
   UserRole,
 } from './types';
 
@@ -33,8 +37,15 @@ export const api = {
       return request<AuthSession>('/auth/login', { method: 'POST', body: { email, password, role }, anonymous: true });
     },
 
-    /** POST /auth/signup */
-    signup(input: { firstName: string; lastName: string; email: string; password: string; role: UserRole }): Promise<AuthSession> {
+    /** POST /auth/signup — `phone` enables SMS password reset for the account. */
+    signup(input: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      password: string;
+      role: UserRole;
+      phone?: string;
+    }): Promise<AuthSession> {
       if (env.useMockApi) return mockApi.signup(input);
       return request<AuthSession>('/auth/signup', { method: 'POST', body: input, anonymous: true });
     },
@@ -45,16 +56,57 @@ export const api = {
       return request<void>('/auth/forgot-password', { method: 'POST', body: { email }, anonymous: true });
     },
 
+    /**
+     * POST /auth/reset-password — set a new password using a delivered code.
+     * Anonymous: the code is the proof of identity, and the backend requires it
+     * to have been issued to this exact destination (email address or phone).
+     */
+    resetPassword(
+      channel: 'email' | 'sms',
+      destination: string,
+      code: string,
+      newPassword: string,
+    ): Promise<void> {
+      if (env.useMockApi) return Promise.resolve();
+      return request<void>('/auth/reset-password', {
+        method: 'POST',
+        body: { channel, destination, code, newPassword },
+        anonymous: true,
+      });
+    },
+
+    /** PATCH /auth/me — update the signed-in user's profile (not email; that's the login id). */
+    updateProfile(input: { firstName?: string; lastName?: string; phone?: string }): Promise<User> {
+      if (env.useMockApi) return mockApi.updateProfile(input);
+      return request<User>('/auth/me', { method: 'PATCH', body: input });
+    },
+
+    /** POST /auth/change-password — signed-in change; needs the current password. */
+    changePassword(currentPassword: string, newPassword: string): Promise<void> {
+      if (env.useMockApi) return Promise.resolve();
+      return request<void>('/auth/change-password', {
+        method: 'POST',
+        body: { currentPassword, newPassword },
+      });
+    },
+
     /** POST /auth/send-code — send an email/SMS verification code. */
     requestCode(channel: 'email' | 'sms', destination: string): Promise<void> {
       if (env.useMockApi) return Promise.resolve();
       return request<void>('/auth/send-code', { method: 'POST', body: { channel, destination }, anonymous: true });
     },
 
-    /** POST /auth/verify — email or SMS OTP verification. */
-    verifyCode(channel: 'email' | 'sms', code: string): Promise<void> {
+    /**
+     * POST /auth/verify — email or SMS OTP check. `destination` is required:
+     * the backend binds each code to the address/number it was sent to.
+     */
+    verifyCode(channel: 'email' | 'sms', destination: string, code: string): Promise<void> {
       if (env.useMockApi) return Promise.resolve();
-      return request<void>('/auth/verify', { method: 'POST', body: { channel, code } });
+      return request<void>('/auth/verify', {
+        method: 'POST',
+        body: { channel, destination, code },
+        anonymous: true,
+      });
     },
   },
 
@@ -138,13 +190,61 @@ export const api = {
       if (env.useMockApi) return mockApi.getDoctorAgenda();
       return request<DoctorAgendaItem[]>('/practice/agenda');
     },
+
+    /**
+     * GET /practice/appointments — the doctor's own appointments.
+     * `/appointments` is patient-scoped, so doctors need their own listing.
+     */
+    appointments(): Promise<Appointment[]> {
+      if (env.useMockApi) return mockApi.getDoctorAppointments();
+      return request<Appointment[]>('/practice/appointments');
+    },
+
+    /** POST /practice/appointments/:id/accept — accept; patient must then pay. */
+    accept(id: string): Promise<Appointment> {
+      if (env.useMockApi) return mockApi.decideAppointment(id, 'pending_payment');
+      return request<Appointment>(`/practice/appointments/${id}/accept`, { method: 'POST' });
+    },
+
+    /** POST /practice/appointments/:id/decline */
+    decline(id: string, reason?: string): Promise<Appointment> {
+      if (env.useMockApi) return mockApi.decideAppointment(id, 'declined');
+      return request<Appointment>(`/practice/appointments/${id}/decline`, { method: 'POST', body: { reason } });
+    },
   },
 
   payments: {
-    /** POST /payments/intent — backend creates a Flutterwave/PayPal checkout. */
+    /**
+     * POST /payments/intent — backend creates a Flutterwave/PayPal checkout.
+     * Only valid once the doctor has accepted (status 'pending_payment').
+     */
     createIntent(input: { appointmentId: string; provider: 'flutterwave' | 'paypal' }): Promise<PaymentIntent> {
       if (env.useMockApi) return mockApi.createPaymentIntent(input);
       return request<PaymentIntent>('/payments/intent', { method: 'POST', body: input });
+    },
+
+    /**
+     * GET /payments/:id — poll after returning from the hosted checkout. The
+     * provider redirect carries no trustworthy result, so this is the only way
+     * to learn whether the money actually moved.
+     */
+    get(id: string): Promise<PaymentStatus> {
+      if (env.useMockApi) return mockApi.getPaymentStatus(id);
+      return request<PaymentStatus>(`/payments/${id}`);
+    },
+  },
+
+  providers: {
+    /** GET /providers/me — this Doctor account's onboarding state. */
+    me(): Promise<ProviderState> {
+      if (env.useMockApi) return mockApi.getProviderState();
+      return request<ProviderState>('/providers/me');
+    },
+
+    /** POST /providers/apply — submit for admin review; approval creates the profile. */
+    apply(input: { specialty: string; category: string; location: string; fee: string }): Promise<{ id: string; status: string; submittedAt: string }> {
+      if (env.useMockApi) return Promise.resolve({ id: 'mock-app', status: 'pending', submittedAt: 'Today' });
+      return request('/providers/apply', { method: 'POST', body: input });
     },
   },
 
@@ -161,6 +261,21 @@ export const api = {
     token(): Promise<ChatTokenGrant> {
       if (env.useMockApi) return mockApi.getChatToken();
       return request<ChatTokenGrant>('/chat/token', { method: 'POST' });
+    },
+  },
+
+  reviews: {
+    /** GET /reviews?subject= — published reviews (moderated by the admin console). */
+    list(subject?: string): Promise<Review[]> {
+      if (env.useMockApi) return mockApi.getReviews();
+      const suffix = subject ? `?subject=${encodeURIComponent(subject)}` : '';
+      return request<Review[]>(`/reviews${suffix}`);
+    },
+
+    /** POST /reviews — submit for moderation; goes live once an admin approves. */
+    submit(input: { subject: string; rating: number; text: string }): Promise<Review> {
+      if (env.useMockApi) return mockApi.submitReview(input);
+      return request<Review>('/reviews', { method: 'POST', body: input });
     },
   },
 };

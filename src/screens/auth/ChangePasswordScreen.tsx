@@ -6,36 +6,64 @@ import {
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
+import { api } from '../../api';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
+  route: RouteProp<any>;
 }
 
-export default function ChangePasswordScreen({ navigation }: Props) {
+export default function ChangePasswordScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { isLoggedIn } = useAuth();
+  // Set by the reset flows (VerifyEmail / VerifyMobile pass the verified code
+  // on). Absent for logged-in users changing their password from Account.
+  const channel: 'email' | 'sms' | undefined = route.params?.channel;
+  const destination: string | undefined = route.params?.destination;
+  const resetCode: string | undefined = route.params?.code;
+  const isReset = !!(channel && destination && resetCode);
+  const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
+  const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [currentFocused, setCurrentFocused] = useState(false);
   const [newFocused, setNewFocused] = useState(false);
   const [confirmFocused, setConfirmFocused] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handle = () => {
+  const handle = async () => {
+    if (!isReset && !currentPass) return Alert.alert('', 'Please enter your current password.');
     if (!newPass) return Alert.alert('', 'Please enter a new password.');
     if (newPass.length < 8) return Alert.alert('', 'Password must be at least 8 characters.');
     if (newPass !== confirmPass) return Alert.alert('', 'Passwords do not match.');
+
+    // Reached without reset params and without a session there's nothing to
+    // authorise the change — don't report a success that never happened.
+    if (!isReset && !isLoggedIn) {
+      return Alert.alert('', 'Your reset link has expired. Please start again from “Forgot Password”.');
+    }
+
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      if (isReset) {
+        await api.auth.resetPassword(channel!, destination!, resetCode!, newPass);
+      } else {
+        await api.auth.changePassword(currentPass, newPass);
+      }
       Alert.alert('Success', 'Your password has been updated.', [
-        // Logged-in users (Account / Settings) just return; the reset flow returns to Login.
-        { text: 'OK', onPress: () => (isLoggedIn ? navigation.goBack() : navigation.navigate('Login')) },
+        // Logged-in users return to where they were; the reset flow signs in.
+        { text: 'OK', onPress: () => (isReset ? navigation.navigate('Login') : navigation.goBack()) },
       ]);
-    }, 1000);
+    } catch (err) {
+      Alert.alert('Could not update password', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -58,6 +86,27 @@ export default function ChangePasswordScreen({ navigation }: Props) {
         <View style={styles.body}>
           <Text style={styles.title}>Change Password</Text>
           <Text style={styles.subtitle}>Please Create your new password</Text>
+
+          {/* Current password — only when already signed in; the reset flows
+              prove identity with the code instead. */}
+          {!isReset && (
+            <View style={[styles.field, currentFocused && styles.fieldFocused]}>
+              <FontAwesome name="lock" size={18} color={currentFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="Current Password"
+                placeholderTextColor={Colors.textGray}
+                value={currentPass}
+                onChangeText={setCurrentPass}
+                onFocus={() => setCurrentFocused(true)}
+                onBlur={() => setCurrentFocused(false)}
+                secureTextEntry={!showCurrent}
+              />
+              <TouchableOpacity onPress={() => setShowCurrent(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <FontAwesome name={showCurrent ? 'eye' : 'eye-slash'} size={18} color={Colors.textGray} />
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* New password */}
           <View style={[styles.field, newFocused && styles.fieldFocused]}>
