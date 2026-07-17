@@ -18,14 +18,21 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Eko Telehealth uses your camera for video visits with your doctor.",
         "NSMicrophoneUsageDescription": "Eko Telehealth uses your microphone for audio and video visits with your doctor."
-      }
+      },
+      "appleTeamId": "2FKZ6J358T"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1565C0"
       },
-      "package": "com.ekotelehealth.app"
+      "package": "com.ekotelehealth.app",
+      "permissions": [
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.WAKE_LOCK"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

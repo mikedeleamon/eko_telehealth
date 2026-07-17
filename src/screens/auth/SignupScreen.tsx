@@ -63,8 +63,9 @@ export default function SignupScreen({ navigation }: Props) {
     if (err) return Alert.alert('', err);
     setLoading(true);
     try {
-      // Creates the account; the session it returns is discarded on purpose —
-      // the flow verifies the email, shows the tutorial, then lands on Login.
+      // Records a pending signup only — no account exists until the emailed
+      // code is verified on the next screen. Safe to come back and resubmit:
+      // it replaces the pending signup rather than erroring as a duplicate.
       await api.auth.signup({
         firstName: firstName.trim(),
         lastName: lastName.trim(),

@@ -41,7 +41,13 @@ export const api = {
       return request<AuthSession>('/auth/login', { method: 'POST', body: { email, password, role }, anonymous: true });
     },
 
-    /** POST /auth/signup — `phone` enables SMS password reset for the account. */
+    /**
+     * POST /auth/signup — `phone` enables SMS password reset for the account.
+     *
+     * Returns no session: this only records a pending signup. The account is
+     * created when the emailed code is confirmed via verifyCode('email', …),
+     * so the user must verify before they can sign in.
+     */
     signup(input: {
       firstName: string;
       lastName: string;
@@ -49,9 +55,9 @@ export const api = {
       password: string;
       role: UserRole;
       phone?: string;
-    }): Promise<AuthSession> {
+    }): Promise<void> {
       if (env.useMockApi) return mockApi.signup(input);
-      return request<AuthSession>('/auth/signup', { method: 'POST', body: input, anonymous: true });
+      return request<void>('/auth/signup', { method: 'POST', body: input, anonymous: true });
     },
 
     /** POST /auth/forgot-password */

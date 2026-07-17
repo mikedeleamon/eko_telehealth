@@ -83,21 +83,17 @@ export const mockApi = {
     };
   },
 
-  async signup(input: {
+  async signup(_input: {
     firstName: string;
     lastName: string;
     email: string;
     role: UserRole;
     /** Accepted to match the live contract; the mock user model has no phone. */
     phone?: string;
-  }): Promise<AuthSession> {
+  }): Promise<void> {
+    // Mirrors the live contract: signup only records a pending signup and
+    // returns no session — the account appears once the email code is verified.
     await delay(700);
-    const { phone: _phone, ...user } = input;
-    return {
-      user: { id: 'new-1', ...user },
-      accessToken: 'mock-access-token',
-      refreshToken: 'mock-refresh-token',
-    };
   },
 
   async getDoctors(params?: { category?: string; query?: string }): Promise<Doctor[]> {
