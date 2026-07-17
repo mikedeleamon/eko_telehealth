@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../constants/Colors';
 import { api } from '../../api';
+import { sanitizePhoneInput, isValidPhone } from '../../utils/format';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -23,6 +24,7 @@ export default function VerifyMobileScreen({ navigation }: Props) {
 
   const sendCode = async () => {
     if (!phone.trim()) return Alert.alert('', 'Please enter your mobile number.');
+    if (!isValidPhone(phone)) return Alert.alert('', 'Please enter a valid mobile number.');
     setLoading(true);
     try {
       await api.auth.requestCode('sms', phone.trim());
@@ -82,7 +84,7 @@ export default function VerifyMobileScreen({ navigation }: Props) {
             placeholder="+1 Phone number"
             placeholderTextColor={Colors.textGray}
             value={phone}
-            onChangeText={setPhone}
+            onChangeText={(t) => setPhone(sanitizePhoneInput(t))}
             onFocus={() => setPhoneFocused(true)}
             onBlur={() => setPhoneFocused(false)}
             keyboardType="phone-pad"

@@ -104,6 +104,16 @@ export interface AppNotification {
   time: string;
 }
 
+export interface PatientBiometrics {
+  bloodPressure?: string;
+  heartRate?: string;
+  temperature?: string;
+  weight?: string;
+  height?: string;
+  bmi?: string;
+  bloodType?: string;
+}
+
 export interface PatientSummary {
   id: string;
   name: string;
@@ -111,6 +121,14 @@ export interface PatientSummary {
   gender: string;
   condition: string;
   lastVisit: string;
+  /** Free-text reason the patient booked — shown on the profile screen. */
+  reason?: string;
+  /** Reported symptoms for the current/most recent visit. */
+  symptoms?: string;
+  allergies?: string;
+  phone?: string;
+  email?: string;
+  biometrics?: PatientBiometrics;
 }
 
 export interface DoctorAgendaItem {

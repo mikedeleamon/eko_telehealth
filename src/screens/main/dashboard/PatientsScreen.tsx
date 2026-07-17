@@ -66,7 +66,11 @@ export default function PatientsScreen({ navigation }: Props) {
         data={data}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('PatientProfile', { patient: item })}
+          >
             <View style={styles.avatar}>
               <FontAwesome name="user" size={22} color={Colors.primary} />
             </View>

@@ -11,6 +11,7 @@ import Cross from '../../../components/common/Cross';
 import { useAuth } from '../../../context/AuthContext';
 import { api } from '../../../api';
 import { useAuthStore } from '../../../store/authStore';
+import { sanitizePhoneInput, isValidPhone } from '../../../utils/format';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -26,6 +27,7 @@ export default function EditProfileScreen({ navigation }: Props) {
 
   const save = async () => {
     if (!firstName.trim() || !lastName.trim()) return Alert.alert('', 'Name fields cannot be empty.');
+    if (phone.trim() && !isValidPhone(phone)) return Alert.alert('', 'Please enter a valid phone number.');
     setLoading(true);
     try {
       const updated = await api.auth.updateProfile({
@@ -88,7 +90,7 @@ export default function EditProfileScreen({ navigation }: Props) {
               can't be changed from a profile save — it would need a verified
               email-change flow. Shown read-only. */}
           <EkoTextField label="Email" placeholder="Email" icon="envelope-o" value={user?.email ?? ''} editable={false} />
-          <EkoTextField label="Phone" placeholder="Phone number" icon="phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+          <EkoTextField label="Phone" placeholder="Phone number" icon="phone" value={phone} onChangeText={(t) => setPhone(sanitizePhoneInput(t))} keyboardType="phone-pad" />
 
           <EkoButton title="UPDATE" variant="accent" onPress={save} loading={loading} style={styles.btn} />
         </View>

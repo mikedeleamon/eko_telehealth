@@ -9,6 +9,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../constants/Colors';
 import { GENDER_OPTIONS } from '../../constants';
 import { api } from '../../api';
+import CalendarSheet from '../../components/common/CalendarSheet';
+import { sanitizePhoneInput, isValidPhone, maskDateInput, isValidDate } from '../../utils/format';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -38,6 +40,8 @@ export default function SignupScreen({ navigation }: Props) {
   const [pwFocused, setPwFocused] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [genderModal, setGenderModal] = useState(false);
+  const [dobCalendar, setDobCalendar] = useState(false);
+  const [dobFocused, setDobFocused] = useState(false);
 
   const validate = () => {
     if (!email.trim()) return 'Please enter your email address.';
@@ -50,8 +54,9 @@ export default function SignupScreen({ navigation }: Props) {
     if (!lastName.trim()) return 'Please enter your last name.';
     // Required here (though optional server-side, where seeded accounts have
     // none): it's the only way to reset this account's password by SMS.
-    if (phone.replace(/\D/g, '').length < 10) return 'Please enter a valid mobile number.';
+    if (!isValidPhone(phone)) return 'Please enter a valid mobile number.';
     if (!dob) return 'Please enter your date of birth.';
+    if (!isValidDate(dob, { allowFuture: false })) return 'Please enter a valid date of birth (DD-MM-YYYY).';
     if (!gender) return 'Please select your gender.';
     if (!termsAccepted) return 'Please accept the Terms of Use.';
     if (!hipaaAccepted) return 'Please accept the HIPAA authorization.';
@@ -153,8 +158,26 @@ export default function SignupScreen({ navigation }: Props) {
 
         <AuthField icon="user" placeholder="First Name" value={firstName} onChangeText={setFirstName} />
         <AuthField icon="user" placeholder="Last Name" value={lastName} onChangeText={setLastName} />
-        <AuthField icon="mobile" placeholder="Mobile Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-        <AuthField icon="calendar" placeholder="Date of Birth (DD-MM-YYYY)" value={dob} onChangeText={setDob} keyboardType="numbers-and-punctuation" />
+        <AuthField icon="mobile" placeholder="Mobile Number" value={phone} onChangeText={(t: string) => setPhone(sanitizePhoneInput(t))} keyboardType="phone-pad" />
+
+        {/* Date of birth — typeable (masked to DD-MM-YYYY) with a calendar shortcut */}
+        <View style={[styles.field, dobFocused && styles.fieldFocused]}>
+          <FontAwesome name="calendar" size={18} color={dobFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
+          <TextInput
+            style={styles.fieldInput}
+            placeholder="Date of Birth (DD-MM-YYYY)"
+            placeholderTextColor={Colors.textGray}
+            value={dob}
+            onChangeText={(t) => setDob(maskDateInput(t))}
+            onFocus={() => setDobFocused(true)}
+            onBlur={() => setDobFocused(false)}
+            keyboardType="number-pad"
+            maxLength={10}
+          />
+          <TouchableOpacity onPress={() => setDobCalendar(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <FontAwesome name="calendar-o" size={18} color={Colors.accent} />
+          </TouchableOpacity>
+        </View>
 
         {/* Gender picker */}
         <TouchableOpacity style={styles.field} onPress={() => setGenderModal(true)}>
@@ -182,6 +205,15 @@ export default function SignupScreen({ navigation }: Props) {
           <Text style={styles.submitBtnText}>{loading ? 'CREATING ACCOUNT...' : 'SAVE AND CONTINUE'}</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <CalendarSheet
+        visible={dobCalendar}
+        value={dob}
+        onSelect={setDob}
+        onClose={() => setDobCalendar(false)}
+        disableFuture
+        title="Date of Birth"
+      />
 
       <Modal visible={genderModal} transparent animationType="slide">
         <TouchableOpacity style={styles.modalOverlay} onPress={() => setGenderModal(false)}>

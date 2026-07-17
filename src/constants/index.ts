@@ -25,6 +25,28 @@ export const GENDER_OPTIONS = ['Male', 'Female', 'Others'];
 
 export const DOCTOR_CATEGORIES = ['Primary Care', 'Eye Doctor', 'OBGYN'];
 
+// Relationship options for adding a dependent (with "Other" fallback in the UI).
+export const RELATIONSHIP_OPTIONS = ['Child', 'Spouse', 'Parent', 'Sibling', 'Grandparent', 'Ward'];
+
+// Categories patients search providers by — used for the provider application.
+export const PROVIDER_CATEGORY_OPTIONS = [
+  'Primary Care', 'Eye Doctor', 'OBGYN', 'Cardiology', 'Dermatology',
+  'Pediatrics', 'Dentistry', 'Mental Health', 'Physiotherapy',
+];
+
+// Common provider specialties (with "Other" fallback in the UI).
+export const SPECIALTY_OPTIONS = [
+  'General Practitioner', 'Cardiologist', 'Dermatologist', 'Ophthalmologist',
+  'Obstetrician/Gynaecologist', 'Paediatrician', 'Dentist', 'Psychiatrist',
+  'Physiotherapist', 'Internal Medicine', 'Endocrinologist', 'Neurologist',
+];
+
+// Common Nigerian HMOs / insurers (with "Other" fallback in the UI).
+export const INSURANCE_PROVIDER_OPTIONS = [
+  'AXA Mansard', 'Hygeia HMO', 'Reliance HMO', 'Avon HMO', 'Leadway Health',
+  'Total Health Trust', 'NHIS', 'Blue Cross Blue Shield', 'Aetna', 'Cigna',
+];
+
 export const SPECIALTY_CHIPS = [
   { label: 'Primary Care', count: 10, color: '#F97653' },
   { label: 'Eye Doctor', count: 8, color: '#6C5CE7' },
@@ -183,12 +205,54 @@ export const MOCK_DOCTOR_SCHEDULE = [
 ];
 
 export const MOCK_PATIENTS = [
-  { id: 'p1', name: 'Emeka Obi', age: 34, gender: 'Male', condition: 'Hypertension', lastVisit: 'Jun 20, 2026' },
-  { id: 'p2', name: 'Yusuf Ibrahim', age: 28, gender: 'Male', condition: 'First Visit', lastVisit: 'New patient' },
-  { id: 'p3', name: 'Alex Stewart', age: 45, gender: 'Male', condition: 'Diabetes Type 2', lastVisit: 'Jun 12, 2026' },
-  { id: 'p4', name: 'Augustine Watts', age: 52, gender: 'Female', condition: 'Migraine', lastVisit: 'Jun 5, 2026' },
-  { id: 'p5', name: 'Ngozi Nwosu', age: 31, gender: 'Female', condition: 'Pregnancy care', lastVisit: 'May 29, 2026' },
-  { id: 'p6', name: 'Tunde Bakare', age: 40, gender: 'Male', condition: 'Annual checkup', lastVisit: 'May 14, 2026' },
+  {
+    id: 'p1', name: 'Emeka Obi', age: 34, gender: 'Male', condition: 'Hypertension', lastVisit: 'Jun 20, 2026',
+    reason: 'Follow-up for high blood pressure and medication review',
+    symptoms: 'Occasional headaches, mild dizziness in the mornings',
+    allergies: 'Penicillin',
+    phone: '+234 803 111 2233', email: 'emeka.obi@example.com',
+    biometrics: { bloodPressure: '148/95 mmHg', heartRate: '82 bpm', temperature: '36.7 °C', weight: '84 kg', height: '178 cm', bmi: '26.5', bloodType: 'O+' },
+  },
+  {
+    id: 'p2', name: 'Yusuf Ibrahim', age: 28, gender: 'Male', condition: 'First Visit', lastVisit: 'New patient',
+    reason: 'New patient consultation — persistent cough for two weeks',
+    symptoms: 'Dry cough, sore throat, low-grade fever at night',
+    allergies: 'None reported',
+    phone: '+234 806 445 7788', email: 'yusuf.ibrahim@example.com',
+    biometrics: { bloodPressure: '122/78 mmHg', heartRate: '76 bpm', temperature: '37.4 °C', weight: '71 kg', height: '175 cm', bmi: '23.2', bloodType: 'A+' },
+  },
+  {
+    id: 'p3', name: 'Alex Stewart', age: 45, gender: 'Male', condition: 'Diabetes Type 2', lastVisit: 'Jun 12, 2026',
+    reason: 'Quarterly diabetes management and HbA1c review',
+    symptoms: 'Increased thirst, fatigue after meals',
+    allergies: 'Sulfa drugs',
+    phone: '+234 701 223 9090', email: 'alex.stewart@example.com',
+    biometrics: { bloodPressure: '134/86 mmHg', heartRate: '88 bpm', temperature: '36.6 °C', weight: '92 kg', height: '181 cm', bmi: '28.1', bloodType: 'B+' },
+  },
+  {
+    id: 'p4', name: 'Augustine Watts', age: 52, gender: 'Female', condition: 'Migraine', lastVisit: 'Jun 5, 2026',
+    reason: 'Recurrent migraines — evaluating current treatment plan',
+    symptoms: 'Throbbing headaches, light sensitivity, nausea',
+    allergies: 'Aspirin',
+    phone: '+234 809 556 3412', email: 'augustine.watts@example.com',
+    biometrics: { bloodPressure: '128/82 mmHg', heartRate: '74 bpm', temperature: '36.8 °C', weight: '68 kg', height: '165 cm', bmi: '25.0', bloodType: 'AB+' },
+  },
+  {
+    id: 'p5', name: 'Ngozi Nwosu', age: 31, gender: 'Female', condition: 'Pregnancy care', lastVisit: 'May 29, 2026',
+    reason: 'Antenatal check-up — 24 weeks gestation',
+    symptoms: 'Mild back pain, occasional swelling in ankles',
+    allergies: 'None reported',
+    phone: '+234 802 778 1265', email: 'ngozi.nwosu@example.com',
+    biometrics: { bloodPressure: '118/76 mmHg', heartRate: '80 bpm', temperature: '36.9 °C', weight: '73 kg', height: '168 cm', bmi: '25.9', bloodType: 'O-' },
+  },
+  {
+    id: 'p6', name: 'Tunde Bakare', age: 40, gender: 'Male', condition: 'Annual checkup', lastVisit: 'May 14, 2026',
+    reason: 'Routine annual physical and preventive screening',
+    symptoms: 'No active complaints',
+    allergies: 'None reported',
+    phone: '+234 805 990 4471', email: 'tunde.bakare@example.com',
+    biometrics: { bloodPressure: '120/80 mmHg', heartRate: '70 bpm', temperature: '36.6 °C', weight: '78 kg', height: '176 cm', bmi: '25.2', bloodType: 'A-' },
+  },
 ];
 
 export const TIME_SLOTS = [

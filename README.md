@@ -128,14 +128,20 @@ The app runs entirely on built-in mock data until a backend is configured, so
 every flow is demoable out of the box.
 
 1. Copy `.env.example` to `.env`.
-2. Set `EXPO_PUBLIC_API_URL` to the backend base URL and
+2. Set `EXPO_PUBLIC_API_URL` to the backend base URL (Railway) and
    `EXPO_PUBLIC_USE_MOCK_API=false` to go live.
-3. Set `EXPO_PUBLIC_REALTIME_PROVIDER=twilio` once the Twilio integrations in
-   `src/services/messaging` and `src/services/video` are configured.
+3. Set `EXPO_PUBLIC_REALTIME_PROVIDER=stream` and `EXPO_PUBLIC_STREAM_API_KEY`
+   once chat/video are backed by [Stream](https://getstream.io) (see
+   `src/services/messaging` and `src/services/video`). Chat works immediately;
+   video needs a dev-client rebuild:
+   ```bash
+   npx expo prebuild -p ios --clean && npm run ios
+   ```
 
-The full list of backend endpoints the app expects, plus Twilio /
-Flutterwave / PayPal setup steps, is in `Eko_Telehealth_Integration_Guide.pdf`
-(repo root's parent folder).
+The backend itself (Express on Railway) wires in Supabase, Stream, payments
+via Flutterwave + PayPal, and email via Resend. The full list of backend
+endpoints the app expects, plus provider setup steps, is in
+`Eko_Telehealth_Integration_Guide.pdf` (repo root's parent folder).
 
 ---
 

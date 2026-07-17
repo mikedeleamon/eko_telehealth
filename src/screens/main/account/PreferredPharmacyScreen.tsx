@@ -5,6 +5,7 @@ import { Colors } from '../../../constants/Colors';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoTextField from '../../../components/common/EkoTextField';
 import EkoButton from '../../../components/common/EkoButton';
+import { sanitizePhoneInput, isValidPhone } from '../../../utils/format';
 import { usePharmacy, useSavePharmacy } from '../../../hooks/queries';
 
 interface Props {
@@ -31,6 +32,7 @@ export default function PreferredPharmacyScreen({ navigation }: Props) {
     if (!name.trim()) return Alert.alert('', 'Please enter pharmacy name.');
     if (!address.trim()) return Alert.alert('', 'Please enter pharmacy address.');
     if (!fax.trim()) return Alert.alert('', 'Please enter pharmacy fax number.');
+    if (!isValidPhone(fax)) return Alert.alert('', 'Please enter a valid fax number.');
     try {
       await savePharmacy.mutateAsync({ name: name.trim(), address: address.trim(), fax: fax.trim() });
       Alert.alert('Saved', 'Pharmacy preference saved.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
@@ -45,7 +47,7 @@ export default function PreferredPharmacyScreen({ navigation }: Props) {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <EkoTextField label="Pharmacy Name" placeholder="Pharmacy name" icon="medkit" value={name} onChangeText={setName} />
         <EkoTextField label="Address" placeholder="Full address" icon="map-marker" value={address} onChangeText={setAddress} />
-        <EkoTextField label="Fax Number" placeholder="Fax number" icon="fax" value={fax} onChangeText={setFax} keyboardType="phone-pad" />
+        <EkoTextField label="Fax Number" placeholder="Fax number" icon="fax" value={fax} onChangeText={(t) => setFax(sanitizePhoneInput(t))} keyboardType="phone-pad" />
         <EkoButton title="Save Pharmacy" variant="accent" onPress={save} loading={savePharmacy.isPending} style={styles.btn} />
       </ScrollView>
     </View>

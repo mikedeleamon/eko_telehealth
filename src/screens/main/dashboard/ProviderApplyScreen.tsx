@@ -5,7 +5,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoTextField from '../../../components/common/EkoTextField';
+import EkoSelectField, { OTHER_OPTION } from '../../../components/common/EkoSelectField';
 import EkoButton from '../../../components/common/EkoButton';
+import { PROVIDER_CATEGORY_OPTIONS, SPECIALTY_OPTIONS } from '../../../constants';
 import { api } from '../../../api';
 import { queryKeys } from '../../../hooks/queries';
 
@@ -22,6 +24,7 @@ interface Props {
  */
 export default function ProviderApplyScreen({ navigation }: Props) {
   const [specialty, setSpecialty] = useState('');
+  const [specialtyOther, setSpecialtyOther] = useState('');
   const [category, setCategory] = useState('');
   const [location, setLocation] = useState('');
   const [fee, setFee] = useState('');
@@ -29,15 +32,16 @@ export default function ProviderApplyScreen({ navigation }: Props) {
   const qc = useQueryClient();
 
   const submit = async () => {
-    if (specialty.trim().length < 2) return Alert.alert('', 'Enter your specialty, e.g. "Cardiologist".');
-    if (category.trim().length < 2) return Alert.alert('', 'Enter the category patients search by, e.g. "Cardiology".');
+    const resolvedSpecialty = specialty === OTHER_OPTION ? specialtyOther.trim() : specialty.trim();
+    if (resolvedSpecialty.length < 2) return Alert.alert('', 'Select or enter your specialty, e.g. "Cardiologist".');
+    if (category.trim().length < 2) return Alert.alert('', 'Select the category patients search by, e.g. "Cardiology".');
     if (location.trim().length < 2) return Alert.alert('', 'Enter your practice location.');
     if (!fee.trim()) return Alert.alert('', 'Enter your consultation fee, e.g. "₦15,000".');
 
     setLoading(true);
     try {
       await api.providers.apply({
-        specialty: specialty.trim(),
+        specialty: resolvedSpecialty,
         category: category.trim(),
         location: location.trim(),
         fee: fee.trim(),
@@ -63,19 +67,25 @@ export default function ProviderApplyScreen({ navigation }: Props) {
           Tell us about your practice. Our team verifies every provider before their profile goes live.
         </Text>
 
-        <EkoTextField
+        <EkoSelectField
           label="Specialty"
-          placeholder="e.g. Cardiologist, Internal Medicine"
           icon="stethoscope"
+          placeholder="Select your specialty"
+          options={SPECIALTY_OPTIONS}
           value={specialty}
-          onChangeText={setSpecialty}
+          onSelect={setSpecialty}
+          allowOther
+          otherValue={specialtyOther}
+          onChangeOther={setSpecialtyOther}
+          otherPlaceholder="Enter your specialty"
         />
-        <EkoTextField
+        <EkoSelectField
           label="Category"
-          placeholder="e.g. Cardiology — how patients search"
           icon="tags"
+          placeholder="How patients search for you"
+          options={PROVIDER_CATEGORY_OPTIONS}
           value={category}
-          onChangeText={setCategory}
+          onSelect={setCategory}
         />
         <EkoTextField
           label="Location"

@@ -5,7 +5,11 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoTextField from '../../../components/common/EkoTextField';
+import EkoDatePickerField from '../../../components/common/EkoDatePickerField';
+import EkoSelectField, { OTHER_OPTION } from '../../../components/common/EkoSelectField';
 import EkoButton from '../../../components/common/EkoButton';
+import { RELATIONSHIP_OPTIONS } from '../../../constants';
+import { isValidDate } from '../../../utils/format';
 import { useAddDependent, useDependents, useRemoveDependent } from '../../../hooks/queries';
 
 interface Props {
@@ -17,6 +21,7 @@ export default function AddDependentScreen({ navigation }: Props) {
   const [lastName, setLastName] = useState('');
   const [dob, setDob] = useState('');
   const [relation, setRelation] = useState('');
+  const [relationOther, setRelationOther] = useState('');
   const { data: dependents = [] } = useDependents();
   const addDependent = useAddDependent();
   const removeDependent = useRemoveDependent();
@@ -40,12 +45,19 @@ export default function AddDependentScreen({ navigation }: Props) {
     if (!firstName.trim()) return Alert.alert('', 'Please enter first name.');
     if (!lastName.trim()) return Alert.alert('', 'Please enter last name.');
     if (!dob.trim()) return Alert.alert('', 'Please enter date of birth.');
+    if (!isValidDate(dob, { allowFuture: false })) {
+      return Alert.alert('', 'Please enter a valid date of birth (DD-MM-YYYY).');
+    }
+    const relationship = relation === OTHER_OPTION ? relationOther.trim() : relation.trim();
+    if (relation === OTHER_OPTION && !relationship) {
+      return Alert.alert('', 'Please specify the relationship.');
+    }
     try {
       await addDependent.mutateAsync({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         dob: dob.trim(),
-        ...(relation.trim() ? { relationship: relation.trim() } : {}),
+        ...(relationship ? { relationship } : {}),
       });
       Alert.alert('Success', 'Dependent added successfully.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
     } catch (err) {
@@ -89,8 +101,19 @@ export default function AddDependentScreen({ navigation }: Props) {
         <Text style={styles.formTitle}>Add someone new</Text>
         <EkoTextField label="First Name" placeholder="First name" icon="user" value={firstName} onChangeText={setFirstName} />
         <EkoTextField label="Last Name" placeholder="Last name" icon="user" value={lastName} onChangeText={setLastName} />
-        <EkoTextField label="Date of Birth" placeholder="DD-MM-YYYY" icon="calendar" value={dob} onChangeText={setDob} />
-        <EkoTextField label="Relationship" placeholder="e.g. Child, Parent, Spouse" icon="heart" value={relation} onChangeText={setRelation} />
+        <EkoDatePickerField label="Date of Birth" value={dob} onChangeText={setDob} disableFuture />
+        <EkoSelectField
+          label="Relationship"
+          icon="heart"
+          placeholder="Select relationship"
+          options={RELATIONSHIP_OPTIONS}
+          value={relation}
+          onSelect={setRelation}
+          allowOther
+          otherValue={relationOther}
+          onChangeOther={setRelationOther}
+          otherPlaceholder="Specify relationship"
+        />
         <EkoButton title="Add Dependent" variant="accent" onPress={save} loading={addDependent.isPending} style={styles.btn} />
       </ScrollView>
     </View>
