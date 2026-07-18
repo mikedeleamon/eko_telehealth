@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import { useNotifications } from '../../../hooks/queries';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -18,10 +20,13 @@ const NOTIF_ICONS: Record<string, string> = {
 };
 
 export default function NotificationsScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const { data: notifications = [] } = useNotifications();
   return (
     <View style={styles.container}>
-      <EkoHeader title="Notifications" onBack={() => navigation.goBack()} />
+      <EkoHeader title={t('account.notifications')} onBack={() => navigation.goBack()} />
       <FlatList
         data={notifications}
         keyExtractor={(item) => item.id}
@@ -41,7 +46,7 @@ export default function NotificationsScreen({ navigation }: Props) {
         ListEmptyComponent={
           <View style={styles.empty}>
             <FontAwesome name="bell-slash-o" size={44} color={Colors.textLight} />
-            <Text style={styles.emptyText}>No notifications</Text>
+            <Text style={styles.emptyText}>{t('notifications.noNotifications')}</Text>
           </View>
         }
       />
@@ -49,7 +54,7 @@ export default function NotificationsScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
   list: { padding: 16 },
   card: {

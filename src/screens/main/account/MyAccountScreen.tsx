@@ -7,35 +7,40 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import { useAuth } from '../../../context/AuthContext';
 import Cross from '../../../components/common/Cross';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
 }
 
 const MENU_ITEMS = [
-  { icon: 'user', label: 'Edit Profile', screen: 'EditProfile', color: '#5A5DED' },
-  { icon: 'heartbeat', label: 'Patient Overview', screen: 'PatientOverview', color: '#F97653' },
-  { icon: 'medkit', label: 'My Health', screen: 'MyHealth', color: '#3FBE6E' },
-  { icon: 'shield', label: 'Insurance', screen: 'Insurance', color: '#00CAAE' },
-  { icon: 'medkit', label: 'Preferred Pharmacy', screen: 'PreferredPharmacy', color: '#FF7043' },
-  { icon: 'users', label: 'Dependents', screen: 'AddDependent', color: '#7C4DFF' },
-  { icon: 'bell', label: 'Notifications', screen: 'Notifications', color: '#0097A7' },
-  { icon: 'cog', label: 'Settings', screen: 'Settings', color: '#607D8B' },
-  { icon: 'lock', label: 'Change Password', screen: 'ChangePassword', color: '#E91E63' },
-  { icon: 'star', label: 'Peer Reviews', screen: 'PeerReview', color: '#FFC107' },
-  { icon: 'info-circle', label: 'About Us', screen: 'AboutUs', color: '#4CAF50' },
+  { icon: 'user', labelKey: 'account.editProfile', screen: 'EditProfile', color: '#5A5DED' },
+  { icon: 'heartbeat', labelKey: 'account.patientOverview', screen: 'PatientOverview', color: '#F97653' },
+  { icon: 'medkit', labelKey: 'account.myHealth', screen: 'MyHealth', color: '#3FBE6E' },
+  { icon: 'shield', labelKey: 'account.insurance', screen: 'Insurance', color: '#00CAAE' },
+  { icon: 'medkit', labelKey: 'account.preferredPharmacy', screen: 'PreferredPharmacy', color: '#FF7043' },
+  { icon: 'users', labelKey: 'account.dependentsMenu', screen: 'AddDependent', color: '#7C4DFF' },
+  { icon: 'bell', labelKey: 'account.notifications', screen: 'Notifications', color: '#0097A7' },
+  { icon: 'cog', labelKey: 'account.settings', screen: 'Settings', color: '#607D8B' },
+  { icon: 'lock', labelKey: 'account.changePassword', screen: 'ChangePassword', color: '#E91E63' },
+  { icon: 'star', labelKey: 'account.peerReviews', screen: 'PeerReview', color: '#FFC107' },
+  { icon: 'info-circle', labelKey: 'account.aboutUs', screen: 'AboutUs', color: '#4CAF50' },
 ];
 
 export default function MyAccountScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: logout },
+    Alert.alert(t('account.signOut'), t('account.signOutConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('account.signOut'), style: 'destructive', onPress: logout },
     ]);
   };
 
@@ -71,12 +76,14 @@ export default function MyAccountScreen({ navigation }: Props) {
             <Text style={styles.userEmail}>{user?.email ?? 'patient@ekotelehealth.com'}</Text>
             <View style={styles.memberBadge}>
               <FontAwesome name={user?.role === 'Doctor' ? 'user-md' : 'check-circle'} size={11} color={Colors.green} />
-              <Text style={styles.memberText}>  {user?.role === 'Doctor' ? 'Doctor Account' : 'Patient Account'}</Text>
+              <Text style={styles.memberText}>  {user?.role === 'Doctor' ? t('account.doctorAccount') : t('account.patientAccount')}</Text>
             </View>
           </View>
           <TouchableOpacity
             style={styles.editBtn}
             onPress={() => navigation.navigate('EditProfile')}
+            accessibilityRole="button"
+            accessibilityLabel={t('account.editProfile')}
           >
             <FontAwesome name="pencil" size={14} color={Colors.white} />
           </TouchableOpacity>
@@ -90,11 +97,13 @@ export default function MyAccountScreen({ navigation }: Props) {
             style={styles.menuItem}
             onPress={() => navigation.navigate(item.screen as any)}
             activeOpacity={0.78}
+            accessibilityRole="button"
+            accessibilityLabel={t(item.labelKey)}
           >
             <View style={[styles.menuIconBox, { backgroundColor: item.color + '20' }]}>
               <FontAwesome name={item.icon as any} size={18} color={item.color} />
             </View>
-            <Text style={styles.menuLabel}>{item.label}</Text>
+            <Text style={styles.menuLabel}>{t(item.labelKey)}</Text>
             <FontAwesome name="chevron-right" size={13} color={Colors.textGray} />
           </TouchableOpacity>
         ))}
@@ -103,7 +112,7 @@ export default function MyAccountScreen({ navigation }: Props) {
           <View style={[styles.menuIconBox, { backgroundColor: Colors.error + '18' }]}>
             <FontAwesome name="sign-out" size={18} color={Colors.error} />
           </View>
-          <Text style={styles.logoutText}>Sign Out</Text>
+          <Text style={styles.logoutText}>{t('account.signOut')}</Text>
         </TouchableOpacity>
 
         <View style={{ height: 24 + (insets.bottom || 0) }} />
@@ -112,7 +121,7 @@ export default function MyAccountScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
 
   header: {
@@ -125,7 +134,7 @@ const styles = StyleSheet.create({
   },
   profileRow: { flexDirection: 'row', alignItems: 'center' },
   avatar: {
-    width: 68, height: 68, borderRadius: 34, backgroundColor: Colors.white,
+    width: 68, height: 68, borderRadius: 34, backgroundColor: Colors.surface,
     alignItems: 'center', justifyContent: 'center', marginRight: 14,
     borderWidth: 3, borderColor: 'rgba(255,255,255,0.4)',
   },
@@ -143,7 +152,7 @@ const styles = StyleSheet.create({
   content: { padding: 16 },
 
   menuItem: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.white,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface,
     borderRadius: 18, padding: 14, marginBottom: 8,
     ...Platform.select({
       ios: { shadowColor: 'rgba(0,0,0,0.06)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 6 },
@@ -157,7 +166,7 @@ const styles = StyleSheet.create({
   menuLabel: { flex: 1, fontSize: 15, fontWeight: '500', color: Colors.textDark, fontFamily: 'Poppins_500Medium' },
 
   logoutBtn: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.white,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface,
     borderRadius: 18, padding: 14, marginTop: 8,
     borderWidth: 1, borderColor: Colors.error + '30',
     ...Platform.select({

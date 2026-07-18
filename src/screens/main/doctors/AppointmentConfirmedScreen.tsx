@@ -5,8 +5,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import EkoButton from '../../../components/common/EkoButton';
 import { useAuth } from '../../../context/AuthContext';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -19,16 +21,19 @@ interface Props {
  * visit. Only a paid appointment ('upcoming') is genuinely confirmed.
  */
 export default function AppointmentConfirmedScreen({ navigation, route }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const { doctor, appointment } = route.params ?? {};
   const { isDoctor } = useAuth();
   const appointmentsTab = isDoctor ? 'SchedulerTab' : 'AppointmentsTab';
   const homeTab = isDoctor ? 'DashboardTab' : 'HomeTab';
 
   const isRequest = appointment?.status === 'pending_approval';
-  const title = isRequest ? `Request\nSent!` : `Appointment\nConfirmed!`;
+  const title = isRequest ? t('confirmed.requestSent') : t('confirmed.appointmentConfirmed');
   const sub = isRequest
-    ? `${doctor?.name ?? 'The doctor'} will review your request. You'll be notified to pay once it's accepted — the visit is confirmed after payment.`
-    : 'Your appointment has been successfully booked.';
+    ? t('confirmed.requestSub', { doctor: doctor?.name ?? t('confirmed.theDoctor') })
+    : t('confirmed.bookedSub');
 
   return (
     <View style={styles.container}>
@@ -41,22 +46,24 @@ export default function AppointmentConfirmedScreen({ navigation, route }: Props)
         <Text style={styles.sub}>{sub}</Text>
 
         <View style={styles.detailCard}>
-          <DetailRow icon="user-md" label="Doctor" value={doctor?.name ?? 'Doctor'} />
-          <DetailRow icon="stethoscope" label="Specialty" value={doctor?.specialty ?? ''} />
-          <DetailRow icon="calendar" label="Date" value={appointment?.date ?? ''} />
-          <DetailRow icon="clock-o" label="Time" value={appointment?.time ?? ''} />
-          <DetailRow icon="tag" label="Type" value={appointment?.type ?? ''} />
-          <DetailRow icon="dollar" label={isRequest ? 'Fee (payable on approval)' : 'Fee'} value={appointment?.fee ?? doctor?.fee ?? ''} last />
+          <DetailRow icon="user-md" label={t('confirmed.doctor')} value={doctor?.name ?? t('confirmed.doctor')} />
+          <DetailRow icon="stethoscope" label={t('confirmed.specialty')} value={doctor?.specialty ?? ''} />
+          <DetailRow icon="calendar" label={t('confirmed.date')} value={appointment?.date ?? ''} />
+          <DetailRow icon="clock-o" label={t('confirmed.time')} value={appointment?.time ?? ''} />
+          <DetailRow icon="tag" label={t('confirmed.type')} value={appointment?.type ?? ''} />
+          <DetailRow icon="dollar" label={isRequest ? t('confirmed.feePayable') : t('confirmed.fee')} value={appointment?.fee ?? doctor?.fee ?? ''} last />
         </View>
 
-        <EkoButton title="View Appointments" variant="accent" onPress={() => navigation.navigate(appointmentsTab)} style={styles.primaryBtn} />
-        <EkoButton title="Back to Home" onPress={() => navigation.navigate(homeTab)} variant="outline" style={styles.secondaryBtn} />
+        <EkoButton title={t('confirmed.viewAppointments')} variant="accent" onPress={() => navigation.navigate(appointmentsTab)} style={styles.primaryBtn} />
+        <EkoButton title={t('confirmed.backToHome')} onPress={() => navigation.navigate(homeTab)} variant="outline" style={styles.secondaryBtn} />
       </View>
     </View>
   );
 }
 
 function DetailRow({ icon, label, value, last }: { icon: string; label: string; value: string; last?: boolean }) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   return (
     <View style={[styles.detailRow, !last && styles.detailRowBorder]}>
       <FontAwesome name={icon as any} size={14} color={Colors.primary} style={styles.detailIcon} />
@@ -66,7 +73,7 @@ function DetailRow({ icon, label, value, last }: { icon: string; label: string; 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
   topGrad: { height: 180, position: 'absolute', top: 0, left: 0, right: 0 },
   content: { flex: 1, alignItems: 'center', paddingTop: 60, paddingHorizontal: 24 },
@@ -78,7 +85,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '900', color: Colors.white, textAlign: 'center', marginBottom: 8, lineHeight: 36 },
   sub: { fontSize: 14, color: 'rgba(255,255,255,0.85)', marginBottom: 32 },
   detailCard: {
-    width: '100%', backgroundColor: Colors.white, borderRadius: 20, padding: 20,
+    width: '100%', backgroundColor: Colors.surface, borderRadius: 20, padding: 20,
     shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 16, elevation: 6,
     marginBottom: 24,
   },

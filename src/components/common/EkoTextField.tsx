@@ -4,6 +4,8 @@ import {
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../theme';
+import { useTranslation } from '../../i18n/useTranslation';
 
 interface Props extends TextInputProps {
   label?: string;
@@ -20,6 +22,9 @@ export default function EkoTextField({
   isPassword = false, pill = false, focusColor,
   ...rest
 }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const [focused, setFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const borderRadius = pill ? 32 : 12;
@@ -33,7 +38,7 @@ export default function EkoTextField({
         style={[
           styles.container,
           { borderRadius },
-          focused && { borderColor: activeBorderColor, backgroundColor: Colors.white },
+          focused && { borderColor: activeBorderColor, backgroundColor: Colors.surface },
           error ? styles.containerError : null,
         ]}
       >
@@ -52,11 +57,17 @@ export default function EkoTextField({
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           secureTextEntry={isPassword && !showPassword}
+          accessibilityLabel={label ?? (rest.placeholder as string | undefined)}
           {...rest}
         />
 
         {isPassword ? (
-          <TouchableOpacity onPress={() => setShowPassword(v => !v)} style={styles.eyeBtn}>
+          <TouchableOpacity
+            onPress={() => setShowPassword(v => !v)}
+            style={styles.eyeBtn}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? t('a11y.hidePassword') : t('a11y.showPassword')}
+          >
             <FontAwesome name={showPassword ? 'eye' : 'eye-slash'} size={17} color={Colors.textGray} />
           </TouchableOpacity>
         ) : null}
@@ -67,7 +78,7 @@ export default function EkoTextField({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   wrapper: { marginBottom: 16 },
   label: {
     fontSize: 13, fontWeight: '600', color: Colors.textMedium,
@@ -75,7 +86,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#F5F6FA',
+    backgroundColor: Colors.field,
     borderWidth: 1.5, borderColor: 'transparent',
     paddingHorizontal: 16, height: 54,
   },

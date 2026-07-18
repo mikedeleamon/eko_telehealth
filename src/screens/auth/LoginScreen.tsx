@@ -8,14 +8,19 @@ import Toast from 'react-native-toast-message';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from '../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
 }
 
 export default function LoginScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { login } = useAuth();
   const [userType, setUserType] = useState<'Patient' | 'Doctor'>('Patient');
   const [email, setEmail] = useState('');
@@ -32,8 +37,8 @@ export default function LoginScreen({ navigation }: Props) {
     } catch (err) {
       Toast.show({
         type: 'error',
-        text1: 'Login failed',
-        text2: err instanceof Error ? err.message : 'Please try again.',
+        text1: t('auth.loginFailed'),
+        text2: err instanceof Error ? err.message : t('common.somethingWentWrong'),
       });
       setLoading(false);
     }
@@ -42,7 +47,7 @@ export default function LoginScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.white }}
+      style={{ flex: 1, backgroundColor: Colors.surface }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <StatusBar barStyle="dark-content" />
@@ -62,14 +67,16 @@ export default function LoginScreen({ navigation }: Props) {
 
         {/* Patient / Doctor toggle */}
         <View style={styles.toggle}>
-          {(['Patient', 'Doctor'] as const).map(t => (
+          {(['Patient', 'Doctor'] as const).map(role => (
             <TouchableOpacity
-              key={t}
-              style={[styles.toggleBtn, userType === t && styles.toggleBtnActive]}
-              onPress={() => setUserType(t)}
+              key={role}
+              style={[styles.toggleBtn, userType === role && styles.toggleBtnActive]}
+              onPress={() => setUserType(role)}
               activeOpacity={0.8}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: userType === role }}
             >
-              <Text style={[styles.toggleText, userType === t && styles.toggleTextActive]}>{t}</Text>
+              <Text style={[styles.toggleText, userType === role && styles.toggleTextActive]}>{role === 'Patient' ? t('auth.loginAsPatient') : t('auth.loginAsDoctor')}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -79,8 +86,9 @@ export default function LoginScreen({ navigation }: Props) {
           <FontAwesome name="at" size={18} color={emailFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
           <TextInput
             style={styles.fieldInput}
-            placeholder="Email"
+            placeholder={t('auth.email')}
             placeholderTextColor={Colors.textGray}
+            accessibilityLabel={t('auth.email')}
             value={email}
             onChangeText={setEmail}
             onFocus={() => setEmailFocused(true)}
@@ -95,34 +103,35 @@ export default function LoginScreen({ navigation }: Props) {
           <FontAwesome name="lock" size={18} color={pwFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
           <TextInput
             style={styles.fieldInput}
-            placeholder="Password"
+            placeholder={t('auth.password')}
             placeholderTextColor={Colors.textGray}
+            accessibilityLabel={t('auth.password')}
             value={password}
             onChangeText={setPassword}
             onFocus={() => setPwFocused(true)}
             onBlur={() => setPwFocused(false)}
             secureTextEntry={!showPw}
           />
-          <TouchableOpacity onPress={() => setShowPw(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity onPress={() => setShowPw(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={showPw ? t('a11y.hidePassword') : t('a11y.showPassword')}>
             <FontAwesome name={showPw ? 'eye' : 'eye-slash'} size={18} color={Colors.textGray} />
           </TouchableOpacity>
         </View>
 
         {/* Login button */}
-        <TouchableOpacity style={styles.loginBtn} onPress={handleLogin} disabled={loading} activeOpacity={0.85}>
-          <Text style={styles.loginBtnText}>{loading ? 'LOGGING IN...' : 'LOGIN'}</Text>
+        <TouchableOpacity style={styles.loginBtn} onPress={handleLogin} disabled={loading} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={t('auth.login')}>
+          <Text style={styles.loginBtnText}>{loading ? t('auth.loggingIn') : t('auth.loginCta')}</Text>
         </TouchableOpacity>
 
         {/* Forgot password */}
         <TouchableOpacity onPress={() => navigation.navigate('ForgotPassLanding')} style={styles.forgotRow}>
-          <Text style={styles.forgotText}>Forgot Password?</Text>
+          <Text style={styles.forgotText}>{t('auth.forgotPasswordQ')}</Text>
         </TouchableOpacity>
 
         {/* Sign up link */}
         <View style={styles.signupRow}>
-          <Text style={styles.signupLabel}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-            <Text style={styles.signupLink}>Sign Up</Text>
+          <Text style={styles.signupLabel}>{t('auth.noAccount')} </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Signup')} accessibilityRole="button" accessibilityLabel={t('auth.signUp')}>
+            <Text style={styles.signupLink}>{t('auth.signUp')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -130,7 +139,7 @@ export default function LoginScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { paddingHorizontal: 28 },
 
   logoArea: { alignItems: 'center', marginBottom: 44 },
@@ -169,12 +178,12 @@ const styles = StyleSheet.create({
 
   field: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#F5F6FA',
+    backgroundColor: Colors.field,
     borderRadius: 32, paddingHorizontal: 20, height: 56,
     marginBottom: 16,
     borderWidth: 1.5, borderColor: 'transparent',
   },
-  fieldFocused: { borderColor: Colors.accent, backgroundColor: Colors.white },
+  fieldFocused: { borderColor: Colors.accent, backgroundColor: Colors.surface },
   fieldIcon: { marginRight: 12 },
   fieldInput: { flex: 1, fontSize: 15, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },
 

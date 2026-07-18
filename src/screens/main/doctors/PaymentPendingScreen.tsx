@@ -5,10 +5,12 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
 import { api } from '../../../api';
 import { queryKeys } from '../../../hooks/queries';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -27,6 +29,9 @@ const MAX_POLLS = 20;
  * 'upcoming' rather than assuming success on return.
  */
 export default function PaymentPendingScreen({ navigation, route }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const { paymentId, doctor, appointment } = route.params ?? {};
   const [state, setState] = useState<'polling' | 'confirmed' | 'failed' | 'timeout'>('polling');
   const qc = useQueryClient();
@@ -74,23 +79,23 @@ export default function PaymentPendingScreen({ navigation, route }: Props) {
   const body = {
     polling: {
       icon: null,
-      title: 'Confirming your payment…',
-      text: 'This usually takes a few seconds. You can leave this screen — we\'ll notify you either way.',
+      title: t('payment.confirmingTitle'),
+      text: t('payment.confirmingText'),
     },
     confirmed: {
       icon: 'check-circle' as const,
-      title: 'Appointment Confirmed',
-      text: `Your visit with ${doctor?.name ?? 'your doctor'} is booked and paid.`,
+      title: t('payment.confirmedTitle'),
+      text: t('payment.confirmedText', { doctor: doctor?.name ?? t('payment.yourDoctor') }),
     },
     failed: {
       icon: 'times-circle' as const,
-      title: 'Payment Failed',
-      text: 'Your payment did not go through, so the visit is still awaiting payment. You can try again.',
+      title: t('payment.failedTitle'),
+      text: t('payment.failedText'),
     },
     timeout: {
       icon: 'clock-o' as const,
-      title: 'Still Processing',
-      text: 'Your payment is taking longer than usual to confirm. We\'ll notify you once it clears — no need to pay again.',
+      title: t('payment.timeoutTitle'),
+      text: t('payment.timeoutText'),
     },
   }[state];
 
@@ -99,7 +104,7 @@ export default function PaymentPendingScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
-      <EkoHeader title="Payment" onBack={() => navigation.goBack()} />
+      <EkoHeader title={t('payment.title')} onBack={() => navigation.goBack()} />
       <View style={styles.body}>
         {state === 'polling' ? (
           <ActivityIndicator size="large" color={Colors.primary} style={styles.spinner} />
@@ -114,14 +119,14 @@ export default function PaymentPendingScreen({ navigation, route }: Props) {
           <View style={styles.actions}>
             {state === 'failed' && (
               <EkoButton
-                title="Try Again"
+                title={t('payment.tryAgain')}
                 variant="accent"
                 onPress={() => navigation.replace('Payment', { appointment, doctor })}
                 style={styles.btn}
               />
             )}
             <EkoButton
-              title="View Appointments"
+              title={t('payment.viewAppointments')}
               variant={state === 'failed' ? 'outline' : 'accent'}
               onPress={() => navigation.navigate('AppointmentsTab')}
               style={styles.btn}
@@ -133,8 +138,8 @@ export default function PaymentPendingScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white },
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.surface },
   body: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   spinner: { marginBottom: 28 },
   title: {

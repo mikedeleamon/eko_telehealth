@@ -10,6 +10,7 @@ import {
   MOCK_DOCTORS,
   MOCK_DOCTOR_APPOINTMENTS,
   MOCK_DOCTOR_SCHEDULE,
+  MOCK_MEDICAL_NOTES,
   MOCK_NOTIFICATIONS,
   MOCK_PATIENTS,
 } from '../../constants';
@@ -27,6 +28,8 @@ import type {
   Dependent,
   DoctorAgendaItem,
   Insurance,
+  MedicalNote,
+  MedicalNoteInput,
   PatientSummary,
   PaymentIntent,
   PaymentStatus,
@@ -47,11 +50,12 @@ const mockDependents: Dependent[] = [
 ];
 let mockInsurance: Insurance | null = null;
 let mockPharmacy: Pharmacy | null = null;
+const mockMedicalNotes: MedicalNote[] = [...(MOCK_MEDICAL_NOTES as MedicalNote[])];
 let mockSettings: UserSettings = {
   pushNotifications: true,
   emailNotifications: true,
   smsNotifications: false,
-  darkMode: false,
+  themeMode: 'system',
   locationAccess: true,
 };
 
@@ -176,6 +180,47 @@ export const mockApi = {
     await delay(400);
     const found = (MOCK_DOCTOR_SCHEDULE as Appointment[]).find((a) => a.id === id);
     return { ...(found ?? (MOCK_DOCTOR_SCHEDULE[0] as Appointment)), id, status };
+  },
+
+  async getMedicalNotes(patientId: string): Promise<MedicalNote[]> {
+    await delay();
+    return mockMedicalNotes
+      .filter((n) => n.patientId === patientId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+
+  async addMedicalNote(input: MedicalNoteInput): Promise<MedicalNote> {
+    await delay(500);
+    // Author identity is stamped here, never taken from the client — mirrors
+    // the real backend deriving it from the bearer token. The mock doctor
+    // session is always doc-1 / Dr. Sarah Johnson.
+    const note: MedicalNote = {
+      id: `note-${Date.now()}`,
+      ...input,
+      doctorId: 'doc-1',
+      doctorName: 'Dr. Sarah Johnson',
+      doctorSpecialty: 'Primary Care',
+      createdAt: new Date().toISOString(),
+    };
+    mockMedicalNotes.push(note);
+    return note;
+  },
+
+  async updateMedicalNote(noteId: string, input: Partial<MedicalNoteInput>): Promise<MedicalNote> {
+    await delay(500);
+    const note = mockMedicalNotes.find((n) => n.id === noteId);
+    if (!note) throw new Error('Note not found.');
+    // Mirrors the server-side authorship check.
+    if (note.doctorId !== 'doc-1') throw new Error('Only the authoring doctor can edit this note.');
+    Object.assign(note, {
+      reason: input.reason ?? note.reason,
+      subjective: input.subjective ?? note.subjective,
+      objective: input.objective ?? note.objective,
+      assessment: input.assessment ?? note.assessment,
+      plan: input.plan ?? note.plan,
+      updatedAt: new Date().toISOString(),
+    });
+    return { ...note };
   },
 
   async getDependents(): Promise<Dependent[]> {

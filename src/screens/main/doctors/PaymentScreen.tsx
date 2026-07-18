@@ -4,12 +4,14 @@ import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
 import RatingStars from '../../../components/common/RatingStars';
 import { api } from '../../../api';
 import { queryKeys } from '../../../hooks/queries';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -19,8 +21,8 @@ interface Props {
 // Card details are collected by the provider's hosted checkout, not here, so
 // "card" simply routes through Flutterwave (the pitch's NGN processor).
 const PAYMENT_METHODS = [
-  { id: 'flutterwave', label: 'Card / Bank / Transfer (Flutterwave)', icon: 'money' },
-  { id: 'paypal', label: 'PayPal', icon: 'paypal' },
+  { id: 'flutterwave', labelKey: 'payment.methodFlutterwave', icon: 'money' },
+  { id: 'paypal', labelKey: 'payment.methodPaypal', icon: 'paypal' },
 ];
 
 /**
@@ -31,6 +33,9 @@ const PAYMENT_METHODS = [
  * success on its own.
  */
 export default function PaymentScreen({ navigation, route }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const { appointment, doctor } = route.params ?? {};
   const [method, setMethod] = useState('flutterwave');
   const [loading, setLoading] = useState(false);
@@ -39,7 +44,7 @@ export default function PaymentScreen({ navigation, route }: Props) {
   const fee = appointment?.fee ?? doctor?.fee ?? '₦15,000';
 
   const pay = async () => {
-    if (!appointment?.id) return Alert.alert('', 'This appointment is no longer available to pay.');
+    if (!appointment?.id) return Alert.alert('', t('payment.notAvailable'));
     setLoading(true);
     try {
       const intent = await api.payments.createIntent({
@@ -55,12 +60,12 @@ export default function PaymentScreen({ navigation, route }: Props) {
       } else {
         // Mock: no real checkout exists, so the intent stands in for settlement.
         qc.invalidateQueries({ queryKey: queryKeys.appointments });
-        Alert.alert('Payment Successful', 'Your payment has been processed successfully.', [
-          { text: 'OK', onPress: () => navigation.navigate('AppointmentConfirmed', { doctor, appointment }) },
+        Alert.alert(t('payment.paymentSuccessful'), t('payment.paymentProcessed'), [
+          { text: t('common.ok'), onPress: () => navigation.navigate('AppointmentConfirmed', { doctor, appointment }) },
         ]);
       }
     } catch (err) {
-      Alert.alert('Payment failed', err instanceof Error ? err.message : 'Please try again.');
+      Alert.alert(t('payment.paymentFailed'), err instanceof Error ? err.message : t('payment.payFailedRetry'));
     } finally {
       setLoading(false);
     }
@@ -68,7 +73,7 @@ export default function PaymentScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
-      <EkoHeader title="Payment" onBack={() => navigation.goBack()} />
+      <EkoHeader title={t('payment.title')} onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.doctorCard}>
           <View style={styles.avatar}>
@@ -81,7 +86,7 @@ export default function PaymentScreen({ navigation, route }: Props) {
           </View>
           <View style={styles.feeBox}>
             <Text style={styles.fee}>{fee}</Text>
-            <Text style={styles.feeLabel}>Fee</Text>
+            <Text style={styles.feeLabel}>{t('payment.feeLabel')}</Text>
           </View>
         </View>
 
@@ -94,15 +99,18 @@ export default function PaymentScreen({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        <Text style={styles.sectionLabel}>Payment Method</Text>
+        <Text style={styles.sectionLabel}>{t('payment.paymentMethodTitle')}</Text>
         {PAYMENT_METHODS.map((pm) => (
           <TouchableOpacity
             key={pm.id}
             style={[styles.methodBtn, method === pm.id && styles.methodBtnActive]}
             onPress={() => setMethod(pm.id)}
+            accessibilityRole="radio"
+            accessibilityLabel={t(pm.labelKey)}
+            accessibilityState={{ selected: method === pm.id }}
           >
             <FontAwesome name={pm.icon as any} size={20} color={method === pm.id ? Colors.primary : Colors.textGray} />
-            <Text style={[styles.methodText, method === pm.id && styles.methodTextActive]}>{pm.label}</Text>
+            <Text style={[styles.methodText, method === pm.id && styles.methodTextActive]}>{t(pm.labelKey)}</Text>
             <FontAwesome name={method === pm.id ? 'dot-circle-o' : 'circle-o'} size={18} color={method === pm.id ? Colors.primary : Colors.textGray} />
           </TouchableOpacity>
         ))}
@@ -111,30 +119,29 @@ export default function PaymentScreen({ navigation, route }: Props) {
             provider's hosted checkout page, so collecting them in-app would
             gather data that goes nowhere (and put us in PCI scope). */}
         <Text style={styles.handoffNote}>
-          You'll be taken to a secure checkout page to complete payment. Your visit is confirmed once
-          payment clears.
+          {t('payment.handoffNote')}
         </Text>
 
         <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Total Amount</Text>
+          <Text style={styles.totalLabel}>{t('payment.totalAmount')}</Text>
           <Text style={styles.totalValue}>{fee}</Text>
         </View>
 
-        <EkoButton title={`Pay ${fee}`} variant="accent" onPress={pay} loading={loading} />
+        <EkoButton title={t('payment.pay', { amount: fee })} variant="accent" onPress={pay} loading={loading} />
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white },
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.surface },
   content: { padding: 20, paddingBottom: 40 },
   doctorCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.primaryFaded,
     borderRadius: 14, padding: 14, marginBottom: 24,
   },
   avatar: {
-    width: 52, height: 52, borderRadius: 26, backgroundColor: Colors.white,
+    width: 52, height: 52, borderRadius: 26, backgroundColor: Colors.surface,
     alignItems: 'center', justifyContent: 'center', marginRight: 12,
   },
   info: { flex: 1 },
@@ -146,7 +153,7 @@ const styles = StyleSheet.create({
   sectionLabel: { fontSize: 16, fontWeight: '700', color: Colors.textDark, marginBottom: 12 },
   methodBtn: {
     flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 14,
-    borderWidth: 1.5, borderColor: Colors.borderGray, marginBottom: 10, backgroundColor: Colors.white,
+    borderWidth: 1.5, borderColor: Colors.borderGray, marginBottom: 10, backgroundColor: Colors.surface,
   },
   methodBtnActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryFaded },
   methodText: { flex: 1, fontSize: 15, color: Colors.textMedium, marginLeft: 12 },

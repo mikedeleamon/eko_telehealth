@@ -6,7 +6,9 @@ import { FontAwesome } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../constants/Colors';
+import { useTheme, useThemeMode, type ThemeColors } from '../theme';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../i18n/useTranslation';
 
 // Home (Doctors) stack
 import MyDoctorsScreen from '../screens/main/doctors/MyDoctorsScreen';
@@ -48,6 +50,8 @@ import DashboardScreen from '../screens/main/dashboard/DashboardScreen';
 import ProviderApplyScreen from '../screens/main/dashboard/ProviderApplyScreen';
 import PatientsScreen from '../screens/main/dashboard/PatientsScreen';
 import PatientProfileScreen from '../screens/main/dashboard/PatientProfileScreen';
+import MedicalHistoryScreen from '../screens/main/dashboard/MedicalHistoryScreen';
+import MedicalNotesScreen from '../screens/main/dashboard/MedicalNotesScreen';
 import DoctorSettingsScreen from '../screens/main/dashboard/DoctorSettingsScreen';
 
 const Tab = createBottomTabNavigator();
@@ -156,6 +160,8 @@ function PatientsNavigator() {
     <PatientsStack.Navigator screenOptions={{ headerShown: false }}>
       <PatientsStack.Screen name="Patients" component={PatientsScreen} />
       <PatientsStack.Screen name="PatientProfile" component={PatientProfileScreen} />
+      <PatientsStack.Screen name="MedicalHistory" component={MedicalHistoryScreen} />
+      <PatientsStack.Screen name="MedicalNotes" component={MedicalNotesScreen} />
       <PatientsStack.Screen name="Chat" component={ChatScreen} />
       <PatientsStack.Screen name="VideoCall" component={VideoCallScreen} options={{ presentation: 'fullScreenModal' }} />
       <PatientsStack.Screen name="AudioCall" component={AudioCallScreen} options={{ presentation: 'fullScreenModal' }} />
@@ -179,37 +185,45 @@ function SettingsNavigator() {
 
 interface TabItem {
   name: string;
-  label: string;
+  /** i18n key under `tabs.*`. */
+  labelKey: string;
   icon: string;
 }
 
 const PATIENT_TABS: TabItem[] = [
-  { name: 'SearchTab', label: 'Search', icon: 'search' },
-  { name: 'AppointmentsTab', label: 'Appointments', icon: 'calendar' },
-  { name: 'HomeTab', label: 'Home', icon: 'stethoscope' },
-  { name: 'AccountTab', label: 'My Account', icon: 'user' },
+  { name: 'SearchTab', labelKey: 'tabs.search', icon: 'search' },
+  { name: 'AppointmentsTab', labelKey: 'tabs.appointments', icon: 'calendar' },
+  { name: 'HomeTab', labelKey: 'tabs.home', icon: 'stethoscope' },
+  { name: 'AccountTab', labelKey: 'tabs.account', icon: 'user' },
 ];
 
 const DOCTOR_TABS: TabItem[] = [
-  { name: 'PatientsTab', label: 'Patients', icon: 'user' },
-  { name: 'DashboardTab', label: 'Dashboard', icon: 'dashboard' },
-  { name: 'SchedulerTab', label: 'Scheduler', icon: 'calendar' },
-  { name: 'SettingsTab', label: 'Settings', icon: 'sliders' },
+  { name: 'PatientsTab', labelKey: 'tabs.patients', icon: 'user' },
+  { name: 'DashboardTab', labelKey: 'tabs.dashboard', icon: 'dashboard' },
+  { name: 'SchedulerTab', labelKey: 'tabs.scheduler', icon: 'calendar' },
+  { name: 'SettingsTab', labelKey: 'tabs.settings', icon: 'sliders' },
 ];
 
 function TabBarContent({ state, navigation, items }: any) {
+  const { t } = useTranslation();
+  const Colors = useTheme();
+  const tabStyles = makeTabStyles(Colors);
   return (
     <>
       {state.routes.map((route: any, index: number) => {
         const focused = state.index === index;
         const item = items[index];
         if (!item) return null;
+        const label = t(item.labelKey);
         return (
           <TouchableOpacity
             key={route.key}
             style={tabStyles.tab}
             onPress={() => { if (!focused) navigation.navigate(route.name); }}
             activeOpacity={0.7}
+            accessibilityRole="tab"
+            accessibilityLabel={label}
+            accessibilityState={{ selected: focused }}
           >
             <View style={[tabStyles.pill, focused && tabStyles.pillActive]}>
               <FontAwesome
@@ -219,7 +233,7 @@ function TabBarContent({ state, navigation, items }: any) {
               />
             </View>
             <Text style={[tabStyles.label, focused && tabStyles.labelActive]}>
-              {item.label}
+              {label}
             </Text>
           </TouchableOpacity>
         );
@@ -231,12 +245,15 @@ function TabBarContent({ state, navigation, items }: any) {
 function CustomTabBar({ state, navigation, items }: any) {
   const insets = useSafeAreaInsets();
   const pb = Math.max(insets.bottom, 8);
+  const Colors = useTheme();
+  const { isDark } = useThemeMode();
+  const tabStyles = makeTabStyles(Colors);
 
   if (Platform.OS === 'ios') {
     return (
       <BlurView
         intensity={80}
-        tint="systemChromeMaterial"
+        tint={isDark ? 'systemChromeMaterialDark' : 'systemChromeMaterialLight'}
         style={[tabStyles.container, { paddingBottom: pb }]}
       >
         <View style={tabStyles.row}>
@@ -255,7 +272,7 @@ function CustomTabBar({ state, navigation, items }: any) {
   );
 }
 
-const tabStyles = StyleSheet.create({
+const makeTabStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: {
     borderTopWidth: 0,
     ...Platform.select({

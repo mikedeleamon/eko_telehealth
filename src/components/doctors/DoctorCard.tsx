@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../theme';
+import { useTranslation } from '../../i18n/useTranslation';
 
 interface Doctor {
   id: string;
@@ -23,11 +25,22 @@ interface Props {
   cardColor?: string;
 }
 
-const VISIT_TAGS = ['Video visit', 'Home visit', 'Clinic visit'];
+const VISIT_TAG_KEYS = ['Video Visit', 'Home Visit', 'Clinic Visit'];
 
 export default function DoctorCard({ doctor, onPress, onChat, cardColor = Colors.cardColors[0] }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
+  const availabilityText = doctor.available ? t('doctors.availableNow') : t('doctors.unavailable');
+  const cardLabel = `${doctor.name}. ${doctor.specialty}. ${t('a11y.rating', { rating: doctor.rating })}. ${availabilityText}`;
   return (
-    <TouchableOpacity style={[styles.card, { backgroundColor: cardColor }]} onPress={onPress} activeOpacity={0.85}>
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: cardColor }]}
+      onPress={onPress}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={cardLabel}
+    >
       <View style={styles.row}>
         {/* Avatar circle */}
         <View style={styles.avatar}>
@@ -55,7 +68,7 @@ export default function DoctorCard({ doctor, onPress, onChat, cardColor = Colors
           {doctor.nextAvailable ? (
             <Text style={styles.meta}>
               <FontAwesome name="calendar" size={11} color={Colors.textGray} />
-              {'  '}Next: {doctor.nextAvailable}
+              {'  '}{t('doctors.nextAvailable', { date: doctor.nextAvailable })}
             </Text>
           ) : null}
 
@@ -70,6 +83,8 @@ export default function DoctorCard({ doctor, onPress, onChat, cardColor = Colors
           style={styles.chatBtn}
           onPress={onChat}
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('doctors.message')}
         >
           <FontAwesome name="comment" size={15} color={Colors.white} />
         </TouchableOpacity>
@@ -77,9 +92,9 @@ export default function DoctorCard({ doctor, onPress, onChat, cardColor = Colors
 
       {/* Visit type pills */}
       <View style={styles.tags}>
-        {VISIT_TAGS.map(tag => (
+        {VISIT_TAG_KEYS.map(tag => (
           <View key={tag} style={styles.tag}>
-            <Text style={styles.tagText}>{tag}</Text>
+            <Text style={styles.tagText}>{t(`options.appointmentType.${tag}`)}</Text>
           </View>
         ))}
       </View>
@@ -87,7 +102,7 @@ export default function DoctorCard({ doctor, onPress, onChat, cardColor = Colors
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   card: {
     borderRadius: 20, padding: 16, marginBottom: 14,
     ...Platform.select({
@@ -104,7 +119,7 @@ const styles = StyleSheet.create({
 
   avatar: {
     width: 60, height: 60, borderRadius: 30,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.surface,
     alignItems: 'center', justifyContent: 'center',
     marginRight: 12,
     borderWidth: 2, borderColor: Colors.primaryFaded,
@@ -136,7 +151,7 @@ const styles = StyleSheet.create({
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tag: {
     paddingHorizontal: 10, paddingVertical: 4,
-    backgroundColor: Colors.white, borderRadius: 20,
+    backgroundColor: Colors.surface, borderRadius: 20,
   },
   tagText: { fontSize: 11, color: Colors.textMedium, fontWeight: '500', fontFamily: 'Poppins_500Medium' },
 });

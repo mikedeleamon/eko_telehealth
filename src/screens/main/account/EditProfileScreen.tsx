@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import EkoTextField from '../../../components/common/EkoTextField';
 import EkoButton from '../../../components/common/EkoButton';
 import Cross from '../../../components/common/Cross';
@@ -12,13 +13,17 @@ import { useAuth } from '../../../context/AuthContext';
 import { api } from '../../../api';
 import { useAuthStore } from '../../../store/authStore';
 import { sanitizePhoneInput, isValidPhone } from '../../../utils/format';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
 }
 
 export default function EditProfileScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [firstName, setFirstName] = useState(user?.firstName ?? '');
   const [lastName, setLastName] = useState(user?.lastName ?? '');
@@ -26,8 +31,8 @@ export default function EditProfileScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
 
   const save = async () => {
-    if (!firstName.trim() || !lastName.trim()) return Alert.alert('', 'Name fields cannot be empty.');
-    if (phone.trim() && !isValidPhone(phone)) return Alert.alert('', 'Please enter a valid phone number.');
+    if (!firstName.trim() || !lastName.trim()) return Alert.alert('', t('account.nameEmpty'));
+    if (phone.trim() && !isValidPhone(phone)) return Alert.alert('', t('account.validPhone'));
     setLoading(true);
     try {
       const updated = await api.auth.updateProfile({
@@ -38,9 +43,9 @@ export default function EditProfileScreen({ navigation }: Props) {
       // Refresh the persisted session so the whole app shows the new name.
       const session = useAuthStore.getState().session;
       if (session) useAuthStore.getState().setSession({ ...session, user: updated });
-      Alert.alert('Success', 'Profile updated successfully.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+      Alert.alert(t('auth.success'), t('account.profileUpdatedFull'), [{ text: t('common.ok'), onPress: () => navigation.goBack() }]);
     } catch (err) {
-      Alert.alert('Could not update profile', err instanceof Error ? err.message : 'Please try again.');
+      Alert.alert(t('account.couldNotUpdateProfile'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
     } finally {
       setLoading(false);
     }
@@ -62,17 +67,17 @@ export default function EditProfileScreen({ navigation }: Props) {
           <Cross size={44} opacity={0.06} rotation={20} style={{ top: 30, right: 90 }} />
           <Cross size={30} opacity={0.05} rotation={-16} style={{ bottom: 50, right: 40 }} />
 
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('a11y.back')}>
             <FontAwesome name="arrow-left" size={20} color={Colors.white} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Profile</Text>
+          <Text style={styles.headerTitle}>{t('account.editProfile')}</Text>
         </LinearGradient>
 
         {/* Overlapping avatar + name */}
         <View style={styles.avatarWrap}>
           <TouchableOpacity
             style={styles.avatar}
-            onPress={() => Alert.alert('Profile Photo', 'Photo upload is coming soon.')}
+            onPress={() => Alert.alert(t('account.profilePhoto'), t('account.photoSoon'))}
             activeOpacity={0.85}
           >
             <FontAwesome name="user" size={44} color={Colors.primary} />
@@ -84,23 +89,23 @@ export default function EditProfileScreen({ navigation }: Props) {
 
         {/* Form (fields unchanged) */}
         <View style={styles.form}>
-          <EkoTextField label="First Name" placeholder="First Name" icon="user" value={firstName} onChangeText={setFirstName} />
-          <EkoTextField label="Last Name" placeholder="Last Name" icon="user" value={lastName} onChangeText={setLastName} />
+          <EkoTextField label={t('account.firstName')} placeholder={t('account.firstName')} icon="user" value={firstName} onChangeText={setFirstName} />
+          <EkoTextField label={t('account.lastName')} placeholder={t('account.lastName')} icon="user" value={lastName} onChangeText={setLastName} />
           {/* Email is the login identifier + password-reset destination, so it
               can't be changed from a profile save — it would need a verified
               email-change flow. Shown read-only. */}
-          <EkoTextField label="Email" placeholder="Email" icon="envelope-o" value={user?.email ?? ''} editable={false} />
-          <EkoTextField label="Phone" placeholder="Phone number" icon="phone" value={phone} onChangeText={(t) => setPhone(sanitizePhoneInput(t))} keyboardType="phone-pad" />
+          <EkoTextField label={t('account.email')} placeholder={t('account.email')} icon="envelope-o" value={user?.email ?? ''} editable={false} />
+          <EkoTextField label={t('account.phone')} placeholder={t('account.phonePlaceholder')} icon="phone" value={phone} onChangeText={(val) => setPhone(sanitizePhoneInput(val))} keyboardType="phone-pad" />
 
-          <EkoButton title="UPDATE" variant="accent" onPress={save} loading={loading} style={styles.btn} />
+          <EkoButton title={t('account.update')} variant="accent" onPress={save} loading={loading} style={styles.btn} />
         </View>
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white },
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.surface },
   scroll: { paddingBottom: 40 },
 
   header: {
@@ -123,7 +128,7 @@ const styles = StyleSheet.create({
   avatarWrap: { alignItems: 'center', marginTop: -50 },
   avatar: {
     width: 100, height: 100, borderRadius: 50,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.surface,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 4, borderColor: Colors.white,
     ...Platform.select({

@@ -2,7 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../theme';
 import { parseDMY, formatDMY, MONTH_NAMES } from '../../utils/format';
+import { useTranslation } from '../../i18n/useTranslation';
 
 interface Props {
   visible: boolean;
@@ -19,8 +21,11 @@ const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const YEAR_SPAN = 120; // years back from today the year picker offers
 
 export default function CalendarSheet({
-  visible, value, onSelect, onClose, disableFuture = false, title = 'Select Date',
+  visible, value, onSelect, onClose, disableFuture = false, title,
 }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const today = useMemo(() => {
     const t = new Date();
     t.setHours(0, 0, 0, 0);
@@ -93,18 +98,18 @@ export default function CalendarSheet({
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
         <TouchableOpacity style={styles.sheet} activeOpacity={1} onPress={() => {}}>
           <View style={styles.grabber} />
-          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.title}>{title ?? t('appointments.selectDate')}</Text>
 
           {/* Month / year header */}
           <View style={styles.navRow}>
-            <TouchableOpacity onPress={() => goMonth(-1)} style={styles.navBtn} hitSlop={hit}>
+            <TouchableOpacity onPress={() => goMonth(-1)} style={styles.navBtn} hitSlop={hit} accessibilityRole="button" accessibilityLabel={t('a11y.previousMonth')}>
               <FontAwesome name="chevron-left" size={16} color={Colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setYearPicker(v => !v)} style={styles.monthLabelBtn}>
+            <TouchableOpacity onPress={() => setYearPicker(v => !v)} style={styles.monthLabelBtn} accessibilityRole="button" accessibilityLabel={`${MONTH_NAMES[viewMonth]} ${viewYear}`}>
               <Text style={styles.monthLabel}>{MONTH_NAMES[viewMonth]} {viewYear}</Text>
               <FontAwesome name={yearPicker ? 'caret-up' : 'caret-down'} size={14} color={Colors.textGray} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => goMonth(1)} style={styles.navBtn} hitSlop={hit}>
+            <TouchableOpacity onPress={() => goMonth(1)} style={styles.navBtn} hitSlop={hit} accessibilityRole="button" accessibilityLabel={t('a11y.nextMonth')}>
               <FontAwesome name="chevron-right" size={16} color={Colors.primary} />
             </TouchableOpacity>
           </View>
@@ -137,6 +142,9 @@ export default function CalendarSheet({
                         onPress={() => pick(day)}
                         disabled={isDisabled(day)}
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${day} ${MONTH_NAMES[viewMonth]} ${viewYear}`}
+                        accessibilityState={{ selected: isSelected(day), disabled: isDisabled(day) }}
                       >
                         <Text
                           style={[
@@ -163,10 +171,10 @@ export default function CalendarSheet({
 
 const hit = { top: 10, bottom: 10, left: 10, right: 10 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   overlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: Colors.white, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    backgroundColor: Colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     padding: 20, paddingBottom: 32,
   },
   grabber: {

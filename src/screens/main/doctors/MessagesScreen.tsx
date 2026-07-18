@@ -3,14 +3,19 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Platform } from 're
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import { useConversations, useDoctors } from '../../../hooks/queries';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
 }
 
 export default function MessagesScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const { data: convList = [] } = useConversations();
   const { data: doctors = [] } = useDoctors();
   const conversations = convList.map((c) => ({
@@ -20,7 +25,7 @@ export default function MessagesScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <EkoHeader title="Messages" onBack={() => navigation.goBack()} />
+      <EkoHeader title={t('messages.title')} onBack={() => navigation.goBack()} />
 
       <FlatList
         data={conversations}
@@ -60,7 +65,7 @@ export default function MessagesScreen({ navigation }: Props) {
         ListEmptyComponent={
           <View style={styles.empty}>
             <FontAwesome name="comments-o" size={46} color={Colors.textLight} />
-            <Text style={styles.emptyText}>No messages yet</Text>
+            <Text style={styles.emptyText}>{t('messages.noMessages')}</Text>
           </View>
         }
       />
@@ -68,13 +73,13 @@ export default function MessagesScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
   list: { padding: 16 },
 
   row: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.white, borderRadius: 18,
+    backgroundColor: Colors.surface, borderRadius: 18,
     padding: 14, marginBottom: 10,
     ...Platform.select({
       ios: { shadowColor: 'rgba(0,0,0,0.06)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8 },

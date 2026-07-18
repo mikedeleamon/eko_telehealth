@@ -4,9 +4,11 @@ import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import { useCancelAppointment, useDoctors } from '../../../hooks/queries';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -28,16 +30,19 @@ const STATUS_COLORS: Record<string, string> = {
   past: Colors.textGray,
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  pending_approval: 'Awaiting approval',
-  pending_payment: 'Payment required',
-  upcoming: 'Confirmed',
-  declined: 'Declined',
-  cancelled: 'Cancelled',
-  past: 'Completed',
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  pending_approval: 'appointments.statusAwaitingApproval',
+  pending_payment: 'appointments.statusPaymentRequired',
+  upcoming: 'appointments.statusConfirmed',
+  declined: 'appointments.statusDeclined',
+  cancelled: 'appointments.statusCancelled',
+  past: 'appointments.statusPast',
 };
 
 export default function AppointmentDetailsScreen({ navigation, route }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const appointment = route.params?.appointment ?? {};
   const { doctor: doctorName, specialty, date, time, type = 'Video Visit', status = 'upcoming' } = appointment;
 
@@ -56,7 +61,7 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
   const awaitingApproval = status === 'pending_approval';
   const isLive = isConfirmed || awaitingPayment || awaitingApproval;
   const statusColor = STATUS_COLORS[status] ?? Colors.textGray;
-  const statusLabel = STATUS_LABELS[status] ?? status;
+  const statusLabel = STATUS_LABEL_KEYS[status] ? t(STATUS_LABEL_KEYS[status]) : status;
   const typeIcon = TYPE_ICONS[type] ?? 'calendar';
 
   const joinCall = () => {
@@ -65,19 +70,19 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
   };
 
   const cancel = () => {
-    Alert.alert('Cancel Appointment', 'Are you sure you want to cancel this appointment?', [
-      { text: 'Keep', style: 'cancel' },
+    Alert.alert(t('appointments.cancelAppointment'), t('appointments.cancelConfirmBody', { doctor: doctor.name ?? t('appointments.theDoctor') }), [
+      { text: t('appointments.keep'), style: 'cancel' },
       {
-        text: 'Cancel Appointment',
+        text: t('appointments.cancelAppointment'),
         style: 'destructive',
         onPress: async () => {
           try {
             await cancelAppointment.mutateAsync(appointment.id);
-            Alert.alert('Appointment Cancelled', 'Your appointment has been cancelled.', [
-              { text: 'OK', onPress: () => navigation.goBack() },
+            Alert.alert(t('appointments.appointmentCancelled'), t('appointments.cancelledBody'), [
+              { text: t('common.ok'), onPress: () => navigation.goBack() },
             ]);
           } catch (err) {
-            Alert.alert('Could not cancel', err instanceof Error ? err.message : 'Please try again.');
+            Alert.alert(t('appointments.couldNotCancel'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
           }
         },
       },
@@ -86,7 +91,7 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
-      <EkoHeader title="Appointment Details" onBack={() => navigation.goBack()} />
+      <EkoHeader title={t('appointments.details')} onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Doctor hero card */}
@@ -107,10 +112,10 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
 
         {/* Details */}
         <View style={styles.detailCard}>
-          <DetailRow icon="calendar" label="Date" value={date ?? '—'} />
-          <DetailRow icon="clock-o" label="Time" value={time ?? '—'} />
-          <DetailRow icon={typeIcon} label="Type" value={type} />
-          <DetailRow icon="dollar" label="Fee" value={appointment.fee ?? doctor.fee ?? '₦15,000'} last />
+          <DetailRow icon="calendar" label={t('confirmed.date')} value={date ?? '—'} />
+          <DetailRow icon="clock-o" label={t('confirmed.time')} value={time ?? '—'} />
+          <DetailRow icon={typeIcon} label={t('confirmed.type')} value={t(`options.appointmentType.${type}`, { defaultValue: type })} />
+          <DetailRow icon="dollar" label={t('appointments.fee')} value={appointment.fee ?? doctor.fee ?? '₦15,000'} last />
         </View>
 
         {/* What the patient is waiting on, in plain words. */}
@@ -118,7 +123,7 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
           <View style={[styles.notice, { backgroundColor: Colors.accent + '14' }]}>
             <FontAwesome name="hourglass-half" size={14} color={Colors.accent} />
             <Text style={styles.noticeText}>
-              {'  '}Waiting for {doctor.name ?? 'the doctor'} to accept. You'll be asked to pay once they do.
+              {'  '}{t('appointments.waitingApproval', { doctor: doctor.name ?? t('appointments.theDoctor') })}
             </Text>
           </View>
         )}
@@ -127,8 +132,8 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
             <FontAwesome name="times-circle" size={14} color={Colors.red} />
             <Text style={styles.noticeText}>
               {'  '}{appointment.declineReason
-                ? `Declined: ${appointment.declineReason}`
-                : 'The doctor could not take this appointment.'}
+                ? t('appointments.declinedReason', { reason: appointment.declineReason })
+                : t('appointments.declinedGeneric')}
             </Text>
           </View>
         )}
@@ -138,7 +143,7 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
           <>
             {awaitingPayment && (
               <EkoButton
-                title={`Pay ${appointment.fee ?? doctor.fee ?? '₦15,000'}`}
+                title={t('payment.pay', { amount: appointment.fee ?? doctor.fee ?? '₦15,000' })}
                 variant="accent"
                 onPress={() => navigation.navigate('Payment', { appointment, doctor })}
                 style={styles.btn}
@@ -146,21 +151,21 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
             )}
             {isConfirmed && (
               <EkoButton
-                title={type === 'Video Visit' ? 'Join Video Call' : 'Join Audio Call'}
+                title={type === 'Video Visit' ? t('appointments.joinVideoCall') : t('appointments.joinAudioCall')}
                 variant="accent"
                 onPress={joinCall}
                 style={styles.btn}
               />
             )}
             <EkoButton
-              title="Send Message"
+              title={t('appointments.sendMessage')}
               variant="outline"
               onPress={() => navigation.navigate('Chat', { doctor })}
               style={styles.btn}
             />
             {isConfirmed && (
               <EkoButton
-                title="Reschedule"
+                title={t('appointments.reschedule')}
                 variant="outline"
                 onPress={() => navigation.navigate('DoctorOverview', { doctor, initialTab: 'schedule' })}
                 style={styles.btn}
@@ -168,20 +173,20 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
             )}
             <TouchableOpacity style={styles.cancelLink} onPress={cancel}>
               <Text style={styles.cancelText}>
-                {awaitingApproval ? 'Withdraw Request' : 'Cancel Appointment'}
+                {awaitingApproval ? t('appointments.withdrawRequest') : t('appointments.cancelAppointment')}
               </Text>
             </TouchableOpacity>
           </>
         ) : (
           <>
             <EkoButton
-              title="Book Again"
+              title={t('appointments.bookAgain')}
               variant="accent"
               onPress={() => navigation.navigate('DoctorOverview', { doctor, initialTab: 'schedule' })}
               style={styles.btn}
             />
             <EkoButton
-              title="Send Message"
+              title={t('appointments.sendMessage')}
               variant="outline"
               onPress={() => navigation.navigate('Chat', { doctor })}
               style={styles.btn}
@@ -194,6 +199,8 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
 }
 
 function DetailRow({ icon, label, value, last }: { icon: string; label: string; value: string; last?: boolean }) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   return (
     <View style={[styles.row, !last && styles.rowBorder]}>
       <FontAwesome name={icon as any} size={15} color={Colors.primary} style={styles.rowIcon} />
@@ -203,7 +210,7 @@ function DetailRow({ icon, label, value, last }: { icon: string; label: string; 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
   content: { padding: 20, paddingBottom: 40 },
 
@@ -212,7 +219,7 @@ const styles = StyleSheet.create({
     borderRadius: 16, padding: 16, marginBottom: 16,
   },
   avatar: {
-    width: 60, height: 60, borderRadius: 30, backgroundColor: Colors.white,
+    width: 60, height: 60, borderRadius: 30, backgroundColor: Colors.surface,
     alignItems: 'center', justifyContent: 'center', marginRight: 14,
   },
   info: { flex: 1 },
@@ -222,7 +229,7 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 11, fontWeight: '600', fontFamily: 'Poppins_600SemiBold' },
 
   detailCard: {
-    backgroundColor: Colors.white, borderRadius: 16, padding: 16, marginBottom: 24,
+    backgroundColor: Colors.surface, borderRadius: 16, padding: 16, marginBottom: 24,
     borderWidth: 1, borderColor: Colors.borderGray,
   },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },

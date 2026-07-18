@@ -1,14 +1,24 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Switch, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Switch, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, useThemeMode, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import { useSaveSettings, useSettings } from '../../../hooks/queries';
+import { useTranslation } from '../../../i18n/useTranslation';
+import { SUPPORTED_LOCALES } from '../../../store/localeStore';
+import { THEME_MODES, type ThemeMode } from '../../../store/themeStore';
 import type { UserSettings } from '../../../api/types';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
 }
+
+/** Keys of UserSettings that are plain on/off switches (excludes themeMode). */
+type BooleanSettingKey = {
+  [K in keyof UserSettings]: UserSettings[K] extends boolean ? K : never;
+}[keyof UserSettings];
 
 /**
  * Preferences persist server-side (GET/PATCH /me/settings) so they follow the
@@ -16,17 +26,29 @@ interface Props {
  * so leaving the screen must not lose the change.
  */
 export default function SettingsScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t, locale, setLocale } = useTranslation();
+  const { mode: themeMode, setMode: setThemeMode } = useThemeMode();
   const { data: settings, isLoading } = useSettings();
   const saveSettings = useSaveSettings();
 
-  const toggle = (key: keyof UserSettings) => (value: boolean) => {
+  // Theme lives in a local persisted store so it applies instantly on launch;
+  // we also persist the full preference server-side so it follows the user
+  // across devices (ThemeServerSync reconciles it back in on load).
+  const applyThemeMode = (mode: ThemeMode) => {
+    setThemeMode(mode);
+    saveSettings.mutate({ themeMode: mode });
+  };
+
+  const toggle = (key: BooleanSettingKey) => (value: boolean) => {
     saveSettings.mutate(
       { [key]: value },
       {
         onError: (err) =>
           // The cache still holds the server's value, so the switch snaps back
           // on its own — just explain why.
-          Alert.alert('Could not save setting', err instanceof Error ? err.message : 'Please try again.'),
+          Alert.alert(t('settings.couldNotSave'), err instanceof Error ? err.message : t('common.somethingWentWrong')),
       },
     );
   };
@@ -38,7 +60,7 @@ export default function SettingsScreen({ navigation }: Props) {
   }: {
     label: string;
     sub?: string;
-    settingKey: keyof UserSettings;
+    settingKey: BooleanSettingKey;
   }) => {
     const value = settings?.[settingKey] ?? false;
     return (
@@ -53,6 +75,7 @@ export default function SettingsScreen({ navigation }: Props) {
           disabled={isLoading || saveSettings.isPending}
           trackColor={{ false: Colors.borderGray, true: Colors.primaryLight }}
           thumbColor={value ? Colors.primary : Colors.textGray}
+          accessibilityLabel={label}
         />
       </View>
     );
@@ -60,40 +83,80 @@ export default function SettingsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <EkoHeader title="Settings" onBack={() => navigation.goBack()} />
+      <EkoHeader title={t('settings.title')} onBack={() => navigation.goBack()} />
       {isLoading ? (
         <ActivityIndicator style={styles.loader} color={Colors.primary} />
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
+          <Text style={styles.sectionTitle}>{t('settings.language')}</Text>
           <View style={styles.card}>
-            <ToggleRow label="Push Notifications" sub="Appointment reminders and updates" settingKey="pushNotifications" />
-            <ToggleRow label="Email Notifications" settingKey="emailNotifications" />
-            <ToggleRow label="SMS Notifications" settingKey="smsNotifications" />
+            {SUPPORTED_LOCALES.map((l, i) => {
+              const active = locale === l.code;
+              return (
+                <TouchableOpacity
+                  key={l.code}
+                  style={[styles.langRow, i < SUPPORTED_LOCALES.length - 1 && styles.rowDivider]}
+                  onPress={() => setLocale(l.code)}
+                  accessibilityRole="radio"
+                  accessibilityLabel={t(l.labelKey)}
+                  accessibilityState={{ selected: active }}
+                >
+                  <Text style={styles.langLabel}>{t(l.labelKey)}</Text>
+                  {active ? <FontAwesome name="check" size={16} color={Colors.primary} /> : null}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={styles.sectionTitle}>{t('settings.notifications')}</Text>
+          <View style={styles.card}>
+            <ToggleRow label={t('settings.pushNotifications')} sub={t('settings.pushNotificationsSub')} settingKey="pushNotifications" />
+            <ToggleRow label={t('settings.emailNotifications')} settingKey="emailNotifications" />
+            <ToggleRow label={t('settings.smsNotifications')} settingKey="smsNotifications" />
           </View>
           <Text style={styles.note}>
-            Security messages like verification codes are always sent, whatever these are set to.
+            {t('settings.securityNote')}
           </Text>
 
-          <Text style={styles.sectionTitle}>Preferences</Text>
+          <Text style={styles.sectionTitle}>{t('settings.appearance')}</Text>
+          <View style={styles.segment} accessibilityRole="radiogroup">
+            {THEME_MODES.map((m) => {
+              const active = themeMode === m.mode;
+              return (
+                <TouchableOpacity
+                  key={m.mode}
+                  style={[styles.segmentBtn, active && styles.segmentBtnActive]}
+                  onPress={() => applyThemeMode(m.mode)}
+                  accessibilityRole="radio"
+                  accessibilityLabel={t(m.labelKey)}
+                  accessibilityState={{ selected: active }}
+                >
+                  <FontAwesome name={m.icon as any} size={16} color={active ? Colors.white : Colors.textGray} />
+                  <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{t(m.labelKey)}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <Text style={styles.note}>{t('settings.themeSystemSub')}</Text>
+
+          <Text style={styles.sectionTitle}>{t('settings.preferences')}</Text>
           <View style={styles.card}>
-            <ToggleRow label="Dark Mode" sub="Coming soon" settingKey="darkMode" />
-            <ToggleRow label="Location Access" sub="For finding nearby doctors" settingKey="locationAccess" />
+            <ToggleRow label={t('settings.locationAccess')} sub={t('settings.locationAccessSub')} settingKey="locationAccess" />
           </View>
 
-          <Text style={styles.version}>Eko Telehealth v1.0.0</Text>
+          <Text style={styles.version}>{t('common.appName')} {t('account.version', { version: '1.0.0' })}</Text>
         </ScrollView>
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
   content: { padding: 16, paddingBottom: 40 },
   sectionTitle: { fontSize: 13, fontWeight: '700', color: Colors.textGray, marginBottom: 8, marginTop: 16, textTransform: 'uppercase', letterSpacing: 0.8 },
   card: {
-    backgroundColor: Colors.white, borderRadius: 14,
+    backgroundColor: Colors.surface, borderRadius: 14,
     shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 1, shadowRadius: 4, elevation: 1,
     overflow: 'hidden',
   },
@@ -101,6 +164,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', padding: 16,
     borderBottomWidth: 1, borderBottomColor: Colors.borderGray,
   },
+  langRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16,
+  },
+  rowDivider: { borderBottomWidth: 1, borderBottomColor: Colors.borderGray },
+  segment: {
+    flexDirection: 'row', backgroundColor: Colors.surface, borderRadius: 14, padding: 4,
+    shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 1, shadowRadius: 4, elevation: 1,
+  },
+  segmentBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 12, borderRadius: 11,
+  },
+  segmentBtnActive: { backgroundColor: Colors.primary },
+  segmentText: { fontSize: 14, fontWeight: '500', color: Colors.textGray },
+  segmentTextActive: { color: Colors.white, fontWeight: '700' },
+  langLabel: { fontSize: 15, fontWeight: '500', color: Colors.textDark },
   toggleInfo: { flex: 1 },
   toggleLabel: { fontSize: 15, fontWeight: '500', color: Colors.textDark },
   toggleSub: { fontSize: 12, color: Colors.textGray, marginTop: 2 },

@@ -8,6 +8,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -27,6 +29,9 @@ const VISIT_TYPES = ['Home Visit', 'Clinic Visit', 'Video Visit'];
 const SLOTS = ['09-10:00', '10-11:00', '11-12:00', '01-02:00', '02-03:00', '03-04:00'];
 
 export default function DoctorOverviewScreen({ navigation, route }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const doctor = route.params?.doctor ?? {
     name: 'Dr. Amara Okafor', specialty: 'Therapist, Primary care doctor',
@@ -65,18 +70,20 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
           style={[styles.backBtn, { top: insets.top + 8 }]}
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('a11y.back')}
         >
           <FontAwesome name="arrow-left" size={22} color={Colors.accent} />
         </TouchableOpacity>
 
         {/* Vertical tabs */}
         <View style={[styles.sideTabs, { top: insets.top + 70 }]}>
-          {(['overview', 'schedule'] as const).map((t) => {
-            const active = activeTab === t;
+          {(['overview', 'schedule'] as const).map((tab) => {
+            const active = activeTab === tab;
             return (
-              <TouchableOpacity key={t} style={styles.sideTabItem} onPress={() => setActiveTab(t)} activeOpacity={0.8}>
+              <TouchableOpacity key={tab} style={styles.sideTabItem} onPress={() => setActiveTab(tab)} activeOpacity={0.8} accessibilityRole="tab" accessibilityState={{ selected: active }}>
                 <Text style={[styles.sideTabLabel, { color: active ? Colors.accent : Colors.textGray }]}>
-                  {t === 'overview' ? 'Overview' : 'Schedule'}
+                  {tab === 'overview' ? t('doctors.overview') : t('doctors.schedule')}
                 </Text>
                 {active ? <View style={styles.sideDot} /> : null}
               </TouchableOpacity>
@@ -87,13 +94,13 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
 
       {/* Floating action buttons straddling the photo bottom */}
       <View style={styles.actionRow}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('AudioCall', { doctor })} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('AudioCall', { doctor })} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={t('call.audioCall')}>
           <FontAwesome name="phone" size={20} color={Colors.green} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Chat', { doctor })} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Chat', { doctor })} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={t('messages.chat')}>
           <FontAwesome name="comment" size={20} color={Colors.red} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('VideoCall', { doctor })} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('VideoCall', { doctor })} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={t('call.videoCall')}>
           <FontAwesome name="video-camera" size={20} color={Colors.primary} />
         </TouchableOpacity>
       </View>
@@ -114,34 +121,33 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
 
         {/* Specialty pill */}
         <View style={styles.specialtyPill}>
-          <Text style={styles.specialtyText}>{specialty || 'Specialist'}</Text>
+          <Text style={styles.specialtyText}>{specialty || t('doctors.specialist')}</Text>
         </View>
 
         {activeTab === 'overview' ? (
           <>
-            <Text style={styles.sectionHeading}>Get Closer with me</Text>
+            <Text style={styles.sectionHeading}>{t('doctors.getCloser')}</Text>
             <Text style={styles.bio}>
-              {doctor.name} is a board-certified {specialty.toLowerCase() || 'specialist'} dedicated to
-              compassionate, patient-centered care. With years of clinical experience, {doctor.name.split(' ')[0]}{' '}
-              helps patients feel heard, understood, and supported every step of the way — whether through a
-              video visit, clinic appointment, or home visit.
+              {t('doctors.bioTemplate', { name: doctor.name, specialty: specialty.toLowerCase() || t('doctors.specialist'), firstName: doctor.name.split(' ')[0] })}
             </Text>
 
             <View style={styles.statsRow}>
               <View style={[styles.statCard, { backgroundColor: Colors.accent }]}>
-                <Text style={styles.statLabel}>Patient</Text>
+                <Text style={styles.statLabel}>{t('doctors.patient')}</Text>
                 <Text style={styles.statValue}>10K</Text>
               </View>
               <View style={[styles.statCard, { backgroundColor: Colors.primary }]}>
-                <Text style={styles.statLabel}>Experience</Text>
+                <Text style={styles.statLabel}>{t('doctors.experience')}</Text>
                 <Text style={styles.statValue}>3 Years</Text>
               </View>
               <TouchableOpacity
                 style={[styles.statCard, { backgroundColor: '#00CAAE' }]}
                 onPress={() => navigation.navigate('Reviews', { doctor })}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={t('doctors.ratingStat')}
               >
-                <Text style={styles.statLabel}>Rating</Text>
+                <Text style={styles.statLabel}>{t('doctors.ratingStat')}</Text>
                 <Text style={styles.statValue}>{doctor.rating}</Text>
                 <FontAwesome name="arrow-right" size={16} color={Colors.white} style={{ marginTop: 4 }} />
               </TouchableOpacity>
@@ -182,7 +188,7 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
                     activeOpacity={0.85}
                   >
                     <Text style={[styles.visitText, active && styles.visitTextActive]}>
-                      {v.replace(' ', '\n')}
+                      {t(`options.appointmentType.${v}`).replace(' ', '\n')}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -212,7 +218,7 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
               activeOpacity={0.9}
               onPress={() => navigation.navigate('CreateAppointment', { doctor, slot: selectedSlot, date: month, type: visitType })}
             >
-              <Text style={styles.bookBtnText}>MAKE AN APPOINTMENT</Text>
+              <Text style={styles.bookBtnText}>{t('doctors.makeAppointment')}</Text>
             </TouchableOpacity>
           </>
         )}
@@ -223,8 +229,8 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
 
 const PHOTO_HEIGHT = 360;
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white },
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.surface },
 
   photoWrap: { height: PHOTO_HEIGHT, width: '100%' },
   photo: {
@@ -250,7 +256,7 @@ const styles = StyleSheet.create({
     marginTop: -28, zIndex: 5,
   },
   actionBtn: {
-    width: 56, height: 56, borderRadius: 18, backgroundColor: Colors.white,
+    width: 56, height: 56, borderRadius: 18, backgroundColor: Colors.surface,
     alignItems: 'center', justifyContent: 'center',
     ...Platform.select({
       ios: { shadowColor: 'rgba(39,42,58,0.18)', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 12 },
@@ -291,7 +297,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginRight: 10,
   },
   dayChip: {
-    width: 60, height: 64, borderRadius: 16, backgroundColor: Colors.white,
+    width: 60, height: 64, borderRadius: 16, backgroundColor: Colors.surface,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: Colors.borderGray,
     ...Platform.select({
@@ -306,7 +312,7 @@ const styles = StyleSheet.create({
 
   visitRow: { flexDirection: 'row', gap: 12, marginBottom: 22 },
   visitBtn: {
-    flex: 1, height: 70, borderRadius: 16, backgroundColor: Colors.white,
+    flex: 1, height: 70, borderRadius: 16, backgroundColor: Colors.surface,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: Colors.borderGray,
     ...Platform.select({
@@ -322,7 +328,7 @@ const styles = StyleSheet.create({
   slot: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     width: '30.5%', paddingVertical: 12, borderRadius: 14,
-    backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.borderGray,
+    backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.borderGray,
     ...Platform.select({
       ios: { shadowColor: 'rgba(0,0,0,0.04)', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 1, shadowRadius: 4 },
       android: { elevation: 1 },

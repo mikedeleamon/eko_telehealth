@@ -5,14 +5,19 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import { useAuth } from '../../../context/AuthContext';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
 }
 
 export default function PatientOverviewScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'chart' | 'about'>('chart');
 
@@ -24,7 +29,7 @@ export default function PatientOverviewScreen({ navigation }: Props) {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <LinearGradient colors={[Colors.primaryDark, Colors.primary]} style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel={t('a11y.back')}>
           <FontAwesome name="chevron-left" size={16} color={Colors.white} />
         </TouchableOpacity>
         <View style={styles.profileArea}>
@@ -36,14 +41,16 @@ export default function PatientOverviewScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.tabRow}>
-          {(['chart', 'about'] as const).map((t) => (
+          {(['chart', 'about'] as const).map((tab) => (
             <TouchableOpacity
-              key={t}
-              style={[styles.tab, activeTab === t && styles.tabActive]}
-              onPress={() => setActiveTab(t)}
+              key={tab}
+              style={[styles.tab, activeTab === tab && styles.tabActive]}
+              onPress={() => setActiveTab(tab)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === tab }}
             >
-              <Text style={[styles.tabText, activeTab === t && styles.tabTextActive]}>
-                {t === 'chart' ? 'My Chart' : 'About'}
+              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                {tab === 'chart' ? t('account.myChart') : t('account.aboutTab')}
               </Text>
             </TouchableOpacity>
           ))}
@@ -53,7 +60,7 @@ export default function PatientOverviewScreen({ navigation }: Props) {
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
         {activeTab === 'chart' ? (
           <>
-            <Text style={styles.sectionTitle}>Care Team</Text>
+            <Text style={styles.sectionTitle}>{t('account.careTeam')}</Text>
             {CARE_TEAM.map((doc) => (
               <View key={doc.name} style={styles.careCard}>
                 <View style={styles.careAvatar}>
@@ -66,7 +73,7 @@ export default function PatientOverviewScreen({ navigation }: Props) {
               </View>
             ))}
 
-            <Text style={styles.sectionTitle}>Recent Activities</Text>
+            <Text style={styles.sectionTitle}>{t('account.recentActivities')}</Text>
             {['Video visit - Dr. Johnson', 'Lab results received', 'Medication refill requested'].map((item) => (
               <View key={item} style={styles.activityRow}>
                 <FontAwesome name="clock-o" size={14} color={Colors.primary} style={styles.activityIcon} />
@@ -76,12 +83,12 @@ export default function PatientOverviewScreen({ navigation }: Props) {
           </>
         ) : (
           <>
-            <Text style={styles.sectionTitle}>Personal Information</Text>
-            <InfoRow label="Full Name" value={user ? `${user.firstName} ${user.lastName}` : 'John Doe'} />
-            <InfoRow label="Email" value={user?.email ?? 'patient@example.com'} />
-            <InfoRow label="Blood Type" value="O+" />
-            <InfoRow label="Allergies" value="None reported" />
-            <InfoRow label="Emergency Contact" value="Jane Doe · (555) 123-4567" />
+            <Text style={styles.sectionTitle}>{t('account.personalInformation')}</Text>
+            <InfoRow label={t('account.fullName')} value={user ? `${user.firstName} ${user.lastName}` : 'John Doe'} />
+            <InfoRow label={t('account.email')} value={user?.email ?? 'patient@example.com'} />
+            <InfoRow label={t('account.bloodType')} value="O+" />
+            <InfoRow label={t('health.allergies')} value={t('account.noneReported')} />
+            <InfoRow label={t('account.emergencyContact')} value="Jane Doe · (555) 123-4567" />
           </>
         )}
       </ScrollView>
@@ -90,6 +97,8 @@ export default function PatientOverviewScreen({ navigation }: Props) {
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   return (
     <View style={styles.infoRow}>
       <Text style={styles.infoLabel}>{label}</Text>
@@ -98,13 +107,13 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
   header: { paddingBottom: 0 },
   backBtn: { marginLeft: 16, marginTop: 8, width: 36, height: 36, justifyContent: 'center' },
   profileArea: { alignItems: 'center', marginBottom: 16 },
   avatar: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.white,
+    width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.surface,
     alignItems: 'center', justifyContent: 'center', marginBottom: 10,
   },
   name: { fontSize: 20, fontWeight: '800', color: Colors.white },
@@ -121,7 +130,7 @@ const styles = StyleSheet.create({
   bodyContent: { padding: 16, paddingBottom: 32 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: Colors.textDark, marginTop: 16, marginBottom: 12 },
   careCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.white, borderRadius: 12,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 12,
     padding: 14, marginBottom: 8, shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 1, shadowRadius: 4, elevation: 1,
   },
   careAvatar: {
@@ -130,11 +139,11 @@ const styles = StyleSheet.create({
   },
   careName: { fontSize: 14, fontWeight: '700', color: Colors.textDark },
   careRole: { fontSize: 12, color: Colors.textGray },
-  activityRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.white, borderRadius: 10, padding: 12, marginBottom: 8 },
+  activityRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 10, padding: 12, marginBottom: 8 },
   activityIcon: { marginRight: 10 },
   activityText: { fontSize: 14, color: Colors.textDark },
   infoRow: {
-    backgroundColor: Colors.white, borderRadius: 10, padding: 14, marginBottom: 8,
+    backgroundColor: Colors.surface, borderRadius: 10, padding: 14, marginBottom: 8,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
   infoLabel: { fontSize: 13, color: Colors.textGray },

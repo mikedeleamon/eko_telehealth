@@ -28,6 +28,8 @@ export default function Cross({
   return (
     <View
       pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
       style={[
         {
           position: 'absolute',

@@ -5,7 +5,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import { useCall } from '../../../hooks/useCall';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -13,6 +15,9 @@ interface Props {
 }
 
 export default function AudioCallScreen({ navigation, route }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const doctor = route.params?.doctor;
   const roomName = route.params?.roomName ?? `visit-${doctor?.id ?? 'demo'}`;
   const {
@@ -45,11 +50,11 @@ export default function AudioCallScreen({ navigation, route }: Props) {
       </View>
 
       <View style={styles.controls}>
-        <CallBtn icon={muted ? 'microphone-slash' : 'microphone'} label={muted ? 'Unmute' : 'Mute'} onPress={toggleMuted} active={muted} />
-        <CallBtn icon={speakerOn ? 'volume-up' : 'volume-off'} label="Speaker" onPress={toggleSpeaker} active={speakerOn} />
-        <CallBtn icon="video-camera" label="Video" onPress={switchToVideo} />
+        <CallBtn icon={muted ? 'microphone-slash' : 'microphone'} label={muted ? t('call.unmute') : t('call.mute')} onPress={toggleMuted} active={muted} />
+        <CallBtn icon={speakerOn ? 'volume-up' : 'volume-off'} label={t('call.speaker')} onPress={toggleSpeaker} active={speakerOn} />
+        <CallBtn icon="video-camera" label={t('call.video')} onPress={switchToVideo} />
 
-        <TouchableOpacity style={styles.endBtn} onPress={endCall}>
+        <TouchableOpacity style={styles.endBtn} onPress={endCall} accessibilityRole="button" accessibilityLabel={t('a11y.endCall')}>
           <FontAwesome name="phone" size={26} color={Colors.white} />
         </TouchableOpacity>
       </View>
@@ -58,8 +63,10 @@ export default function AudioCallScreen({ navigation, route }: Props) {
 }
 
 function CallBtn({ icon, label, onPress, active }: { icon: string; label: string; onPress: () => void; active?: boolean }) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   return (
-    <TouchableOpacity style={styles.callBtn} onPress={onPress}>
+    <TouchableOpacity style={styles.callBtn} onPress={onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: active }}>
       <View style={[styles.callBtnCircle, active && styles.callBtnActive]}>
         <FontAwesome name={icon as any} size={20} color={Colors.white} />
       </View>
@@ -68,7 +75,7 @@ function CallBtn({ icon, label, onPress, active }: { icon: string; label: string
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
   bg: { ...StyleSheet.absoluteFillObject },
   centerArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },

@@ -13,8 +13,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { TUTORIAL_DATA } from '../../constants';
 import { Colors } from '../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../theme';
 import EkoButton from '../../components/common/EkoButton';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from '../../i18n/useTranslation';
 
 const { width, height } = Dimensions.get('window');
 
@@ -25,6 +27,9 @@ interface Props {
 const tutorialIcons = ['stethoscope', 'calendar-check-o', 'heartbeat'];
 
 export default function TutorialScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const { completeOnboarding } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
@@ -59,7 +64,7 @@ export default function TutorialScreen({ navigation }: Props) {
   const renderItem = ({ item, index }: { item: typeof TUTORIAL_DATA[0]; index: number }) => (
     <View style={[styles.slide, { backgroundColor: item.color }]}>
       <LinearGradient
-        colors={[item.color, Colors.white]}
+        colors={[item.color, Colors.bgLight]}
         style={styles.gradientOverlay}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
@@ -74,8 +79,8 @@ export default function TutorialScreen({ navigation }: Props) {
         </View>
       </View>
       <View style={styles.textBlock}>
-        <Text style={styles.title}>{item.title}</Text>
-        {item.subtitle ? <Text style={styles.subtitle}>{item.subtitle}</Text> : null}
+        <Text style={styles.title}>{t(`tutorial.slide${index + 1}Title`)}</Text>
+        <Text style={styles.subtitle}>{t(`tutorial.slide${index + 1}Subtitle`)}</Text>
       </View>
     </View>
   );
@@ -84,8 +89,8 @@ export default function TutorialScreen({ navigation }: Props) {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      <TouchableOpacity style={styles.skipBtn} onPress={skip}>
-        <Text style={styles.skipText}>Skip</Text>
+      <TouchableOpacity style={styles.skipBtn} onPress={skip} accessibilityRole="button" accessibilityLabel={t('tutorial.skip')}>
+        <Text style={styles.skipText}>{t('tutorial.skip')}</Text>
       </TouchableOpacity>
 
       <FlatList
@@ -113,16 +118,16 @@ export default function TutorialScreen({ navigation }: Props) {
 
         <View style={styles.navButtons}>
           {currentIndex > 0 ? (
-            <TouchableOpacity style={styles.prevBtn} onPress={goPrev}>
+            <TouchableOpacity style={styles.prevBtn} onPress={goPrev} accessibilityRole="button" accessibilityLabel={t('tutorial.previous')}>
               <FontAwesome name="chevron-left" size={16} color={Colors.primary} />
-              <Text style={styles.prevText}>Previous</Text>
+              <Text style={styles.prevText}>{t('tutorial.previous')}</Text>
             </TouchableOpacity>
           ) : (
             <View style={styles.prevBtn} />
           )}
 
           <EkoButton
-            title={currentIndex === TUTORIAL_DATA.length - 1 ? 'Get Started' : 'Next'}
+            title={currentIndex === TUTORIAL_DATA.length - 1 ? t('tutorial.getStarted') : t('tutorial.next')}
             onPress={goNext}
             style={styles.nextBtn}
           />
@@ -132,10 +137,10 @@ export default function TutorialScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.surface,
   },
   skipBtn: {
     position: 'absolute',
@@ -201,7 +206,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.surface,
     paddingTop: 20,
     paddingBottom: 40,
     paddingHorizontal: 24,

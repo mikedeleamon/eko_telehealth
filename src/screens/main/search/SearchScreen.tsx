@@ -7,9 +7,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import { useDoctors } from '../../../hooks/queries';
 import RatingStars from '../../../components/common/RatingStars';
 import Cross from '../../../components/common/Cross';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -18,6 +20,9 @@ interface Props {
 const RECENT = ['Primary Care', 'Eye Doctor', 'Cardiology', 'Dr. Okafor'];
 
 export default function SearchScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
 
@@ -48,14 +53,15 @@ export default function SearchScreen({ navigation }: Props) {
         <Cross size={26} opacity={0.05} rotation={-18} style={{ bottom: 10, left: 24 }} />
         <Cross size={22} opacity={0.04} rotation={14} style={{ top: 4, right: 170 }} />
         <Cross size={20} opacity={0.04} rotation={-12} style={{ bottom: 52, right: 24 }} />
-        <Text style={styles.headerTitle}>Search</Text>
+        <Text style={styles.headerTitle}>{t('search.header')}</Text>
 
         <View style={styles.searchBar}>
           <FontAwesome name="search" size={15} color={Colors.textGray} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search doctors, specialties, conditions..."
+            placeholder={t('search.placeholder2')}
             placeholderTextColor={Colors.textGray}
+            accessibilityLabel={t('common.search')}
             value={query}
             onChangeText={setQuery}
             autoCapitalize="none"
@@ -70,7 +76,7 @@ export default function SearchScreen({ navigation }: Props) {
 
       {query.length < 2 ? (
         <View style={styles.recentSection}>
-          <Text style={styles.recentTitle}>Recent Searches</Text>
+          <Text style={styles.recentTitle}>{t('search.recentSearches')}</Text>
           {RECENT.map(r => (
             <TouchableOpacity key={r} style={styles.recentRow} onPress={() => setQuery(r)}>
               <View style={styles.recentIcon}>
@@ -101,7 +107,7 @@ export default function SearchScreen({ navigation }: Props) {
               </View>
               <View style={styles.resultRight}>
                 <Text style={styles.resultFee}>{item.fee}</Text>
-                <Text style={styles.resultFeeLabel}>per visit</Text>
+                <Text style={styles.resultFeeLabel}>{t('search.perVisit')}</Text>
               </View>
             </TouchableOpacity>
           )}
@@ -109,7 +115,7 @@ export default function SearchScreen({ navigation }: Props) {
           ListEmptyComponent={
             <View style={styles.noResult}>
               <FontAwesome name="search" size={40} color={Colors.textLight} />
-              <Text style={styles.noResultText}>No results for "{query}"</Text>
+              <Text style={styles.noResultText}>{t('search.noResultsFor', { query })}</Text>
             </View>
           }
         />
@@ -118,7 +124,7 @@ export default function SearchScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
 
   header: {
@@ -133,14 +139,14 @@ const styles = StyleSheet.create({
 
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: Colors.white, borderRadius: 16, paddingHorizontal: 14, height: 48,
+    backgroundColor: Colors.surface, borderRadius: 16, paddingHorizontal: 14, height: 48,
   },
   searchInput: { flex: 1, fontSize: 14, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },
 
   recentSection: { padding: 20 },
   recentTitle: { fontSize: 16, fontWeight: '700', color: Colors.textDark, marginBottom: 14, fontFamily: 'Poppins_700Bold' },
   recentRow: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.white,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface,
     borderRadius: 16, padding: 14, marginBottom: 10,
     ...Platform.select({
       ios: { shadowColor: 'rgba(0,0,0,0.06)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 6 },
@@ -155,7 +161,7 @@ const styles = StyleSheet.create({
 
   resultList: { padding: 16, paddingBottom: 24 },
   resultCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.white,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface,
     borderRadius: 18, padding: 14, marginBottom: 12,
     ...Platform.select({
       ios: { shadowColor: 'rgba(0,0,0,0.08)', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 1, shadowRadius: 8 },

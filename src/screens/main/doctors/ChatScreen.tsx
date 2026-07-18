@@ -7,10 +7,12 @@ import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import { chatService } from '../../../services/messaging';
 import { api } from '../../../api';
 import type { ChatMessage } from '../../../api/types';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -18,6 +20,9 @@ interface Props {
 }
 
 export default function ChatScreen({ navigation, route }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const doctor = route.params?.doctor;
   const [conversationId, setConversationId] = useState<string | null>(route.params?.conversationId ?? null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -77,9 +82,9 @@ export default function ChatScreen({ navigation, route }: Props) {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <EkoHeader
-        title={doctor?.name ?? 'Chat'}
+        title={doctor?.name ?? t('messages.chat')}
         onBack={() => navigation.goBack()}
-        rightAction={{ icon: 'video-camera', onPress: () => navigation.navigate('VideoCall', { doctor }) }}
+        rightAction={{ icon: 'video-camera', onPress: () => navigation.navigate('VideoCall', { doctor }), accessibilityLabel: t('call.videoCall') }}
       />
       <FlatList
         ref={listRef}
@@ -92,19 +97,22 @@ export default function ChatScreen({ navigation, route }: Props) {
       <View style={styles.inputRow}>
         <TouchableOpacity
           style={styles.attachBtn}
-          onPress={() => Alert.alert('Attach', 'Photo and file attachments are coming soon.')}
+          onPress={() => Alert.alert(t('messages.attach'), t('messages.attachSoon'))}
+          accessibilityRole="button"
+          accessibilityLabel={t('messages.attach')}
         >
           <FontAwesome name="paperclip" size={18} color={Colors.textGray} />
         </TouchableOpacity>
         <TextInput
           style={styles.input}
-          placeholder="Type a message..."
+          placeholder={t('messages.typeMessage')}
           placeholderTextColor={Colors.textGray}
+          accessibilityLabel={t('messages.typeMessage')}
           value={text}
           onChangeText={setText}
           multiline
         />
-        <TouchableOpacity style={[styles.sendBtn, text.trim() && styles.sendBtnActive]} onPress={send}>
+        <TouchableOpacity style={[styles.sendBtn, text.trim() && styles.sendBtnActive]} onPress={send} accessibilityRole="button" accessibilityLabel={t('a11y.sendMessage')}>
           <FontAwesome name="send" size={16} color={text.trim() ? Colors.white : Colors.textGray} />
         </TouchableOpacity>
       </View>
@@ -112,7 +120,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
   list: { padding: 16, paddingBottom: 8 },
   msgRow: { marginBottom: 12 },
@@ -120,14 +128,14 @@ const styles = StyleSheet.create({
   msgRowThem: { alignItems: 'flex-start' },
   bubble: { maxWidth: '80%', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
   bubbleMe: { backgroundColor: Colors.primary, borderBottomRightRadius: 4 },
-  bubbleThem: { backgroundColor: Colors.white, borderBottomLeftRadius: 4, shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 1, shadowRadius: 4, elevation: 2 },
+  bubbleThem: { backgroundColor: Colors.surface, borderBottomLeftRadius: 4, shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 1, shadowRadius: 4, elevation: 2 },
   msgText: { fontSize: 15, color: Colors.textDark, lineHeight: 21 },
   msgTextMe: { color: Colors.white },
   msgTime: { fontSize: 10, color: Colors.textGray, marginTop: 4, textAlign: 'right' },
   msgTimeMe: { color: 'rgba(255,255,255,0.7)' },
   inputRow: {
     flexDirection: 'row', alignItems: 'flex-end', padding: 12,
-    backgroundColor: Colors.white, borderTopWidth: 1, borderTopColor: Colors.borderGray,
+    backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.borderGray,
   },
   attachBtn: { padding: 10 },
   input: {

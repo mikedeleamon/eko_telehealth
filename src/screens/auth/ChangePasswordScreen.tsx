@@ -8,8 +8,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
+import { useTranslation } from '../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -17,7 +19,10 @@ interface Props {
 }
 
 export default function ChangePasswordScreen({ navigation, route }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { isLoggedIn } = useAuth();
   // Set by the reset flows (VerifyEmail / VerifyMobile pass the verified code
   // on). Absent for logged-in users changing their password from Account.
@@ -37,15 +42,15 @@ export default function ChangePasswordScreen({ navigation, route }: Props) {
   const [loading, setLoading] = useState(false);
 
   const handle = async () => {
-    if (!isReset && !currentPass) return Alert.alert('', 'Please enter your current password.');
-    if (!newPass) return Alert.alert('', 'Please enter a new password.');
-    if (newPass.length < 8) return Alert.alert('', 'Password must be at least 8 characters.');
-    if (newPass !== confirmPass) return Alert.alert('', 'Passwords do not match.');
+    if (!isReset && !currentPass) return Alert.alert('', t('auth.valEnterCurrent'));
+    if (!newPass) return Alert.alert('', t('auth.valEnterNew'));
+    if (newPass.length < 8) return Alert.alert('', t('auth.valMin8'));
+    if (newPass !== confirmPass) return Alert.alert('', t('auth.valMismatch'));
 
     // Reached without reset params and without a session there's nothing to
     // authorise the change — don't report a success that never happened.
     if (!isReset && !isLoggedIn) {
-      return Alert.alert('', 'Your reset link has expired. Please start again from “Forgot Password”.');
+      return Alert.alert('', t('auth.resetLinkExpired'));
     }
 
     setLoading(true);
@@ -55,12 +60,12 @@ export default function ChangePasswordScreen({ navigation, route }: Props) {
       } else {
         await api.auth.changePassword(currentPass, newPass);
       }
-      Alert.alert('Success', 'Your password has been updated.', [
+      Alert.alert(t('auth.success'), t('auth.passwordUpdated'), [
         // Logged-in users return to where they were; the reset flow signs in.
-        { text: 'OK', onPress: () => (isReset ? navigation.navigate('Login') : navigation.goBack()) },
+        { text: t('common.ok'), onPress: () => (isReset ? navigation.navigate('Login') : navigation.goBack()) },
       ]);
     } catch (err) {
-      Alert.alert('Could not update password', err instanceof Error ? err.message : 'Please try again.');
+      Alert.alert(t('auth.couldNotUpdatePassword'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
     } finally {
       setLoading(false);
     }
@@ -68,7 +73,7 @@ export default function ChangePasswordScreen({ navigation, route }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.white }}
+      style={{ flex: 1, backgroundColor: Colors.surface }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <StatusBar barStyle="dark-content" />
@@ -78,14 +83,14 @@ export default function ChangePasswordScreen({ navigation, route }: Props) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('a11y.back')}>
             <FontAwesome name="arrow-left" size={20} color={Colors.accent} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.body}>
-          <Text style={styles.title}>Change Password</Text>
-          <Text style={styles.subtitle}>Please Create your new password</Text>
+          <Text style={styles.title}>{t('auth.changePasswordTitle')}</Text>
+          <Text style={styles.subtitle}>{t('auth.createNewPassword')}</Text>
 
           {/* Current password — only when already signed in; the reset flows
               prove identity with the code instead. */}
@@ -94,7 +99,7 @@ export default function ChangePasswordScreen({ navigation, route }: Props) {
               <FontAwesome name="lock" size={18} color={currentFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
               <TextInput
                 style={styles.fieldInput}
-                placeholder="Current Password"
+                placeholder={t('auth.currentPasswordPlaceholder')}
                 placeholderTextColor={Colors.textGray}
                 value={currentPass}
                 onChangeText={setCurrentPass}
@@ -113,7 +118,7 @@ export default function ChangePasswordScreen({ navigation, route }: Props) {
             <FontAwesome name="lock" size={18} color={newFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
             <TextInput
               style={styles.fieldInput}
-              placeholder="New Password"
+              placeholder={t('auth.newPasswordPlaceholder')}
               placeholderTextColor={Colors.textGray}
               value={newPass}
               onChangeText={setNewPass}
@@ -131,7 +136,7 @@ export default function ChangePasswordScreen({ navigation, route }: Props) {
             <FontAwesome name="lock" size={18} color={confirmFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
             <TextInput
               style={styles.fieldInput}
-              placeholder="Confirm Password"
+              placeholder={t('auth.confirmPasswordPlaceholder')}
               placeholderTextColor={Colors.textGray}
               value={confirmPass}
               onChangeText={setConfirmPass}
@@ -145,17 +150,17 @@ export default function ChangePasswordScreen({ navigation, route }: Props) {
           </View>
 
           <TouchableOpacity style={styles.submitBtn} onPress={handle} disabled={loading} activeOpacity={0.85}>
-            <Text style={styles.submitBtnText}>{loading ? 'UPDATING...' : 'CHANGE PASSWORD'}</Text>
+            <Text style={styles.submitBtnText}>{loading ? t('auth.updating') : t('auth.changePasswordCta')}</Text>
           </TouchableOpacity>
 
           {/* Password rules card */}
           <View style={styles.rulesCard}>
-            <Text style={styles.rulesTitle}>Password Rules</Text>
+            <Text style={styles.rulesTitle}>{t('auth.passwordRules')}</Text>
             {[
-              'Has at least 8 characters',
-              'Has letters, numbers, and special characters',
-              'Has no white space',
-              'Not easy to guess',
+              t('auth.crit8'),
+              t('auth.critMix'),
+              t('auth.ruleNoSpaceShort'),
+              t('auth.critNotGuess'),
             ].map(r => (
               <View key={r} style={styles.ruleRow}>
                 <View style={styles.ruleDot} />
@@ -169,7 +174,7 @@ export default function ChangePasswordScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   header: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8 },
   body: { paddingHorizontal: 28, paddingTop: 16 },
 
@@ -184,11 +189,11 @@ const styles = StyleSheet.create({
 
   field: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#F5F6FA', borderRadius: 32,
+    backgroundColor: Colors.field, borderRadius: 32,
     paddingHorizontal: 20, height: 56, marginBottom: 16,
     borderWidth: 1.5, borderColor: 'transparent',
   },
-  fieldFocused: { borderColor: Colors.accent, backgroundColor: Colors.white },
+  fieldFocused: { borderColor: Colors.accent, backgroundColor: Colors.surface },
   fieldIcon: { marginRight: 12 },
   fieldInput: { flex: 1, fontSize: 15, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },
 
@@ -205,7 +210,7 @@ const styles = StyleSheet.create({
 
   rulesCard: {
     borderWidth: 1.5, borderColor: Colors.accent, borderRadius: 16,
-    padding: 18, backgroundColor: '#FFF5F2',
+    padding: 18, backgroundColor: Colors.accentFaded,
   },
   rulesTitle: {
     fontSize: 14, fontWeight: '700', color: Colors.textDark,

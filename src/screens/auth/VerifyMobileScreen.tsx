@@ -6,15 +6,20 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../theme';
 import { api } from '../../api';
 import { sanitizePhoneInput, isValidPhone } from '../../utils/format';
+import { useTranslation } from '../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
 }
 
 export default function VerifyMobileScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const [phone, setPhone] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -23,14 +28,14 @@ export default function VerifyMobileScreen({ navigation }: Props) {
   const inputs = useRef<(TextInput | null)[]>([]);
 
   const sendCode = async () => {
-    if (!phone.trim()) return Alert.alert('', 'Please enter your mobile number.');
-    if (!isValidPhone(phone)) return Alert.alert('', 'Please enter a valid mobile number.');
+    if (!phone.trim()) return Alert.alert('', t('auth.valEnterMobile'));
+    if (!isValidPhone(phone)) return Alert.alert('', t('auth.valValidMobile'));
     setLoading(true);
     try {
       await api.auth.requestCode('sms', phone.trim());
       setCodeSent(true);
     } catch (err) {
-      Alert.alert('Could not send code', err instanceof Error ? err.message : 'Please try again.');
+      Alert.alert(t('auth.couldNotSend'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
     } finally {
       setLoading(false);
     }
@@ -45,7 +50,7 @@ export default function VerifyMobileScreen({ navigation }: Props) {
 
   const verify = async () => {
     const code = otp.join('');
-    if (code.length < 6) return Alert.alert('', 'Please enter the 6-digit code.');
+    if (code.length < 6) return Alert.alert('', t('auth.valEnter6Digit'));
     setLoading(true);
     try {
       await api.auth.verifyCode('sms', phone.trim(), code);
@@ -53,7 +58,7 @@ export default function VerifyMobileScreen({ navigation }: Props) {
       // from the phone and re-checks the code before changing anything.
       navigation.navigate('ChangePassword', { channel: 'sms', destination: phone.trim(), code });
     } catch (err) {
-      Alert.alert('Verification failed', err instanceof Error ? err.message : 'Invalid or expired code.');
+      Alert.alert(t('auth.verificationFailed'), err instanceof Error ? err.message : t('auth.invalidExpired'));
     } finally {
       setLoading(false);
     }
@@ -64,7 +69,7 @@ export default function VerifyMobileScreen({ navigation }: Props) {
       <StatusBar barStyle="dark-content" />
 
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('a11y.back')}>
           <FontAwesome name="arrow-left" size={20} color={Colors.accent} />
         </TouchableOpacity>
       </View>
@@ -74,17 +79,18 @@ export default function VerifyMobileScreen({ navigation }: Props) {
           <FontAwesome name="mobile" size={36} color={Colors.accent} />
         </View>
 
-        <Text style={styles.title}>Mobile Verification</Text>
-        <Text style={styles.sub}>Enter your mobile number to receive a verification code.</Text>
+        <Text style={styles.title}>{t('auth.mobileVerification')}</Text>
+        <Text style={styles.sub}>{t('auth.mobileVerificationBody')}</Text>
 
         <View style={[styles.field, phoneFocused && styles.fieldFocused]}>
           <FontAwesome name="phone" size={18} color={phoneFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
           <TextInput
             style={styles.fieldInput}
-            placeholder="+1 Phone number"
+            placeholder={t('auth.phonePlaceholder')}
             placeholderTextColor={Colors.textGray}
+            accessibilityLabel={t('auth.phone')}
             value={phone}
-            onChangeText={(t) => setPhone(sanitizePhoneInput(t))}
+            onChangeText={(val) => setPhone(sanitizePhoneInput(val))}
             onFocus={() => setPhoneFocused(true)}
             onBlur={() => setPhoneFocused(false)}
             keyboardType="phone-pad"
@@ -94,7 +100,7 @@ export default function VerifyMobileScreen({ navigation }: Props) {
 
         {!codeSent ? (
           <TouchableOpacity style={styles.btn} onPress={sendCode} disabled={loading} activeOpacity={0.85}>
-            <Text style={styles.btnText}>{loading ? 'SENDING...' : 'SEND CODE'}</Text>
+            <Text style={styles.btnText}>{loading ? t('auth.sending') : t('auth.sendCodeCta')}</Text>
           </TouchableOpacity>
         ) : (
           <>
@@ -112,10 +118,10 @@ export default function VerifyMobileScreen({ navigation }: Props) {
               ))}
             </View>
             <TouchableOpacity style={styles.btn} onPress={verify} disabled={loading} activeOpacity={0.85}>
-              <Text style={styles.btnText}>{loading ? 'VERIFYING...' : 'VERIFY'}</Text>
+              <Text style={styles.btnText}>{loading ? t('auth.verifying') : t('auth.verifyCta')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.resendRow} onPress={() => setCodeSent(false)}>
-              <Text style={styles.resendLink}>Resend Code</Text>
+              <Text style={styles.resendLink}>{t('auth.resendCodeShort')}</Text>
             </TouchableOpacity>
           </>
         )}
@@ -124,13 +130,13 @@ export default function VerifyMobileScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white },
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.surface },
   header: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 8 },
   body: { flex: 1, paddingHorizontal: 28, paddingTop: 16, alignItems: 'center' },
 
   iconCircle: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFF0EB',
+    width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.accentFaded,
     alignItems: 'center', justifyContent: 'center', marginBottom: 24,
   },
   title: {
@@ -144,11 +150,11 @@ const styles = StyleSheet.create({
 
   field: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#F5F6FA', borderRadius: 32,
+    backgroundColor: Colors.field, borderRadius: 32,
     paddingHorizontal: 20, height: 56, marginBottom: 20, width: '100%',
     borderWidth: 1.5, borderColor: 'transparent',
   },
-  fieldFocused: { borderColor: Colors.accent, backgroundColor: Colors.white },
+  fieldFocused: { borderColor: Colors.accent, backgroundColor: Colors.surface },
   fieldIcon: { marginRight: 12 },
   fieldInput: { flex: 1, fontSize: 15, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },
 
@@ -156,9 +162,9 @@ const styles = StyleSheet.create({
   otpBox: {
     width: 44, height: 54, borderRadius: 12, borderWidth: 2,
     borderColor: Colors.borderGray, textAlign: 'center', fontSize: 20,
-    fontWeight: '700', color: Colors.textDark, backgroundColor: '#F5F6FA',
+    fontWeight: '700', color: Colors.textDark, backgroundColor: Colors.field,
   },
-  otpBoxFilled: { borderColor: Colors.accent, backgroundColor: '#FFF5F2' },
+  otpBoxFilled: { borderColor: Colors.accent, backgroundColor: Colors.accentFaded },
 
   btn: {
     backgroundColor: Colors.accent, borderRadius: 32, height: 56,

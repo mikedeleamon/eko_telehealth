@@ -3,6 +3,7 @@ import {
   TouchableOpacity, Text, ActivityIndicator, StyleSheet, ViewStyle, TextStyle,
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../theme';
 
 interface Props {
   title: string;
@@ -20,6 +21,8 @@ export default function EkoButton({
   title, onPress, variant = 'primary', size = 'md',
   loading = false, disabled = false, color, style, textStyle,
 }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   const bg = color ?? (
     variant === 'primary' ? Colors.primary :
     variant === 'accent' ? Colors.accent :
@@ -50,6 +53,9 @@ export default function EkoButton({
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
     >
       {loading
         ? <ActivityIndicator color={textColor} size="small" />
@@ -59,7 +65,7 @@ export default function EkoButton({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   base: {
     borderRadius: 32,
     alignItems: 'center',

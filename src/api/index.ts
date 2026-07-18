@@ -22,6 +22,8 @@ import type {
   Doctor,
   DoctorAgendaItem,
   Insurance,
+  MedicalNote,
+  MedicalNoteInput,
   PatientSummary,
   Pharmacy,
   PaymentIntent,
@@ -220,6 +222,30 @@ export const api = {
     decline(id: string, reason?: string): Promise<Appointment> {
       if (env.useMockApi) return mockApi.decideAppointment(id, 'declined');
       return request<Appointment>(`/practice/appointments/${id}/decline`, { method: 'POST', body: { reason } });
+    },
+
+    /**
+     * GET /practice/patients/:patientId/notes — every SOAP note for the
+     * patient, across all treating doctors (shared record).
+     */
+    medicalNotes(patientId: string): Promise<MedicalNote[]> {
+      if (env.useMockApi) return mockApi.getMedicalNotes(patientId);
+      return request<MedicalNote[]>(`/practice/patients/${patientId}/notes`);
+    },
+
+    /**
+     * POST /practice/patients/:patientId/notes — author identity comes from
+     * the bearer token server-side; the client never sends doctor fields.
+     */
+    addMedicalNote(input: MedicalNoteInput): Promise<MedicalNote> {
+      if (env.useMockApi) return mockApi.addMedicalNote(input);
+      return request<MedicalNote>(`/practice/patients/${input.patientId}/notes`, { method: 'POST', body: input });
+    },
+
+    /** PATCH /practice/notes/:noteId — server rejects non-authors. */
+    updateMedicalNote(noteId: string, input: Partial<MedicalNoteInput>): Promise<MedicalNote> {
+      if (env.useMockApi) return mockApi.updateMedicalNote(noteId, input);
+      return request<MedicalNote>(`/practice/notes/${noteId}`, { method: 'PATCH', body: input });
     },
   },
 

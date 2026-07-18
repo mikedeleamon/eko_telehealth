@@ -5,7 +5,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
-import type { CreateAppointmentInput } from '../api/types';
+import type { CreateAppointmentInput, MedicalNoteInput } from '../api/types';
 
 export const queryKeys = {
   doctors: (params?: { category?: string; query?: string }) => ['doctors', params ?? {}] as const,
@@ -17,6 +17,7 @@ export const queryKeys = {
   patients: ['patients'] as const,
   agenda: ['agenda'] as const,
   practiceAppointments: ['practice-appointments'] as const,
+  medicalNotes: (patientId: string) => ['medical-notes', patientId] as const,
   providerState: ['provider-state'] as const,
   payment: (id: string) => ['payments', id] as const,
   reviews: (subject?: string) => ['reviews', subject ?? 'all'] as const,
@@ -80,6 +81,32 @@ export function usePracticeAppointments(enabled = true) {
     queryKey: queryKeys.practiceAppointments,
     queryFn: api.practice.appointments,
     enabled,
+  });
+}
+
+/** All SOAP notes for a patient, shared across their treating doctors. */
+export function useMedicalNotes(patientId: string) {
+  return useQuery({
+    queryKey: queryKeys.medicalNotes(patientId),
+    queryFn: () => api.practice.medicalNotes(patientId),
+    enabled: !!patientId,
+  });
+}
+
+export function useAddMedicalNote(patientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: MedicalNoteInput) => api.practice.addMedicalNote(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.medicalNotes(patientId) }),
+  });
+}
+
+export function useUpdateMedicalNote(patientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ noteId, input }: { noteId: string; input: Partial<MedicalNoteInput> }) =>
+      api.practice.updateMedicalNote(noteId, input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.medicalNotes(patientId) }),
   });
 }
 

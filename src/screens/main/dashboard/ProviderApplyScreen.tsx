@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platfo
 import { useQueryClient } from '@tanstack/react-query';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoTextField from '../../../components/common/EkoTextField';
 import EkoSelectField, { OTHER_OPTION } from '../../../components/common/EkoSelectField';
@@ -10,6 +11,7 @@ import EkoButton from '../../../components/common/EkoButton';
 import { PROVIDER_CATEGORY_OPTIONS, SPECIALTY_OPTIONS } from '../../../constants';
 import { api } from '../../../api';
 import { queryKeys } from '../../../hooks/queries';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -23,6 +25,9 @@ interface Props {
  * unreviewed stranger must never be bookable as a doctor.
  */
 export default function ProviderApplyScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const [specialty, setSpecialty] = useState('');
   const [specialtyOther, setSpecialtyOther] = useState('');
   const [category, setCategory] = useState('');
@@ -33,10 +38,10 @@ export default function ProviderApplyScreen({ navigation }: Props) {
 
   const submit = async () => {
     const resolvedSpecialty = specialty === OTHER_OPTION ? specialtyOther.trim() : specialty.trim();
-    if (resolvedSpecialty.length < 2) return Alert.alert('', 'Select or enter your specialty, e.g. "Cardiologist".');
-    if (category.trim().length < 2) return Alert.alert('', 'Select the category patients search by, e.g. "Cardiology".');
-    if (location.trim().length < 2) return Alert.alert('', 'Enter your practice location.');
-    if (!fee.trim()) return Alert.alert('', 'Enter your consultation fee, e.g. "₦15,000".');
+    if (resolvedSpecialty.length < 2) return Alert.alert('', t('provider.valSpecialty'));
+    if (category.trim().length < 2) return Alert.alert('', t('provider.valCategory'));
+    if (location.trim().length < 2) return Alert.alert('', t('provider.valLocation'));
+    if (!fee.trim()) return Alert.alert('', t('provider.valFee'));
 
     setLoading(true);
     try {
@@ -48,12 +53,12 @@ export default function ProviderApplyScreen({ navigation }: Props) {
       });
       qc.invalidateQueries({ queryKey: queryKeys.providerState });
       Alert.alert(
-        'Application Submitted',
-        "We'll review your details and notify you. Patients can book you as soon as you're approved.",
-        [{ text: 'OK', onPress: () => navigation.goBack() }],
+        t('provider.applicationSubmittedTitle'),
+        t('provider.applicationSubmittedBody'),
+        [{ text: t('common.ok'), onPress: () => navigation.goBack() }],
       );
     } catch (err) {
-      Alert.alert('Could not submit', err instanceof Error ? err.message : 'Please try again.');
+      Alert.alert(t('provider.couldNotSubmit'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
     } finally {
       setLoading(false);
     }
@@ -61,55 +66,53 @@ export default function ProviderApplyScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <EkoHeader title="Provider Application" onBack={() => navigation.goBack()} />
+      <EkoHeader title={t('provider.title')} onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.intro}>
-          Tell us about your practice. Our team verifies every provider before their profile goes live.
-        </Text>
+        <Text style={styles.intro}>{t('provider.intro')}</Text>
 
         <EkoSelectField
-          label="Specialty"
+          label={t('provider.specialty')}
           icon="stethoscope"
-          placeholder="Select your specialty"
+          placeholder={t('provider.selectSpecialty')}
           options={SPECIALTY_OPTIONS}
           value={specialty}
           onSelect={setSpecialty}
           allowOther
           otherValue={specialtyOther}
           onChangeOther={setSpecialtyOther}
-          otherPlaceholder="Enter your specialty"
+          otherPlaceholder={t('provider.enterSpecialty')}
         />
         <EkoSelectField
-          label="Category"
+          label={t('provider.category')}
           icon="tags"
-          placeholder="How patients search for you"
+          placeholder={t('provider.howPatientsSearch')}
           options={PROVIDER_CATEGORY_OPTIONS}
           value={category}
           onSelect={setCategory}
         />
         <EkoTextField
-          label="Location"
-          placeholder="e.g. Victoria Island, Lagos"
+          label={t('provider.location')}
+          placeholder={t('provider.locationPlaceholder')}
           icon="map-marker"
           value={location}
           onChangeText={setLocation}
         />
         <EkoTextField
-          label="Consultation Fee"
-          placeholder="e.g. ₦15,000"
+          label={t('provider.consultationFee')}
+          placeholder={t('provider.feePlaceholder')}
           icon="money"
           value={fee}
           onChangeText={setFee}
         />
 
-        <EkoButton title="Submit Application" variant="accent" onPress={submit} loading={loading} style={styles.btn} />
+        <EkoButton title={t('provider.submitApplication')} variant="accent" onPress={submit} loading={loading} style={styles.btn} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white },
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.surface },
   content: { padding: 20, paddingBottom: 40 },
   intro: {
     fontSize: 13, color: Colors.textGray, lineHeight: 20,

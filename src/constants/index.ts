@@ -197,11 +197,75 @@ export const MOCK_DOCTOR_APPOINTMENTS = [
 // but `doctor` holds the patient's name and `specialty` the visit reason.
 // Includes pending requests so the Accept/Decline actions have real targets.
 export const MOCK_DOCTOR_SCHEDULE = [
-  { id: 's1', doctor: 'Emeka Obi', specialty: 'Consultation', date: 'Fri, Jul 24, 2026', time: '12:30 PM', type: 'Video Visit', status: 'pending_approval', fee: '₦15,000' },
-  { id: 's2', doctor: 'Yusuf Ibrahim', specialty: 'First Visit', date: 'Fri, Jul 24, 2026', time: '11:30 AM', type: 'Clinic Visit', status: 'pending_approval', fee: '₦15,000' },
+  { id: 's1', doctor: 'Emeka Obi', patientId: 'p1', specialty: 'Consultation', date: 'Fri, Jul 24, 2026', time: '12:30 PM', type: 'Video Visit', status: 'pending_approval', fee: '₦15,000' },
+  { id: 's2', doctor: 'Yusuf Ibrahim', patientId: 'p2', specialty: 'First Visit', date: 'Fri, Jul 24, 2026', time: '11:30 AM', type: 'Clinic Visit', status: 'pending_approval', fee: '₦15,000' },
+  // Bisi has no MOCK_PATIENTS record, so her entry stays unmatched (no patientId).
   { id: 's3', doctor: 'Bisi Alade', specialty: 'Consultation', date: 'Thu, Jul 23, 2026', time: '12:30 PM', type: 'Video Visit', status: 'pending_payment', fee: '₦15,000' },
-  { id: 's4', doctor: 'Ngozi Nwosu', specialty: 'Follow-up', date: 'Tue, Jun 30, 2026', time: '3:00 PM', type: 'Video Visit', status: 'upcoming', fee: '₦15,000' },
-  { id: 's5', doctor: 'Augustine Watts', specialty: 'Consultation', date: 'Jun 10, 2026', time: '10:30 AM', type: 'Clinic Visit', status: 'past', fee: '₦15,000' },
+  { id: 's4', doctor: 'Ngozi Nwosu', patientId: 'p5', specialty: 'Follow-up', date: 'Tue, Jun 30, 2026', time: '3:00 PM', type: 'Video Visit', status: 'upcoming', fee: '₦15,000' },
+  { id: 's5', doctor: 'Augustine Watts', patientId: 'p4', specialty: 'Consultation', date: 'Jun 10, 2026', time: '10:30 AM', type: 'Clinic Visit', status: 'past', fee: '₦15,000' },
+  // Past visits (dates align with each patient's lastVisit) so every patient
+  // has at least one appointment a SOAP note can link to.
+  { id: 's6', doctor: 'Emeka Obi', patientId: 'p1', specialty: 'Follow-up', date: 'Sat, Jun 20, 2026', time: '9:30 AM', type: 'Video Visit', status: 'past', fee: '₦15,000' },
+  { id: 's7', doctor: 'Yusuf Ibrahim', patientId: 'p2', specialty: 'First Visit', date: 'Mon, Jul 20, 2026', time: '10:00 AM', type: 'Clinic Visit', status: 'upcoming', fee: '₦15,000' },
+  { id: 's8', doctor: 'Alex Stewart', patientId: 'p3', specialty: 'Consultation', date: 'Fri, Jun 12, 2026', time: '2:00 PM', type: 'Video Visit', status: 'past', fee: '₦15,000' },
+  { id: 's9', doctor: 'Ngozi Nwosu', patientId: 'p5', specialty: 'Antenatal Visit', date: 'Fri, May 29, 2026', time: '11:00 AM', type: 'Clinic Visit', status: 'past', fee: '₦15,000' },
+  { id: 's10', doctor: 'Tunde Bakare', patientId: 'p6', specialty: 'Annual Physical', date: 'Thu, May 14, 2026', time: '3:30 PM', type: 'Clinic Visit', status: 'past', fee: '₦15,000' },
+];
+
+// Seed SOAP visit notes. Authors mix the logged-in mock doctor (doc-1, whose
+// notes are editable) with other providers (read-only) so both permission
+// states are demoable — Augustine Watts (p4) has one of each.
+export const MOCK_MEDICAL_NOTES = [
+  {
+    id: 'note-1', patientId: 'p4', appointmentId: 's5', date: 'Jun 10, 2026', visitType: 'Clinic Visit',
+    doctorId: 'doc-1', doctorName: 'Dr. Sarah Johnson', doctorSpecialty: 'Primary Care',
+    reason: 'Recurrent migraines — treatment plan review',
+    subjective: 'Reports 3 migraine episodes in the past two weeks, each lasting 4-6 hours. Photophobia and nausea present. Triptan provides partial relief. Sleep has been irregular.',
+    objective: 'BP 128/82, HR 74. Neurological exam unremarkable. No papilloedema. Neck supple, no focal deficits.',
+    assessment: 'Chronic migraine without aura, suboptimally controlled on current abortive-only regimen.',
+    plan: 'Start propranolol 40mg BID as prophylaxis. Maintain headache diary. Review in 6 weeks; consider neurology referral if frequency does not improve.',
+    createdAt: '2026-06-10T15:10:00Z',
+  },
+  {
+    id: 'note-2', patientId: 'p4', appointmentId: 'ext-901', date: 'Apr 3, 2026', visitType: 'Video Visit',
+    doctorId: '4', doctorName: 'Dr. James Whitfield MD', doctorSpecialty: 'Cardiologist, Internal Medicine',
+    reason: 'Palpitations during migraine episodes',
+    subjective: 'Describes fluttering sensation in chest accompanying severe headaches. No syncope, no exertional chest pain.',
+    objective: 'BP 130/84, HR 78 regular. ECG normal sinus rhythm. No murmurs.',
+    assessment: 'Palpitations likely catecholamine-mediated during pain episodes. No structural cardiac concern.',
+    plan: 'Reassurance. 24-hour Holter if symptoms persist. Follow up with primary care for migraine control.',
+    createdAt: '2026-04-03T11:40:00Z',
+  },
+  {
+    id: 'note-3', patientId: 'p1', appointmentId: 's6', date: 'Sat, Jun 20, 2026', visitType: 'Video Visit',
+    doctorId: '1', doctorName: 'Dr. Amara Okafor MD', doctorSpecialty: 'Therapist, Primary care doctor',
+    reason: 'Hypertension follow-up and medication review',
+    subjective: 'Occasional morning headaches. Adherent to amlodipine. Diet high in salt during recent travel.',
+    objective: 'Home BP log averages 146/93. Weight stable at 84kg.',
+    assessment: 'Stage 1 hypertension, above target on monotherapy.',
+    plan: 'Add lisinopril 10mg daily. Reinforce low-sodium diet. Recheck BP in 4 weeks.',
+    createdAt: '2026-06-20T10:05:00Z',
+  },
+  {
+    id: 'note-4', patientId: 'p3', appointmentId: 's8', date: 'Fri, Jun 12, 2026', visitType: 'Video Visit',
+    doctorId: '1', doctorName: 'Dr. Amara Okafor MD', doctorSpecialty: 'Therapist, Primary care doctor',
+    reason: 'Quarterly diabetes management review',
+    subjective: 'Increased thirst and post-prandial fatigue. Metformin tolerated well. Walking 30 minutes most days.',
+    objective: 'HbA1c 7.9% (up from 7.4%). Fasting glucose 152 mg/dL. BMI 28.1.',
+    assessment: 'Type 2 diabetes with worsening glycaemic control.',
+    plan: 'Add empagliflozin 10mg daily. Refer to dietitian. Repeat HbA1c in 3 months.',
+    createdAt: '2026-06-12T14:45:00Z',
+  },
+  {
+    id: 'note-5', patientId: 'p5', appointmentId: 's9', date: 'Fri, May 29, 2026', visitType: 'Clinic Visit',
+    doctorId: '3', doctorName: 'Dr. Funmilayo Adeyemi', doctorSpecialty: 'OBGYN Specialist',
+    reason: 'Antenatal check-up — 20 weeks gestation',
+    subjective: 'Feeling well. Mild lower back discomfort after long periods standing. Foetal movements felt daily.',
+    objective: 'BP 116/74. Fundal height consistent with dates. Foetal heart rate 148 bpm. Anomaly scan normal.',
+    assessment: 'Uncomplicated pregnancy at 20 weeks.',
+    plan: 'Continue folic acid and iron. Routine bloods at 28 weeks. Next visit in 4 weeks.',
+    createdAt: '2026-05-29T12:20:00Z',
+  },
 ];
 
 export const MOCK_PATIENTS = [

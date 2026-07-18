@@ -4,30 +4,35 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../theme';
+import { useTranslation } from '../../i18n/useTranslation';
 import Cross from './Cross';
 
 interface Props {
   title: string;
   onBack?: () => void;
-  rightAction?: { icon: string; onPress: () => void };
+  rightAction?: { icon: string; onPress: () => void; accessibilityLabel?: string };
   transparent?: boolean;
 }
 
 export default function EkoHeader({ title, onBack, rightAction, transparent }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   if (transparent) {
     return (
       <View style={[styles.transparentContainer, { paddingTop: insets.top + 8 }]}>
         <StatusBar barStyle="light-content" />
         {onBack ? (
-          <TouchableOpacity style={styles.sideBtn} onPress={onBack}>
+          <TouchableOpacity style={styles.sideBtn} onPress={onBack} accessibilityRole="button" accessibilityLabel={t('a11y.back')}>
             <FontAwesome name="arrow-left" size={18} color={Colors.white} />
           </TouchableOpacity>
         ) : <View style={styles.sideBtn} />}
         <Text style={styles.title} numberOfLines={1}>{title}</Text>
         {rightAction ? (
-          <TouchableOpacity style={styles.sideBtn} onPress={rightAction.onPress}>
+          <TouchableOpacity style={styles.sideBtn} onPress={rightAction.onPress} accessibilityRole="button" accessibilityLabel={rightAction.accessibilityLabel ?? title}>
             <FontAwesome name={rightAction.icon as any} size={20} color={Colors.white} />
           </TouchableOpacity>
         ) : <View style={styles.sideBtn} />}
@@ -57,7 +62,7 @@ export default function EkoHeader({ title, onBack, rightAction, transparent }: P
 
       <View style={styles.row}>
         {onBack ? (
-          <TouchableOpacity style={styles.sideBtn} onPress={onBack} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity style={styles.sideBtn} onPress={onBack} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('a11y.back')}>
             <FontAwesome name="arrow-left" size={18} color={Colors.white} />
           </TouchableOpacity>
         ) : <View style={styles.sideBtn} />}
@@ -65,7 +70,7 @@ export default function EkoHeader({ title, onBack, rightAction, transparent }: P
         <Text style={styles.title} numberOfLines={1}>{title}</Text>
 
         {rightAction ? (
-          <TouchableOpacity style={styles.sideBtn} onPress={rightAction.onPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity style={styles.sideBtn} onPress={rightAction.onPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={rightAction.accessibilityLabel ?? title}>
             <FontAwesome name={rightAction.icon as any} size={20} color={Colors.white} />
           </TouchableOpacity>
         ) : <View style={styles.sideBtn} />}
@@ -74,7 +79,7 @@ export default function EkoHeader({ title, onBack, rightAction, transparent }: P
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: {
     paddingHorizontal: 16, paddingBottom: 16, overflow: 'hidden',
     borderBottomLeftRadius: 28, borderBottomRightRadius: 28,

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { videoService, type CallState } from '../services/video';
+import { useTranslation } from '../i18n/useTranslation';
 
 interface UseCallOptions {
   roomName: string;
@@ -12,6 +13,7 @@ interface UseCallOptions {
  * local control toggles.
  */
 export function useCall({ roomName, audioOnly = false }: UseCallOptions) {
+  const { t } = useTranslation();
   const [state, setState] = useState<CallState>('idle');
   const [elapsed, setElapsed] = useState(0);
   const [muted, setMutedState] = useState(false);
@@ -83,9 +85,9 @@ export function useCall({ roomName, audioOnly = false }: UseCallOptions) {
   const elapsedLabel = `${pad(hh)}:${pad(mm % 60)}:${pad(elapsed % 60)}`;
 
   const statusLabel =
-    state === 'connecting' ? 'Connecting…'
-    : state === 'reconnecting' ? 'Reconnecting…'
-    : state === 'failed' ? 'Call failed'
+    state === 'connecting' ? t('call.connecting')
+    : state === 'reconnecting' ? t('call.reconnecting')
+    : state === 'failed' ? t('call.callFailed')
     : elapsedLabel;
 
   return {

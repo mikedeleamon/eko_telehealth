@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import {
   useAppointmentDecision,
   useConversations,
@@ -17,6 +18,7 @@ import {
 import Cross from '../../../components/common/Cross';
 import EkoButton from '../../../components/common/EkoButton';
 import { useAuth } from '../../../context/AuthContext';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -30,7 +32,10 @@ const STATUS_META: Record<string, { color: string; icon: string; tint: string | 
 };
 
 export default function DashboardScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [search, setSearch] = useState('');
 
@@ -55,8 +60,8 @@ export default function DashboardScreen({ navigation }: Props) {
       {
         onError: (err) =>
           Alert.alert(
-            `Could not ${decide}`,
-            err instanceof Error ? err.message : `Could not ${decide} ${name}'s request.`,
+            decide === 'accept' ? t('dashboard.couldNotAccept') : t('dashboard.couldNotDecline'),
+            err instanceof Error ? err.message : t('dashboard.couldNotActionRequest', { action: decide, name }),
           ),
       },
     );
@@ -96,19 +101,18 @@ export default function DashboardScreen({ navigation }: Props) {
         </View>
 
         {/* Greeting */}
-        <Text style={styles.greeting}>Welcome {firstName}!</Text>
-        <Text style={styles.subtitle}>
-          You have <Text style={styles.subtitleBold}>{remaining} patients</Text> remaining today!
-        </Text>
-        <Text style={styles.subtitle}>Remember to check documentation before call.</Text>
+        <Text style={styles.greeting}>{t('dashboard.welcomeName', { name: firstName })}</Text>
+        <Text style={styles.subtitle}>{t('dashboard.patientsRemaining', { count: remaining })}</Text>
+        <Text style={styles.subtitle}>{t('dashboard.checkDocumentation')}</Text>
 
         {/* Search bar */}
         <View style={styles.searchBar}>
           <FontAwesome name="search" size={15} color={Colors.textGray} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search"
+            placeholder={t('common.search')}
             placeholderTextColor={Colors.textGray}
+            accessibilityLabel={t('common.search')}
             value={search}
             onChangeText={setSearch}
           />
@@ -132,21 +136,21 @@ export default function DashboardScreen({ navigation }: Props) {
               />
               <Text style={styles.onboardTitle}>
                 {provider.state === 'pending'
-                  ? 'Application under review'
+                  ? t('dashboard.appUnderReview')
                   : provider.state === 'rejected'
-                    ? 'Application not approved'
-                    : 'Finish setting up your practice'}
+                    ? t('dashboard.appNotApproved')
+                    : t('dashboard.finishSetup')}
               </Text>
               <Text style={styles.onboardText}>
                 {provider.state === 'pending'
-                  ? `Submitted ${provider.application?.submittedAt ?? 'recently'}. We'll notify you once it's reviewed — patients can book you as soon as it's approved.`
+                  ? t('dashboard.pendingText', { date: provider.application?.submittedAt ?? t('dashboard.recently') })
                   : provider.state === 'rejected'
-                    ? 'Your application was not approved. Contact support if you think this is a mistake.'
-                    : 'Submit your details for verification. Once approved, your profile goes live and patients can book you.'}
+                    ? t('dashboard.rejectedText')
+                    : t('dashboard.noneText')}
               </Text>
               {(provider.state === 'none' || provider.state === 'rejected') && (
                 <EkoButton
-                  title="Apply Now"
+                  title={t('dashboard.applyNow')}
                   variant="accent"
                   onPress={() => navigation.navigate('ProviderApply')}
                   style={styles.onboardBtn}
@@ -160,14 +164,14 @@ export default function DashboardScreen({ navigation }: Props) {
         {isLive && (
         <View style={styles.section}>
           <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>Requests</Text>
+            <Text style={styles.sectionTitle}>{t('dashboard.requests')}</Text>
             <TouchableOpacity onPress={() => navigation.navigate('SchedulerTab')}>
-              <Text style={styles.viewAll}>View List</Text>
+              <Text style={styles.viewAll}>{t('dashboard.viewList')}</Text>
             </TouchableOpacity>
           </View>
 
           {requests.length === 0 ? (
-            <Text style={styles.emptyRequests}>No pending requests right now.</Text>
+            <Text style={styles.emptyRequests}>{t('dashboard.noPendingRequests')}</Text>
           ) : (
             requests.map((req, i) => (
               <View key={req.id} style={[styles.requestCard, { backgroundColor: Colors.cardColors[i % 2 === 0 ? 0 : 1] }]}>
@@ -182,14 +186,18 @@ export default function DashboardScreen({ navigation }: Props) {
                   <TouchableOpacity
                     style={[styles.reqBtn, styles.acceptBtn]}
                     onPress={() => respond(req.id, req.doctor, 'accept')}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('dashboard.accept')}
                   >
-                    <Text style={styles.acceptText}>Accept</Text>
+                    <Text style={styles.acceptText}>{t('dashboard.accept')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.reqBtn, styles.declineBtn]}
                     onPress={() => respond(req.id, req.doctor, 'decline')}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('dashboard.decline')}
                   >
-                    <Text style={styles.declineText}>Decline</Text>
+                    <Text style={styles.declineText}>{t('dashboard.decline')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -201,9 +209,9 @@ export default function DashboardScreen({ navigation }: Props) {
         {/* Today's Appointment */}
         <View style={styles.section}>
           <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>Today's Appointment</Text>
+            <Text style={styles.sectionTitle}>{t('dashboard.todaysAppointment')}</Text>
             <TouchableOpacity onPress={() => navigation.navigate('SchedulerTab')}>
-              <Text style={styles.viewAll}>View List</Text>
+              <Text style={styles.viewAll}>{t('dashboard.viewList')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -236,7 +244,7 @@ export default function DashboardScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.bgLight },
 
   header: {
@@ -261,7 +269,7 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontSize: 9, color: Colors.white, fontWeight: '800' },
   avatarBtn: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.white,
+    width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.surface,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)',
   },
@@ -272,7 +280,7 @@ const styles = StyleSheet.create({
 
   searchBar: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.white, borderRadius: 16,
+    backgroundColor: Colors.surface, borderRadius: 16,
     paddingHorizontal: 14, height: 50, gap: 10, marginTop: 18,
   },
   searchInput: { flex: 1, fontSize: 14, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },
@@ -282,7 +290,7 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: 16, paddingTop: 20 },
 
   onboardCard: {
-    backgroundColor: Colors.white, borderRadius: 20, padding: 20, alignItems: 'center',
+    backgroundColor: Colors.surface, borderRadius: 20, padding: 20, alignItems: 'center',
     ...Platform.select({
       ios: {
         shadowColor: 'rgba(39, 42, 58, 0.10)',
@@ -316,7 +324,7 @@ const styles = StyleSheet.create({
     borderRadius: 18, padding: 12, marginBottom: 12,
   },
   reqAvatar: {
-    width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.white,
+    width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.surface,
     alignItems: 'center', justifyContent: 'center', marginRight: 12,
   },
   reqInfo: { flex: 1 },
@@ -332,7 +340,7 @@ const styles = StyleSheet.create({
   // Today's appointment rows
   apptRow: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.white, borderRadius: 16, padding: 12, marginBottom: 10,
+    backgroundColor: Colors.surface, borderRadius: 16, padding: 12, marginBottom: 10,
     ...Platform.select({
       ios: { shadowColor: 'rgba(0,0,0,0.05)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 6 },
       android: { elevation: 2 },

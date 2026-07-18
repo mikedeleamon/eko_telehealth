@@ -7,7 +7,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../theme';
 import { api } from '../../api';
+import { useTranslation } from '../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -15,7 +17,10 @@ interface Props {
 }
 
 export default function VerifyEmailScreen({ navigation, route }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   // When verifying as part of a password reset, continue to set a new password.
   const isReset = route.params?.reset === true;
   const email: string | undefined = route.params?.email;
@@ -41,21 +46,21 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
   };
 
   const handleResend = async () => {
-    if (!email) return Alert.alert('', 'Go back and re-enter your email to get a new code.');
+    if (!email) return Alert.alert('', t('auth.goBackReenterEmailCode'));
     try {
       await api.auth.requestCode('email', email);
-      Alert.alert('', 'A new code is on its way to your email.');
+      Alert.alert('', t('auth.newCodeEmail'));
     } catch (err) {
-      Alert.alert('Could not resend code', err instanceof Error ? err.message : 'Please try again.');
+      Alert.alert(t('auth.couldNotResend'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
     }
   };
 
   const handleVerify = async () => {
     const code = otp.join('');
-    if (code.length < otp.length) return Alert.alert('', `Please enter the ${otp.length}-digit code.`);
+    if (code.length < otp.length) return Alert.alert('', t('auth.valEnterNDigit', { count: otp.length }));
     setLoading(true);
     try {
-      if (!email) return Alert.alert('', 'Go back and re-enter your email address.');
+      if (!email) return Alert.alert('', t('auth.goBackReenterEmail'));
       await api.auth.verifyCode('email', email, code);
       // Fresh signup: show the onboarding tutorial once, then land on Login.
       // Password reset: carry the code forward — /auth/reset-password needs it
@@ -66,7 +71,7 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
         navigation.navigate('Tutorial');
       }
     } catch (err) {
-      Alert.alert('Verification failed', err instanceof Error ? err.message : 'Invalid or expired code.');
+      Alert.alert(t('auth.verificationFailed'), err instanceof Error ? err.message : t('auth.invalidExpired'));
     } finally {
       setLoading(false);
     }
@@ -77,7 +82,7 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
       <StatusBar barStyle="dark-content" />
 
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('a11y.back')}>
           <FontAwesome name="arrow-left" size={20} color={Colors.accent} />
         </TouchableOpacity>
       </View>
@@ -87,8 +92,8 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
           <FontAwesome name="envelope" size={30} color={Colors.accent} />
         </View>
 
-        <Text style={styles.title}>Verify Email</Text>
-        <Text style={styles.sub}>We sent a 6-digit code to your email. Enter it below to continue.</Text>
+        <Text style={styles.title}>{t('auth.verifyEmailShort')}</Text>
+        <Text style={styles.sub}>{t('auth.verifyEmailBodyShort')}</Text>
 
         <View style={styles.otpRow}>
           {otp.map((val, i) => (
@@ -108,25 +113,25 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
         </View>
 
         <TouchableOpacity style={styles.btn} onPress={handleVerify} disabled={loading} activeOpacity={0.85}>
-          <Text style={styles.btnText}>{loading ? 'VERIFYING...' : 'VERIFY'}</Text>
+          <Text style={styles.btnText}>{loading ? t('auth.verifying') : t('auth.verifyCta')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.resendRow} onPress={handleResend}>
-          <Text style={styles.resendText}>Didn't receive the code? </Text>
-          <Text style={styles.resendLink}>Resend</Text>
+          <Text style={styles.resendText}>{t('auth.didntReceive')}</Text>
+          <Text style={styles.resendLink}>{t('auth.resend')}</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white },
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.surface },
   header: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 8 },
   body: { flex: 1, paddingHorizontal: 28, paddingTop: 16, alignItems: 'center' },
 
   iconCircle: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFF0EB',
+    width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.accentFaded,
     alignItems: 'center', justifyContent: 'center', marginBottom: 24,
   },
   title: {
@@ -142,9 +147,9 @@ const styles = StyleSheet.create({
   otpBox: {
     width: 44, height: 54, borderRadius: 12, borderWidth: 2,
     borderColor: Colors.borderGray, textAlign: 'center', fontSize: 20,
-    fontWeight: '700', color: Colors.textDark, backgroundColor: '#F5F6FA',
+    fontWeight: '700', color: Colors.textDark, backgroundColor: Colors.field,
   },
-  otpBoxFilled: { borderColor: Colors.accent, backgroundColor: '#FFF5F2' },
+  otpBoxFilled: { borderColor: Colors.accent, backgroundColor: Colors.accentFaded },
 
   btn: {
     backgroundColor: Colors.accent, borderRadius: 32, height: 56,

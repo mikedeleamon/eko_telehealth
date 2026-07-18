@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'rea
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoTextField from '../../../components/common/EkoTextField';
 import EkoDatePickerField from '../../../components/common/EkoDatePickerField';
@@ -11,12 +12,16 @@ import EkoButton from '../../../components/common/EkoButton';
 import { RELATIONSHIP_OPTIONS } from '../../../constants';
 import { isValidDate } from '../../../utils/format';
 import { useAddDependent, useDependents, useRemoveDependent } from '../../../hooks/queries';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
 }
 
 export default function AddDependentScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [dob, setDob] = useState('');
@@ -27,30 +32,30 @@ export default function AddDependentScreen({ navigation }: Props) {
   const removeDependent = useRemoveDependent();
 
   const confirmRemove = (id: string, name: string) => {
-    Alert.alert('Remove dependent?', `${name} will no longer be bookable from your account.`, [
-      { text: 'Keep', style: 'cancel' },
+    Alert.alert(t('account.removeDependentTitle'), t('account.removeDependentBody', { name }), [
+      { text: t('account.keep'), style: 'cancel' },
       {
-        text: 'Remove',
+        text: t('account.remove'),
         style: 'destructive',
         onPress: () =>
           removeDependent.mutate(id, {
             onError: (err) =>
-              Alert.alert('Could not remove', err instanceof Error ? err.message : 'Please try again.'),
+              Alert.alert(t('account.couldNotRemove'), err instanceof Error ? err.message : t('common.somethingWentWrong')),
           }),
       },
     ]);
   };
 
   const save = async () => {
-    if (!firstName.trim()) return Alert.alert('', 'Please enter first name.');
-    if (!lastName.trim()) return Alert.alert('', 'Please enter last name.');
-    if (!dob.trim()) return Alert.alert('', 'Please enter date of birth.');
+    if (!firstName.trim()) return Alert.alert('', t('account.enterFirstName'));
+    if (!lastName.trim()) return Alert.alert('', t('account.enterLastName'));
+    if (!dob.trim()) return Alert.alert('', t('account.enterDob'));
     if (!isValidDate(dob, { allowFuture: false })) {
-      return Alert.alert('', 'Please enter a valid date of birth (DD-MM-YYYY).');
+      return Alert.alert('', t('account.validDob'));
     }
     const relationship = relation === OTHER_OPTION ? relationOther.trim() : relation.trim();
     if (relation === OTHER_OPTION && !relationship) {
-      return Alert.alert('', 'Please specify the relationship.');
+      return Alert.alert('', t('account.specifyRelationshipErr'));
     }
     try {
       await addDependent.mutateAsync({
@@ -59,23 +64,23 @@ export default function AddDependentScreen({ navigation }: Props) {
         dob: dob.trim(),
         ...(relationship ? { relationship } : {}),
       });
-      Alert.alert('Success', 'Dependent added successfully.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+      Alert.alert(t('auth.success'), t('account.dependentAddedFull'), [{ text: t('common.ok'), onPress: () => navigation.goBack() }]);
     } catch (err) {
-      Alert.alert('Could not add dependent', err instanceof Error ? err.message : 'Please try again.');
+      Alert.alert(t('account.couldNotAddDependent'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
     }
   };
 
   return (
     <View style={styles.container}>
-      <EkoHeader title="Dependents" onBack={() => navigation.goBack()} />
+      <EkoHeader title={t('account.dependentsTitle')} onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.info}>Add a family member or dependent to manage their healthcare appointments.</Text>
+        <Text style={styles.info}>{t('account.dependentIntro')}</Text>
 
         {/* The saved list — without it, dependents would be write-only and the
             booking picker would have nothing to show. */}
         {dependents.length > 0 && (
           <View style={styles.list}>
-            <Text style={styles.listTitle}>Your dependents</Text>
+            <Text style={styles.listTitle}>{t('account.yourDependents')}</Text>
             {dependents.map((d) => (
               <View key={d.id} style={styles.depRow}>
                 <View style={styles.depAvatar}>
@@ -90,6 +95,8 @@ export default function AddDependentScreen({ navigation }: Props) {
                 <TouchableOpacity
                   onPress={() => confirmRemove(d.id, `${d.firstName} ${d.lastName}`)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('account.remove')}
                 >
                   <FontAwesome name="trash-o" size={18} color={Colors.red} />
                 </TouchableOpacity>
@@ -98,30 +105,30 @@ export default function AddDependentScreen({ navigation }: Props) {
           </View>
         )}
 
-        <Text style={styles.formTitle}>Add someone new</Text>
-        <EkoTextField label="First Name" placeholder="First name" icon="user" value={firstName} onChangeText={setFirstName} />
-        <EkoTextField label="Last Name" placeholder="Last name" icon="user" value={lastName} onChangeText={setLastName} />
-        <EkoDatePickerField label="Date of Birth" value={dob} onChangeText={setDob} disableFuture />
+        <Text style={styles.formTitle}>{t('account.addSomeoneNew')}</Text>
+        <EkoTextField label={t('account.firstName')} placeholder={t('account.firstNamePlaceholder')} icon="user" value={firstName} onChangeText={setFirstName} />
+        <EkoTextField label={t('account.lastName')} placeholder={t('account.lastNamePlaceholder')} icon="user" value={lastName} onChangeText={setLastName} />
+        <EkoDatePickerField label={t('account.dobLabel')} value={dob} onChangeText={setDob} disableFuture />
         <EkoSelectField
-          label="Relationship"
+          label={t('account.relationshipLabel')}
           icon="heart"
-          placeholder="Select relationship"
+          placeholder={t('account.selectRelationship')}
           options={RELATIONSHIP_OPTIONS}
           value={relation}
           onSelect={setRelation}
           allowOther
           otherValue={relationOther}
           onChangeOther={setRelationOther}
-          otherPlaceholder="Specify relationship"
+          otherPlaceholder={t('account.specifyRelationship')}
         />
-        <EkoButton title="Add Dependent" variant="accent" onPress={save} loading={addDependent.isPending} style={styles.btn} />
+        <EkoButton title={t('account.addDependentBtn')} variant="accent" onPress={save} loading={addDependent.isPending} style={styles.btn} />
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white },
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.surface },
   content: { padding: 20, paddingBottom: 40 },
   info: { fontSize: 14, color: Colors.textMedium, lineHeight: 20, marginBottom: 20, backgroundColor: Colors.primaryFaded, borderRadius: 10, padding: 14 },
 
@@ -129,7 +136,7 @@ const styles = StyleSheet.create({
   listTitle: { fontSize: 13, fontWeight: '700', color: Colors.textGray, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6 },
   depRow: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.white, borderRadius: 12, padding: 12, marginBottom: 8,
+    backgroundColor: Colors.surface, borderRadius: 12, padding: 12, marginBottom: 8,
     borderWidth: 1, borderColor: Colors.borderGray,
   },
   depAvatar: {

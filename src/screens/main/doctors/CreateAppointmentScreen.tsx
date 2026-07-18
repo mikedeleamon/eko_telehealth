@@ -4,9 +4,11 @@ import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
 import { useCreateAppointment, useDependents } from '../../../hooks/queries';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -38,6 +40,9 @@ function toDateLabel(date: unknown): string {
 }
 
 export default function CreateAppointmentScreen({ navigation, route }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const { doctor, slot, date, type } = route.params ?? {};
   const [selectedType, setSelectedType] = useState(
     TYPES.some((t) => t.label === type) ? type : 'Video Visit'
@@ -53,8 +58,8 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
    * so this no longer routes straight to checkout.
    */
   const handleConfirm = async () => {
-    if (!doctor?.id) return Alert.alert('', 'Pick a doctor before requesting a visit.');
-    if (!slot) return Alert.alert('', 'Pick a time slot first.');
+    if (!doctor?.id) return Alert.alert('', t('appointments.pickDoctor'));
+    if (!slot) return Alert.alert('', t('appointments.pickSlot'));
     try {
       const appointment = await createAppointment.mutateAsync({
         doctorId: doctor.id,
@@ -65,13 +70,13 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
       });
       navigation.navigate('AppointmentConfirmed', { doctor, appointment });
     } catch (err) {
-      Alert.alert('Could not send request', err instanceof Error ? err.message : 'Please try again.');
+      Alert.alert(t('appointments.couldNotSendRequest'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
     }
   };
 
   return (
     <View style={styles.container}>
-      <EkoHeader title="Create Appointment" onBack={() => navigation.goBack()} />
+      <EkoHeader title={t('appointments.createAppointmentTitle')} onBack={() => navigation.goBack()} />
       <ScrollView style={styles.body} contentContainerStyle={styles.content}>
         <View style={styles.doctorCard}>
           <View style={styles.avatar}>
@@ -85,21 +90,21 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.summaryCard}>
-          <Row icon="calendar" label="Date" value={date ? `${date.day}, ${date.date}` : 'Selected Date'} />
-          <Row icon="clock-o" label="Time" value={slot ?? 'Selected Slot'} />
+          <Row icon="calendar" label={t('confirmed.date')} value={date ? `${date.day}, ${date.date}` : t('appointments.selectedDatePlaceholder')} />
+          <Row icon="clock-o" label={t('confirmed.time')} value={slot ?? t('appointments.selectedSlotPlaceholder')} />
         </View>
 
         {/* Only shown when the account actually has dependents — this is what
             makes the API's dependentId param reachable. */}
         {dependents.length > 0 && (
           <>
-            <Text style={styles.sectionLabel}>Who is this visit for?</Text>
+            <Text style={styles.sectionLabel}>{t('appointments.whoForVisit')}</Text>
             <View style={styles.forRow}>
               <TouchableOpacity
                 style={[styles.forChip, dependentId === null && styles.forChipActive]}
                 onPress={() => setDependentId(null)}
               >
-                <Text style={[styles.forChipText, dependentId === null && styles.forChipTextActive]}>Myself</Text>
+                <Text style={[styles.forChipText, dependentId === null && styles.forChipTextActive]}>{t('appointments.myself')}</Text>
               </TouchableOpacity>
               {dependents.map((d) => (
                 <TouchableOpacity
@@ -116,38 +121,42 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
           </>
         )}
 
-        <Text style={styles.sectionLabel}>Appointment Type</Text>
+        <Text style={styles.sectionLabel}>{t('appointments.appointmentTypeLabel')}</Text>
         <View style={styles.typeRow}>
-          {TYPES.map((t) => (
+          {TYPES.map((opt) => (
             <TouchableOpacity
-              key={t.label}
-              style={[styles.typeBtn, selectedType === t.label && styles.typeBtnActive]}
-              onPress={() => setSelectedType(t.label)}
+              key={opt.label}
+              style={[styles.typeBtn, selectedType === opt.label && styles.typeBtnActive]}
+              onPress={() => setSelectedType(opt.label)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: selectedType === opt.label }}
             >
               <FontAwesome
-                name={t.icon as any}
+                name={opt.icon as any}
                 size={22}
-                color={selectedType === t.label ? Colors.white : Colors.primary}
+                color={selectedType === opt.label ? Colors.white : Colors.primary}
               />
-              <Text style={[styles.typeText, selectedType === t.label && styles.typeTextActive]}>
-                {t.label}
+              <Text style={[styles.typeText, selectedType === opt.label && styles.typeTextActive]}>
+                {t(`options.appointmentType.${opt.label}`)}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
         <View style={styles.feeRow}>
-          <Text style={styles.feeLabel}>Consultation Fee</Text>
+          <Text style={styles.feeLabel}>{t('appointments.consultationFee')}</Text>
           <Text style={styles.feeValue}>{doctor?.fee ?? '$0'}</Text>
         </View>
 
-        <EkoButton title="Request Appointment" variant="accent" onPress={handleConfirm} loading={loading} style={styles.btn} />
+        <EkoButton title={t('appointments.requestAppointment')} variant="accent" onPress={handleConfirm} loading={loading} style={styles.btn} />
       </ScrollView>
     </View>
   );
 }
 
 function Row({ icon, label, value }: { icon: string; label: string; value: string }) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   return (
     <View style={styles.row}>
       <FontAwesome name={icon as any} size={15} color={Colors.primary} style={styles.rowIcon} />
@@ -157,8 +166,8 @@ function Row({ icon, label, value }: { icon: string; label: string; value: strin
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white },
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.surface },
   body: { flex: 1 },
   content: { padding: 20 },
   doctorCard: {
@@ -166,7 +175,7 @@ const styles = StyleSheet.create({
     borderRadius: 14, padding: 14, marginBottom: 16,
   },
   avatar: {
-    width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.white,
+    width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.surface,
     alignItems: 'center', justifyContent: 'center', marginRight: 12,
   },
   info: { flex: 1 },
@@ -186,7 +195,7 @@ const styles = StyleSheet.create({
   forRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
   forChip: {
     paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
-    borderWidth: 1.5, borderColor: Colors.borderGray, backgroundColor: Colors.white,
+    borderWidth: 1.5, borderColor: Colors.borderGray, backgroundColor: Colors.surface,
   },
   forChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   forChipText: { fontSize: 13, fontWeight: '600', color: Colors.textMedium, fontFamily: 'Poppins_600SemiBold' },
@@ -195,7 +204,7 @@ const styles = StyleSheet.create({
   typeRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
   typeBtn: {
     flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 14,
-    borderRadius: 14, borderWidth: 1.5, borderColor: Colors.primary, backgroundColor: Colors.white,
+    borderRadius: 14, borderWidth: 1.5, borderColor: Colors.primary, backgroundColor: Colors.surface,
   },
   typeBtnActive: { backgroundColor: Colors.primary },
   typeText: { fontSize: 11, fontWeight: '600', color: Colors.primary, marginTop: 6, textAlign: 'center' },

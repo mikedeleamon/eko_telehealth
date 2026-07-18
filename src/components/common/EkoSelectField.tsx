@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, ViewStyle } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../theme';
 import EkoTextField from './EkoTextField';
 
 interface Props {
@@ -31,6 +32,8 @@ export default function EkoSelectField({
   error, containerStyle, allowOther = false,
   otherValue = '', onChangeOther, otherPlaceholder = 'Please specify',
 }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   const [open, setOpen] = useState(false);
   const list = allowOther ? [...options, OTHER_OPTION] : options;
   const showOther = allowOther && value === OTHER_OPTION;
@@ -43,6 +46,10 @@ export default function EkoSelectField({
         style={[styles.container, error ? styles.containerError : null]}
         onPress={() => setOpen(true)}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={label ?? placeholder}
+        accessibilityValue={{ text: value || placeholder }}
+        accessibilityState={{ expanded: open }}
       >
         {icon ? (
           <FontAwesome name={icon as any} size={17} color={Colors.textGray} style={styles.icon} />
@@ -78,6 +85,9 @@ export default function EkoSelectField({
                     key={opt}
                     style={styles.option}
                     onPress={() => { onSelect(opt); setOpen(false); }}
+                    accessibilityRole="radio"
+                    accessibilityLabel={opt}
+                    accessibilityState={{ selected: active }}
                   >
                     <FontAwesome
                       name={active ? 'dot-circle-o' : 'circle-o'}
@@ -96,7 +106,7 @@ export default function EkoSelectField({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   wrapper: { marginBottom: 16 },
   label: {
     fontSize: 13, fontWeight: '600', color: Colors.textMedium,
@@ -104,7 +114,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flexDirection: 'row', alignItems: 'center', borderRadius: 12,
-    backgroundColor: '#F5F6FA', borderWidth: 1.5, borderColor: 'transparent',
+    backgroundColor: Colors.field, borderWidth: 1.5, borderColor: 'transparent',
     paddingHorizontal: 16, height: 54,
   },
   containerError: { borderColor: Colors.error },
@@ -115,7 +125,7 @@ const styles = StyleSheet.create({
 
   overlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: Colors.white, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    backgroundColor: Colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     padding: 24, paddingBottom: 36, maxHeight: '70%',
   },
   grabber: {

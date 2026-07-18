@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../theme';
 import { maskDateInput } from '../../utils/format';
+import { useTranslation } from '../../i18n/useTranslation';
 import CalendarSheet from './CalendarSheet';
 
 interface Props {
@@ -24,6 +26,9 @@ export default function EkoDatePickerField({
   label, value, onChangeText, placeholder = 'DD-MM-YYYY',
   error, containerStyle, disableFuture = false,
 }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const [focused, setFocused] = useState(false);
   const [calendar, setCalendar] = useState(false);
 
@@ -34,7 +39,7 @@ export default function EkoDatePickerField({
       <View
         style={[
           styles.container,
-          focused && { borderColor: Colors.borderFocus, backgroundColor: Colors.white },
+          focused && { borderColor: Colors.borderFocus, backgroundColor: Colors.surface },
           error ? styles.containerError : null,
         ]}
       >
@@ -44,13 +49,20 @@ export default function EkoDatePickerField({
           placeholder={placeholder}
           placeholderTextColor={Colors.textGray}
           value={value}
-          onChangeText={(t) => onChangeText(maskDateInput(t))}
+          onChangeText={(text) => onChangeText(maskDateInput(text))}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           keyboardType="number-pad"
           maxLength={10}
+          accessibilityLabel={label ?? t('appointments.selectDate')}
         />
-        <TouchableOpacity onPress={() => setCalendar(true)} style={styles.calBtn} hitSlop={hit}>
+        <TouchableOpacity
+          onPress={() => setCalendar(true)}
+          style={styles.calBtn}
+          hitSlop={hit}
+          accessibilityRole="button"
+          accessibilityLabel={t('appointments.selectDate')}
+        >
           <FontAwesome name="calendar-o" size={18} color={Colors.primary} />
         </TouchableOpacity>
       </View>
@@ -63,7 +75,7 @@ export default function EkoDatePickerField({
         onSelect={onChangeText}
         onClose={() => setCalendar(false)}
         disableFuture={disableFuture}
-        title={label ?? 'Select Date'}
+        title={label ?? t('appointments.selectDate')}
       />
     </View>
   );
@@ -71,7 +83,7 @@ export default function EkoDatePickerField({
 
 const hit = { top: 8, bottom: 8, left: 8, right: 8 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   wrapper: { marginBottom: 16 },
   label: {
     fontSize: 13, fontWeight: '600', color: Colors.textMedium,
@@ -79,7 +91,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flexDirection: 'row', alignItems: 'center', borderRadius: 12,
-    backgroundColor: '#F5F6FA', borderWidth: 1.5, borderColor: 'transparent',
+    backgroundColor: Colors.field, borderWidth: 1.5, borderColor: 'transparent',
     paddingHorizontal: 16, height: 54,
   },
   containerError: { borderColor: Colors.error },

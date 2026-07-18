@@ -69,6 +69,12 @@ export interface Appointment {
   fee?: string;
   /** Why the doctor declined, when they gave a reason. */
   declineReason?: string;
+  /**
+   * The patient's id, on doctor-scoped schedules only. The real
+   * /practice/appointments endpoint must return it — without it, schedule
+   * entries can only be matched to patients by display name.
+   */
+  patientId?: string;
 }
 
 export interface CreateAppointmentInput {
@@ -131,6 +137,46 @@ export interface PatientSummary {
   biometrics?: PatientBiometrics;
 }
 
+/**
+ * A SOAP-format visit note. Shared across every doctor treating the patient;
+ * only the authoring doctor may edit (enforced server-side, mirrored in the
+ * client via doctorId).
+ */
+export interface MedicalNote {
+  id: string;
+  patientId: string;
+  /** The visit this note documents — notes are always tied to a real appointment. */
+  appointmentId: string;
+  /** Display date inherited from the linked appointment, e.g. "Jun 10, 2026". */
+  date: string;
+  visitType?: string;
+  /** Author — matches the authenticated user id; drives the edit gate. */
+  doctorId: string;
+  doctorName: string;
+  doctorSpecialty: string;
+  reason: string;
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+  /** ISO timestamp — required; lists sort on this, not the display date. */
+  createdAt: string;
+  updatedAt?: string;
+}
+
+/** Author fields are stamped server-side from the bearer token, never sent. */
+export interface MedicalNoteInput {
+  patientId: string;
+  appointmentId: string;
+  date: string;
+  visitType?: string;
+  reason: string;
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+}
+
 export interface DoctorAgendaItem {
   id: string;
   name: string;
@@ -187,6 +233,9 @@ export interface Pharmacy {
   fax: string;
 }
 
+/** Theme preference. 'system' follows the device's light/dark appearance. */
+export type ThemeMode = 'system' | 'light' | 'dark';
+
 /**
  * Per-user preferences. The notification flags are advisory for future
  * push/email fan-out — transactional messages (OTP, resets) ignore them.
@@ -195,7 +244,8 @@ export interface UserSettings {
   pushNotifications: boolean;
   emailNotifications: boolean;
   smsNotifications: boolean;
-  darkMode: boolean;
+  /** Full theme preference, not just a dark on/off — see {@link ThemeMode}. */
+  themeMode: ThemeMode;
   locationAccess: boolean;
 }
 

@@ -7,15 +7,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import { usePatients } from '../../../hooks/queries';
 import Cross from '../../../components/common/Cross';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
 }
 
 export default function PatientsScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
 
   const { data: patients = [] } = usePatients();
@@ -42,14 +47,15 @@ export default function PatientsScreen({ navigation }: Props) {
         <Cross size={46} opacity={0.06} rotation={-16} style={{ bottom: 40, right: 104 }} />
         <Cross size={36} opacity={0.05} rotation={22} style={{ top: 16, right: 90 }} />
 
-        <Text style={styles.headerTitle}>My Patients</Text>
+        <Text style={styles.headerTitle}>{t('patients.myPatients')}</Text>
 
         <View style={styles.searchBar}>
           <FontAwesome name="search" size={15} color={Colors.textGray} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search patients"
+            placeholder={t('patients.searchPatientsPlaceholder')}
             placeholderTextColor={Colors.textGray}
+            accessibilityLabel={t('patients.searchPatientsPlaceholder')}
             value={search}
             onChangeText={setSearch}
             autoCapitalize="none"
@@ -76,13 +82,13 @@ export default function PatientsScreen({ navigation }: Props) {
             </View>
             <View style={styles.info}>
               <Text style={styles.name}>{item.name}</Text>
-              <Text style={styles.meta}>{item.age} yrs · {item.gender}</Text>
+              <Text style={styles.meta}>{item.age} {t('patients.yearsShort')} · {t(`options.gender.${item.gender}`, { defaultValue: item.gender })}</Text>
               <View style={styles.conditionPill}>
                 <Text style={styles.conditionText}>{item.condition}</Text>
               </View>
             </View>
             <View style={styles.right}>
-              <Text style={styles.lastVisitLabel}>Last visit</Text>
+              <Text style={styles.lastVisitLabel}>{t('patients.lastVisitLabel')}</Text>
               <Text style={styles.lastVisit}>{item.lastVisit}</Text>
               <FontAwesome name="chevron-right" size={12} color={Colors.textGray} style={{ marginTop: 6 }} />
             </View>
@@ -93,7 +99,7 @@ export default function PatientsScreen({ navigation }: Props) {
         ListEmptyComponent={
           <View style={styles.empty}>
             <FontAwesome name="users" size={44} color={Colors.textLight} />
-            <Text style={styles.emptyText}>No patients found</Text>
+            <Text style={styles.emptyText}>{t('patients.noPatientsFound')}</Text>
           </View>
         }
       />
@@ -101,7 +107,7 @@ export default function PatientsScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
 
   header: {
@@ -115,13 +121,13 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 26, fontWeight: '800', color: Colors.white, marginBottom: 14, fontFamily: 'Poppins_700Bold' },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: Colors.white, borderRadius: 16, paddingHorizontal: 14, height: 48,
+    backgroundColor: Colors.surface, borderRadius: 16, paddingHorizontal: 14, height: 48,
   },
   searchInput: { flex: 1, fontSize: 14, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },
 
   list: { padding: 16, paddingBottom: 24 },
   card: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.white,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface,
     borderRadius: 18, padding: 14, marginBottom: 12,
     ...Platform.select({
       ios: { shadowColor: 'rgba(0,0,0,0.06)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8 },

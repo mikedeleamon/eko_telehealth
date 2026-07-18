@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../theme';
+import { useTranslation } from '../../i18n/useTranslation';
 
 interface Appointment {
   id: string;
@@ -38,29 +40,36 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 /** Lifecycle states are snake_case; never show the raw value to a user. */
-const STATUS_LABELS: Record<string, string> = {
-  pending_approval: 'Awaiting approval',
-  pending_payment: 'Payment required',
-  upcoming: 'Confirmed',
-  declined: 'Declined',
-  cancelled: 'Cancelled',
-  past: 'Completed',
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  pending_approval: 'appointments.statusPendingApproval',
+  pending_payment: 'appointments.statusPendingPayment',
+  upcoming: 'appointments.statusUpcoming',
+  declined: 'appointments.statusCancelled',
+  cancelled: 'appointments.statusCancelled',
+  past: 'appointments.statusPast',
 };
 
 export default function AppointmentCard({
   appointment, onPress, onAccept, onDecline, showActions = false, cardColor,
 }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const icon = TYPE_ICONS[appointment.type] ?? 'calendar';
   const statusColor = STATUS_COLORS[appointment.status] ?? Colors.textGray;
-  const statusLabel =
-    STATUS_LABELS[appointment.status] ??
-    appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1);
+  const statusKey = STATUS_LABEL_KEYS[appointment.status];
+  const statusLabel = statusKey
+    ? t(statusKey)
+    : appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1);
+  const typeLabel = t(`options.appointmentType.${appointment.type}`, { defaultValue: appointment.type });
 
   return (
     <TouchableOpacity
       style={[styles.card, cardColor ? { backgroundColor: cardColor } : null]}
       onPress={onPress}
       activeOpacity={0.88}
+      accessibilityRole="button"
+      accessibilityLabel={`${appointment.doctor}. ${appointment.specialty}. ${appointment.date} ${appointment.time}. ${statusLabel}`}
     >
       <View style={styles.topRow}>
         <View style={[styles.iconBox, { backgroundColor: Colors.primaryFaded }]}>
@@ -87,18 +96,18 @@ export default function AppointmentCard({
 
       <View style={styles.typeBadge}>
         <FontAwesome name={icon as any} size={11} color={Colors.primary} />
-        <Text style={styles.typeBadgeText}>  {appointment.type}</Text>
+        <Text style={styles.typeBadgeText}>  {typeLabel}</Text>
       </View>
 
       {/* The caller decides when actions apply (a doctor answering a request);
           gating on a status here as well would just suppress them. */}
       {showActions && (
         <View style={styles.actions}>
-          <TouchableOpacity style={[styles.actionBtn, styles.declineBtn]} onPress={onDecline}>
-            <Text style={styles.declineText}>Decline</Text>
+          <TouchableOpacity style={[styles.actionBtn, styles.declineBtn]} onPress={onDecline} accessibilityRole="button" accessibilityLabel={t('appointments.decline')}>
+            <Text style={styles.declineText}>{t('appointments.decline')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, styles.acceptBtn]} onPress={onAccept}>
-            <Text style={styles.acceptText}>Accept</Text>
+          <TouchableOpacity style={[styles.actionBtn, styles.acceptBtn]} onPress={onAccept} accessibilityRole="button" accessibilityLabel={t('appointments.accept')}>
+            <Text style={styles.acceptText}>{t('appointments.accept')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -106,9 +115,9 @@ export default function AppointmentCard({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   card: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.surface,
     borderRadius: 20, padding: 16, marginBottom: 12,
     ...Platform.select({
       ios: {

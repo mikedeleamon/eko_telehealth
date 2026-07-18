@@ -4,8 +4,10 @@ import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -27,6 +29,9 @@ export const EMPTY_FILTERS: DoctorFilters = { specialties: [], minRating: 0, ava
 const SPECIALTIES = ['Primary Care', 'Eye Doctor', 'OBGYN', 'Cardiology', 'Dermatology', 'Neurology'];
 
 export default function FilterScreen({ navigation, route }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const initial: DoctorFilters = route.params?.filters ?? EMPTY_FILTERS;
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>(initial.specialties);
   const [minRating, setMinRating] = useState(initial.minRating);
@@ -37,16 +42,16 @@ export default function FilterScreen({ navigation, route }: Props) {
   };
 
   const ChipBtn = ({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) => (
-    <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={onPress}>
+    <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: active }}>
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
-      <EkoHeader title="Filter" onBack={() => navigation.goBack()} />
+      <EkoHeader title={t('doctors.filter')} onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content}>
-        <Section title="Specialty">
+        <Section title={t('doctors.specialty')}>
           <View style={styles.chipRow}>
             {SPECIALTIES.map((s) => (
               <ChipBtn key={s} label={s} active={selectedSpecialties.includes(s)} onPress={() => toggle(selectedSpecialties, setSelectedSpecialties, s)} />
@@ -54,14 +59,14 @@ export default function FilterScreen({ navigation, route }: Props) {
           </View>
         </Section>
 
-        <Section title="Availability">
+        <Section title={t('doctors.availability')}>
           <View style={styles.chipRow}>
-            <ChipBtn label="Any" active={!availableOnly} onPress={() => setAvailableOnly(false)} />
-            <ChipBtn label="Available now" active={availableOnly} onPress={() => setAvailableOnly(true)} />
+            <ChipBtn label={t('doctors.any')} active={!availableOnly} onPress={() => setAvailableOnly(false)} />
+            <ChipBtn label={t('doctors.availableNow')} active={availableOnly} onPress={() => setAvailableOnly(true)} />
           </View>
         </Section>
 
-        <Section title="Minimum Rating">
+        <Section title={t('doctors.minimumRating')}>
           <View style={styles.ratingRow}>
             {[0, 3, 3.5, 4, 4.5, 5].map((r) => (
               <TouchableOpacity
@@ -70,7 +75,7 @@ export default function FilterScreen({ navigation, route }: Props) {
                 onPress={() => setMinRating(r)}
               >
                 <Text style={[styles.ratingText, minRating === r && styles.ratingTextActive]}>
-                  {r === 0 ? 'Any' : `${r}+`}
+                  {r === 0 ? t('doctors.any') : `${r}+`}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -79,7 +84,7 @@ export default function FilterScreen({ navigation, route }: Props) {
 
         <View style={styles.actions}>
           <EkoButton
-            title="Reset"
+            title={t('doctors.reset')}
             variant="outline"
             onPress={() => {
               setSelectedSpecialties([]);
@@ -89,7 +94,7 @@ export default function FilterScreen({ navigation, route }: Props) {
             style={styles.resetBtn}
           />
           <EkoButton
-            title="Apply Filters"
+            title={t('doctors.applyFilters')}
             variant="accent"
             onPress={() =>
               // merge:true updates MyDoctors' params in place instead of
@@ -109,6 +114,8 @@ export default function FilterScreen({ navigation, route }: Props) {
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -117,18 +124,18 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
   content: { padding: 16, paddingBottom: 40 },
   section: { marginBottom: 20 },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: Colors.textDark, marginBottom: 10 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: Colors.borderGray, backgroundColor: Colors.white },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: Colors.borderGray, backgroundColor: Colors.surface },
   chipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   chipText: { fontSize: 13, color: Colors.textMedium, fontWeight: '500' },
   chipTextActive: { color: Colors.white },
   ratingRow: { flexDirection: 'row', gap: 8 },
-  ratingBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: Colors.borderGray, backgroundColor: Colors.white },
+  ratingBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: Colors.borderGray, backgroundColor: Colors.surface },
   ratingBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   ratingText: { fontSize: 13, color: Colors.textMedium, fontWeight: '600' },
   ratingTextActive: { color: Colors.white },

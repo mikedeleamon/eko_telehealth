@@ -4,7 +4,9 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import { MY_CHART_ITEMS } from '../../../constants';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -13,6 +15,9 @@ interface Props {
 const ICON_COLORS = ['#F97653', '#5A5DED', '#00CAAE', '#FF7043', '#7C4DFF', '#0097A7', '#E91E63', '#43A047'];
 
 export default function MyHealthScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   const openItem = (label: string) => {
@@ -25,8 +30,8 @@ export default function MyHealthScreen({ navigation }: Props) {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="light-content" />
       <View style={styles.header}>
-        <Text style={styles.title}>My Health</Text>
-        <Text style={styles.sub}>Your health summary at a glance</Text>
+        <Text style={styles.title}>{t('account.myHealth')}</Text>
+        <Text style={styles.sub}>{t('health.summaryAtGlance')}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -37,26 +42,28 @@ export default function MyHealthScreen({ navigation }: Props) {
               style={[styles.card, { backgroundColor: ICON_COLORS[i % ICON_COLORS.length] + '22' }]}
               onPress={() => openItem(item.label)}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={t(`options.myChart.${item.label}`)}
             >
               <View style={[styles.iconCircle, { backgroundColor: ICON_COLORS[i % ICON_COLORS.length] }]}>
                 <FontAwesome name={item.icon as any} size={22} color={Colors.white} />
               </View>
-              <Text style={styles.cardLabel}>{item.label}</Text>
+              <Text style={styles.cardLabel}>{t(`options.myChart.${item.label}`)}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
+        <Text style={styles.sectionTitle}>{t('health.recentActivity')}</Text>
         {['Blood pressure: 120/80 mmHg', 'Heart rate: 72 bpm', 'Weight: 165 lbs'].map((item) => (
           <View key={item} style={styles.activityRow}>
             <FontAwesome name="circle" size={8} color={Colors.success} style={styles.bullet} />
             <Text style={styles.activityText}>{item}</Text>
-            <Text style={styles.activityTime}>Today</Text>
+            <Text style={styles.activityTime}>{t('health.today')}</Text>
           </View>
         ))}
 
-        <TouchableOpacity style={styles.viewMoreBtn} onPress={() => navigation.navigate('PatientOverview')}>
-          <Text style={styles.viewMoreText}>View Full Chart</Text>
+        <TouchableOpacity style={styles.viewMoreBtn} onPress={() => navigation.navigate('PatientOverview')} accessibilityRole="button" accessibilityLabel={t('health.viewFullChart')}>
+          <Text style={styles.viewMoreText}>{t('health.viewFullChart')}</Text>
           <FontAwesome name="chevron-right" size={12} color={Colors.primary} />
         </TouchableOpacity>
       </ScrollView>
@@ -64,7 +71,7 @@ export default function MyHealthScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
   header: {
     backgroundColor: Colors.primary, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20,
@@ -82,7 +89,7 @@ const styles = StyleSheet.create({
   cardLabel: { fontSize: 13, fontWeight: '600', color: Colors.textDark, textAlign: 'center' },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: Colors.textDark, marginBottom: 12 },
   activityRow: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.white, borderRadius: 12,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 12,
     padding: 14, marginBottom: 8, shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 1, shadowRadius: 4, elevation: 1,
   },
   bullet: { marginRight: 10 },

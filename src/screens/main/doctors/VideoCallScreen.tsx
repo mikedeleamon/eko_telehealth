@@ -1,12 +1,14 @@
 import React, { Suspense, lazy } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import { useCall } from '../../../hooks/useCall';
 import { env } from '../../../config/env';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 // Live Stream video tracks. Lazy-loaded so the native WebRTC SDK is pulled in
 // only during an actual Stream call — mock/chat builds never touch it.
@@ -18,6 +20,9 @@ interface Props {
 }
 
 export default function VideoCallScreen({ navigation, route }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   const doctor = route.params?.doctor;
   const {
     state, statusLabel, muted, cameraOff, speakerOn, frontCamera,
@@ -59,18 +64,18 @@ export default function VideoCallScreen({ navigation, route }: Props) {
 
           <View style={styles.localVideo}>
             <FontAwesome name="user" size={28} color="rgba(255,255,255,0.6)" />
-            <Text style={styles.cameraOffText}>{cameraOff ? 'Camera off' : frontCamera ? 'Front' : 'Back'}</Text>
+            <Text style={styles.cameraOffText}>{cameraOff ? t('call.cameraOff') : frontCamera ? t('call.front') : t('call.back')}</Text>
           </View>
         </>
       )}
 
       <View style={styles.controls}>
-        <CallBtn icon={muted ? 'microphone-slash' : 'microphone'} label={muted ? 'Unmute' : 'Mute'} onPress={toggleMuted} active={muted} />
-        <CallBtn icon={speakerOn ? 'volume-up' : 'volume-off'} label="Speaker" onPress={toggleSpeaker} />
-        <CallBtn icon={cameraOff ? 'video-slash' : 'video-camera'} label={cameraOff ? 'Cam Off' : 'Cam On'} onPress={toggleCamera} active={cameraOff} />
-        <CallBtn icon="refresh" label="Flip" onPress={flipCamera} />
+        <CallBtn icon={muted ? 'microphone-slash' : 'microphone'} label={muted ? t('call.unmute') : t('call.mute')} onPress={toggleMuted} active={muted} />
+        <CallBtn icon={speakerOn ? 'volume-up' : 'volume-off'} label={t('call.speaker')} onPress={toggleSpeaker} />
+        <CallBtn icon={cameraOff ? 'video-slash' : 'video'} family="FontAwesome5" label={cameraOff ? t('call.camOff') : t('call.camOn')} onPress={toggleCamera} active={cameraOff} />
+        <CallBtn icon="refresh" label={t('call.flip')} onPress={flipCamera} />
 
-        <TouchableOpacity style={styles.endBtn} onPress={endCall}>
+        <TouchableOpacity style={styles.endBtn} onPress={endCall} accessibilityRole="button" accessibilityLabel={t('a11y.endCall')}>
           <FontAwesome name="phone" size={26} color={Colors.white} />
         </TouchableOpacity>
       </View>
@@ -78,18 +83,21 @@ export default function VideoCallScreen({ navigation, route }: Props) {
   );
 }
 
-function CallBtn({ icon, label, onPress, active }: { icon: string; label: string; onPress: () => void; active?: boolean }) {
+function CallBtn({ icon, label, onPress, active, family = 'FontAwesome' }: { icon: string; label: string; onPress: () => void; active?: boolean; family?: 'FontAwesome' | 'FontAwesome5' }) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const Icon = family === 'FontAwesome5' ? FontAwesome5 : FontAwesome;
   return (
-    <TouchableOpacity style={styles.callBtn} onPress={onPress}>
+    <TouchableOpacity style={styles.callBtn} onPress={onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: active }}>
       <View style={[styles.callBtnCircle, active && styles.callBtnActive]}>
-        <FontAwesome name={icon as any} size={20} color={Colors.white} />
+        <Icon name={icon as any} size={20} color={Colors.white} solid={family === 'FontAwesome5'} />
       </View>
       <Text style={styles.callBtnLabel}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
   bg: { ...StyleSheet.absoluteFillObject },
   remoteVideo: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -106,6 +114,7 @@ const styles = StyleSheet.create({
   topBarName: { fontSize: 16, fontWeight: '700', color: Colors.white },
   topBarStatus: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 2, fontVariant: ['tabular-nums'] },
   controls: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',
     paddingHorizontal: 20, paddingBottom: 48, paddingTop: 20,
     backgroundColor: 'rgba(0,0,0,0.4)',

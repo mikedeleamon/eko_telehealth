@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import { useTranslation } from '../../i18n/useTranslation';
 
 interface Props {
   rating: number;
@@ -9,8 +10,14 @@ interface Props {
 }
 
 export default function RatingStars({ rating, size = 14, color = '#FFC107' }: Props) {
+  const { t } = useTranslation();
   return (
-    <View style={styles.row}>
+    <View
+      style={styles.row}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={t('a11y.rating', { rating })}
+    >
       {[1, 2, 3, 4, 5].map((star) => (
         <FontAwesome
           key={star}

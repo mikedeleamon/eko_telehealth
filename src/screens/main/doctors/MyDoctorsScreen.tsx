@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import { SPECIALTY_CHIPS } from '../../../constants';
 import { useAppointments, useConversations, useDoctors } from '../../../hooks/queries';
 import DoctorCard from '../../../components/doctors/DoctorCard';
@@ -16,6 +17,7 @@ import AppointmentCard from '../../../components/appointments/AppointmentCard';
 import Cross from '../../../components/common/Cross';
 import { useAuth } from '../../../context/AuthContext';
 import { EMPTY_FILTERS, type DoctorFilters } from './FilterScreen';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -23,7 +25,10 @@ interface Props {
 }
 
 export default function MyDoctorsScreen({ navigation, route }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [activeChip, setActiveChip] = useState('All');
@@ -31,6 +36,7 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
   const filters: DoctorFilters = route.params?.filters ?? EMPTY_FILTERS;
 
   const chips = [{ label: 'All', count: null, color: Colors.primary }, ...SPECIALTY_CHIPS];
+  const chipLabel = (l: string) => (l === 'All' ? t('doctors.all') : l);
 
   const { data: doctors = [] } = useDoctors();
   const { data: appointments = [] } = useAppointments();
@@ -75,13 +81,15 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
         {/* Header row */}
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>
-            {user?.role === 'Doctor' ? `Welcome,\nDr. ${user.lastName}` : 'Find Your\nConsultation'}
+            {user?.role === 'Doctor' ? t('doctors.welcomeDoctor', { name: user.lastName }) : t('doctors.findYourConsultation')}
           </Text>
 
           <View style={styles.headerIcons}>
             <TouchableOpacity
               style={styles.iconBtn}
               onPress={() => navigation.navigate('Messages')}
+              accessibilityRole="button"
+              accessibilityLabel={t('messages.title')}
             >
               <FontAwesome name="comment" size={19} color={Colors.white} />
               {unreadCount > 0 && (
@@ -89,13 +97,15 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.avatarBtn} onPress={() => navigation.navigate('AccountTab')}>
+            <TouchableOpacity style={styles.avatarBtn} onPress={() => navigation.navigate('AccountTab')} accessibilityRole="button" accessibilityLabel={t('tabs.account')}>
               <FontAwesome name="user" size={16} color={Colors.primary} />
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.iconBtn}
               onPress={() => navigation.navigate('Notifications')}
+              accessibilityRole="button"
+              accessibilityLabel={t('a11y.notifications')}
             >
               <FontAwesome name="bell" size={19} color={Colors.white} />
             </TouchableOpacity>
@@ -107,8 +117,9 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
           <FontAwesome name="search" size={15} color={Colors.textGray} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Condition, Procedure, Doctor Name"
+            placeholder={t('doctors.searchConditionProcedure')}
             placeholderTextColor={Colors.textGray}
+            accessibilityLabel={t('common.search')}
             value={search}
             onChangeText={setSearch}
           />
@@ -135,7 +146,7 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
       <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
         {/* Specialty chips */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Top specialties Category</Text>
+          <Text style={styles.sectionTitle}>{t('doctors.topSpecialties')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
             {chips.map(chip => {
               const active = activeChip === chip.label;
@@ -145,8 +156,10 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
                   style={[styles.chip, { backgroundColor: chip.color }, active && styles.chipActive]}
                   onPress={() => setActiveChip(chip.label)}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
                 >
-                  <Text style={styles.chipLabel}>{chip.label}</Text>
+                  <Text style={styles.chipLabel}>{chipLabel(chip.label)}</Text>
                   {chip.count ? (
                     <View style={styles.chipCount}>
                       <Text style={styles.chipCountText}>{chip.count}</Text>
@@ -162,9 +175,9 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
         {todayAppts.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionRow}>
-              <Text style={styles.sectionTitle}>Today's Appointments</Text>
+              <Text style={styles.sectionTitle}>{t('doctors.todaysAppointments')}</Text>
               <TouchableOpacity onPress={() => navigation.navigate('AppointmentsTab')}>
-                <Text style={styles.viewAll}>View List</Text>
+                <Text style={styles.viewAll}>{t('doctors.viewList')}</Text>
               </TouchableOpacity>
             </View>
             {todayAppts.map(a => (
@@ -177,14 +190,14 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
         <View style={[styles.section, { marginBottom: 24 }]}>
           <View style={styles.sectionRow}>
             <Text style={styles.sectionTitle}>
-              {activeChip === 'All' ? 'All Doctors' : activeChip}
+              {activeChip === 'All' ? t('doctors.allDoctors') : activeChip}
             </Text>
           </View>
 
           {filtered.length === 0 ? (
             <View style={styles.empty}>
               <FontAwesome name="user-md" size={40} color={Colors.textLight} />
-              <Text style={styles.emptyText}>No doctors found</Text>
+              <Text style={styles.emptyText}>{t('doctors.noDoctorsFound')}</Text>
             </View>
           ) : (
             filtered.map((item, index) => (
@@ -203,7 +216,7 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.bgLight },
 
   header: {
@@ -233,13 +246,13 @@ const styles = StyleSheet.create({
 
   avatarBtn: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.surface,
     alignItems: 'center', justifyContent: 'center',
   },
 
   searchBar: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.white, borderRadius: 16,
+    backgroundColor: Colors.surface, borderRadius: 16,
     paddingHorizontal: 14, height: 48, gap: 8,
   },
   searchInput: { flex: 1, fontSize: 13, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },

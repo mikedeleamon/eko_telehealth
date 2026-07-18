@@ -14,8 +14,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import Cross from '../../../components/common/Cross';
 import type { PatientSummary } from '../../../api/types';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
     navigation: NativeStackNavigationProp<any>;
@@ -30,15 +32,18 @@ interface Vital {
 }
 
 export default function PatientProfileScreen({ navigation, route }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+    const { t } = useTranslation();
     const insets = useSafeAreaInsets();
     const patient = route.params?.patient as PatientSummary | undefined;
 
     if (!patient) {
         return (
             <View style={styles.missing}>
-                <Text style={styles.missingText}>Patient not found.</Text>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Text style={styles.missingLink}>Go back</Text>
+                <Text style={styles.missingText}>{t('patients.patientNotFoundDot')}</Text>
+                <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel={t('common.goBack')}>
+                    <Text style={styles.missingLink}>{t('common.goBack')}</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -48,35 +53,35 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
     const vitals: Vital[] = [
         {
             icon: 'heartbeat',
-            label: 'Blood Pressure',
+            label: t('patients.bloodPressure'),
             value: b.bloodPressure,
             color: Colors.red,
         },
         {
             icon: 'heart',
-            label: 'Heart Rate',
+            label: t('patients.heartRate'),
             value: b.heartRate,
             color: Colors.accent,
         },
         {
             icon: 'thermometer-half',
-            label: 'Temperature',
+            label: t('patients.temperature'),
             value: b.temperature,
             color: Colors.orange,
         },
         {
             icon: 'balance-scale',
-            label: 'Weight',
+            label: t('patients.weight'),
             value: b.weight,
             color: Colors.primary,
         },
         {
             icon: 'arrows-v',
-            label: 'Height',
+            label: t('patients.height'),
             value: b.height,
             color: Colors.blue,
         },
-        { icon: 'calculator', label: 'BMI', value: b.bmi, color: Colors.green },
+        { icon: 'calculator', label: t('patients.bmi'), value: b.bmi, color: Colors.green },
     ].filter((v) => !!v.value);
 
     const counterpart = { id: patient.id, name: patient.name };
@@ -118,6 +123,8 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                         onPress={() => navigation.goBack()}
                         style={styles.backBtn}
                         hitSlop={hit}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('a11y.back')}
                     >
                         <FontAwesome
                             name='arrow-left'
@@ -136,7 +143,7 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                         </View>
                         <Text style={styles.name}>{patient.name}</Text>
                         <Text style={styles.sub}>
-                            {patient.age} yrs · {patient.gender}
+                            {patient.age} {t('patients.yearsShort')} · {t(`options.gender.${patient.gender}`, { defaultValue: patient.gender })}
                         </Text>
                         <View style={styles.conditionPill}>
                             <Text style={styles.conditionText}>
@@ -149,7 +156,7 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                 <View style={styles.body}>
                     {/* Current Reason for visit */}
                     <Text style={styles.sectionTitle}>
-                        Current Reason for Visit
+                        {t('patients.currentReasonForVisit')}
                     </Text>
                     <View style={styles.card}>
                         <View style={styles.cardIconRow}>
@@ -173,7 +180,7 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                             <>
                                 <View style={styles.divider} />
                                 <Text style={styles.symptomLabel}>
-                                    Reported symptoms
+                                    {t('patients.reportedSymptoms')}
                                 </Text>
                                 <Text style={styles.symptomText}>
                                     {patient.symptoms}
@@ -185,7 +192,7 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                     {/* Biometrics */}
                     {vitals.length > 0 && (
                         <>
-                            <Text style={styles.sectionTitle}>Biometrics</Text>
+                            <Text style={styles.sectionTitle}>{t('patients.biometrics')}</Text>
                             <View style={styles.vitalsGrid}>
                                 {vitals.map((v) => (
                                     <View
@@ -220,23 +227,23 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                     )}
 
                     {/* Medical info */}
-                    <Text style={styles.sectionTitle}>Medical Information</Text>
+                    <Text style={styles.sectionTitle}>{t('patients.medicalInformation')}</Text>
                     <View style={styles.card}>
                         <InfoRow
                             icon='tint'
-                            label='Blood Type'
+                            label={t('patients.bloodTypeLabel')}
                             value={b.bloodType ?? '—'}
                         />
                         <View style={styles.divider} />
                         <InfoRow
                             icon='exclamation-triangle'
-                            label='Allergies'
-                            value={patient.allergies ?? 'None reported'}
+                            label={t('patients.allergies')}
+                            value={patient.allergies ?? t('account.noneReported')}
                         />
                         <View style={styles.divider} />
                         <InfoRow
                             icon='calendar-check-o'
-                            label='Last Visit'
+                            label={t('patients.lastVisitInfo')}
                             value={patient.lastVisit}
                         />
                     </View>
@@ -244,12 +251,12 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                     {/* Contact */}
                     {(patient.phone || patient.email) && (
                         <>
-                            <Text style={styles.sectionTitle}>Contact</Text>
+                            <Text style={styles.sectionTitle}>{t('patients.contactLabel')}</Text>
                             <View style={styles.card}>
                                 {patient.phone ? (
                                     <InfoRow
                                         icon='phone'
-                                        label='Phone'
+                                        label={t('patients.phoneLabel')}
                                         value={patient.phone}
                                     />
                                 ) : null}
@@ -259,13 +266,43 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                                 {patient.email ? (
                                     <InfoRow
                                         icon='envelope-o'
-                                        label='Email'
+                                        label={t('patients.emailLabel')}
                                         value={patient.email}
                                     />
                                 ) : null}
                             </View>
                         </>
                     )}
+
+                    {/* Medical history — shared visit notes across doctors */}
+                    <TouchableOpacity
+                        style={styles.historyRow}
+                        onPress={() =>
+                            navigation.navigate('MedicalHistory', { patient })
+                        }
+                        activeOpacity={0.85}
+                    >
+                        <View style={styles.historyIcon}>
+                            <FontAwesome
+                                name='folder-open-o'
+                                size={17}
+                                color={Colors.primary}
+                            />
+                        </View>
+                        <View style={styles.historyInfo}>
+                            <Text style={styles.historyTitle}>
+                                {t('patients.medicalHistory')}
+                            </Text>
+                            <Text style={styles.historySub}>
+                                {t('patients.visitNotesAllDoctors')}
+                            </Text>
+                        </View>
+                        <FontAwesome
+                            name='chevron-right'
+                            size={14}
+                            color={Colors.textGray}
+                        />
+                    </TouchableOpacity>
 
                     {/* Actions */}
                     <View style={styles.actionsRow}>
@@ -277,6 +314,8 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                                 })
                             }
                             activeOpacity={0.85}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('patients.startVisitBtn')}
                         >
                             <FontAwesome
                                 name='video-camera'
@@ -284,7 +323,7 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                                 color={Colors.white}
                             />
                             <Text style={styles.actionPrimaryText}>
-                                Start Visit
+                                {t('patients.startVisitBtn')}
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -295,6 +334,8 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                                 })
                             }
                             activeOpacity={0.85}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('patients.messageBtn')}
                         >
                             <FontAwesome
                                 name='comment-o'
@@ -302,7 +343,7 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                                 color={Colors.primary}
                             />
                             <Text style={styles.actionSecondaryText}>
-                                Message
+                                {t('patients.messageBtn')}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -321,6 +362,8 @@ function InfoRow({
     label: string;
     value: string;
 }) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
     return (
         <View style={styles.infoRow}>
             <FontAwesome
@@ -337,7 +380,7 @@ function InfoRow({
 
 const hit = { top: 8, bottom: 8, left: 8, right: 8 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     container: { flex: 1, backgroundColor: Colors.bgLight },
     missing: {
         flex: 1,
@@ -384,7 +427,7 @@ const styles = StyleSheet.create({
         width: 88,
         height: 88,
         borderRadius: 44,
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.surface,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 12,
@@ -429,7 +472,7 @@ const styles = StyleSheet.create({
         fontFamily: 'Poppins_600SemiBold',
     },
     card: {
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.surface,
         borderRadius: 16,
         padding: 16,
         ...Platform.select({
@@ -483,7 +526,7 @@ const styles = StyleSheet.create({
     },
     vitalCard: {
         width: '31.5%',
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.surface,
         borderRadius: 14,
         padding: 12,
         alignItems: 'center',
@@ -537,7 +580,47 @@ const styles = StyleSheet.create({
         fontFamily: 'Poppins_600SemiBold',
     },
 
-    actionsRow: { flexDirection: 'row', gap: 12, marginTop: 24 },
+    historyRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: Colors.surface,
+        borderRadius: 16,
+        padding: 16,
+        marginTop: 24,
+        ...Platform.select({
+            ios: {
+                shadowColor: 'rgba(0,0,0,0.06)',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 1,
+                shadowRadius: 8,
+            },
+            android: { elevation: 2 },
+        }),
+    },
+    historyIcon: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: Colors.primaryFaded,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    historyInfo: { flex: 1 },
+    historyTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: Colors.textDark,
+        fontFamily: 'Poppins_600SemiBold',
+    },
+    historySub: {
+        fontSize: 12,
+        color: Colors.textGray,
+        marginTop: 1,
+        fontFamily: 'Poppins_400Regular',
+    },
+
+    actionsRow: { flexDirection: 'row', gap: 12, marginTop: 12 },
     actionBtn: {
         flex: 1,
         flexDirection: 'row',

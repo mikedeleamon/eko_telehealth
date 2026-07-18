@@ -7,14 +7,19 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../theme';
 import { api } from '../../api';
+import { useTranslation } from '../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
 }
 
 export default function ForgotPasswordScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [emailFocused, setEmailFocused] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -39,29 +44,30 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.white }}
+      style={{ flex: 1, backgroundColor: Colors.surface }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <StatusBar barStyle="dark-content" />
       <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('a11y.back')}>
             <FontAwesome name="arrow-left" size={20} color={Colors.accent} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.body}>
-          <Text style={styles.title}>Forgot Password</Text>
-          <Text style={styles.subtitle}>Please enter your registered email address to receive a reset link</Text>
+          <Text style={styles.title}>{t('auth.forgotPasswordTitle')}</Text>
+          <Text style={styles.subtitle}>{t('auth.forgotRegisteredEmail')}</Text>
 
           {/* Email field */}
           <View style={[styles.field, emailFocused && styles.fieldFocused]}>
             <FontAwesome name="envelope-o" size={17} color={emailFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
             <TextInput
               style={styles.fieldInput}
-              placeholder="Email address"
+              placeholder={t('auth.emailAddress')}
               placeholderTextColor={Colors.textGray}
+              accessibilityLabel={t('auth.emailAddress')}
               value={email}
               onChangeText={setEmail}
               onFocus={() => setEmailFocused(true)}
@@ -73,7 +79,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
           </View>
 
           <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={loading} activeOpacity={0.85}>
-            <Text style={styles.submitBtnText}>{loading ? 'SENDING...' : 'SEND RESET LINK'}</Text>
+            <Text style={styles.submitBtnText}>{loading ? t('auth.sending') : t('auth.sendResetLink')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -83,20 +89,20 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
             {/* Close button */}
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setShowError(false)}>
+            <TouchableOpacity style={styles.closeBtn} onPress={() => setShowError(false)} accessibilityRole="button" accessibilityLabel={t('common.close')}>
               <FontAwesome name="times" size={14} color={Colors.white} />
             </TouchableOpacity>
 
-            <Text style={styles.modalTitle}>Sorry , This Email Address not found</Text>
+            <Text style={styles.modalTitle}>{t('auth.emailNotFound')}</Text>
             <Text style={styles.modalEmail}>{errorEmail}</Text>
-            <Text style={styles.modalSub}>Please use the Registered Email Address</Text>
+            <Text style={styles.modalSub}>{t('auth.useRegisteredEmail')}</Text>
 
             <TouchableOpacity
               style={styles.tryAgainBtn}
               onPress={() => { setShowError(false); setEmail(''); }}
               activeOpacity={0.85}
             >
-              <Text style={styles.tryAgainText}>Try Again</Text>
+              <Text style={styles.tryAgainText}>{t('auth.tryAgain')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -105,8 +111,8 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white },
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.surface },
   header: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 8 },
   body: { flex: 1, paddingHorizontal: 28, paddingTop: 24 },
 
@@ -121,11 +127,11 @@ const styles = StyleSheet.create({
 
   field: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#F5F6FA', borderRadius: 32,
+    backgroundColor: Colors.field, borderRadius: 32,
     paddingHorizontal: 20, height: 56,
     marginBottom: 24, borderWidth: 1.5, borderColor: 'transparent',
   },
-  fieldFocused: { borderColor: Colors.accent, backgroundColor: Colors.white },
+  fieldFocused: { borderColor: Colors.accent, backgroundColor: Colors.surface },
   fieldIcon: { marginRight: 12 },
   fieldInput: { flex: 1, fontSize: 15, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },
 
@@ -146,7 +152,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', padding: 28,
   },
   modal: {
-    backgroundColor: Colors.white, borderRadius: 24,
+    backgroundColor: Colors.surface, borderRadius: 24,
     padding: 28, width: '100%', alignItems: 'center',
     position: 'relative',
   },

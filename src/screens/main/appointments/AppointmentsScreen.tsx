@@ -5,18 +5,23 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import { ACTIVE_STATUSES } from '../../../api/types';
 import { useAppointmentDecision, useAppointments, usePracticeAppointments } from '../../../hooks/queries';
 import AppointmentCard from '../../../components/appointments/AppointmentCard';
 import Cross from '../../../components/common/Cross';
 import { useAuth } from '../../../context/AuthContext';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
 }
 
 export default function AppointmentsScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { isDoctor } = useAuth();
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
 
@@ -35,11 +40,11 @@ export default function AppointmentsScreen({ navigation }: Props) {
   );
 
   const respond = (id: string, decide: 'accept' | 'decline') => {
-    const label = decide === 'accept' ? 'Accept' : 'Decline';
-    Alert.alert(`${label} request?`, decide === 'accept'
-      ? 'The patient will be asked to pay to confirm the visit.'
-      : 'The patient will be told you could not take this request.', [
-      { text: 'Back', style: 'cancel' },
+    const label = decide === 'accept' ? t('appointments.accept') : t('appointments.decline');
+    Alert.alert(
+      decide === 'accept' ? t('appointments.acceptRequestTitle') : t('appointments.declineRequestTitle'),
+      decide === 'accept' ? t('appointments.acceptRequestBody') : t('appointments.declineRequestBody'), [
+      { text: t('appointments.backAction'), style: 'cancel' },
       {
         text: label,
         style: decide === 'decline' ? 'destructive' : 'default',
@@ -47,7 +52,7 @@ export default function AppointmentsScreen({ navigation }: Props) {
           try {
             await decision.mutateAsync({ id, decision: decide });
           } catch (err) {
-            Alert.alert(`Could not ${decide}`, err instanceof Error ? err.message : 'Please try again.');
+            Alert.alert(decide === 'accept' ? t('appointments.couldNotAccept') : t('appointments.couldNotDecline'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
           }
         },
       },
@@ -73,20 +78,24 @@ export default function AppointmentsScreen({ navigation }: Props) {
         <Cross size={26} opacity={0.05} rotation={-18} style={{ bottom: 12, left: 24 }} />
         <Cross size={22} opacity={0.04} rotation={14} style={{ top: 4, right: 170 }} />
         <Cross size={20} opacity={0.04} rotation={-12} style={{ bottom: 56, right: 24 }} />
-        <Text style={styles.headerTitle}>Appointments</Text>
+        <Text style={styles.headerTitle}>{t('appointments.title')}</Text>
 
         <View style={styles.tabRow}>
           <TouchableOpacity
             style={[styles.tabBtn, tab === 'upcoming' && styles.tabBtnActive]}
             onPress={() => setTab('upcoming')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === 'upcoming' }}
           >
-            <Text style={[styles.tabBtnText, tab === 'upcoming' && styles.tabBtnTextActive]}>Upcoming</Text>
+            <Text style={[styles.tabBtnText, tab === 'upcoming' && styles.tabBtnTextActive]}>{t('appointments.upcoming')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tabBtn, tab === 'past' && styles.tabBtnActive]}
             onPress={() => setTab('past')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === 'past' }}
           >
-            <Text style={[styles.tabBtnText, tab === 'past' && styles.tabBtnTextActive]}>History</Text>
+            <Text style={[styles.tabBtnText, tab === 'past' && styles.tabBtnTextActive]}>{t('appointments.history')}</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -110,13 +119,15 @@ export default function AppointmentsScreen({ navigation }: Props) {
         ListEmptyComponent={
           <View style={styles.empty}>
             <FontAwesome name="calendar-o" size={48} color={Colors.textLight} />
-            <Text style={styles.emptyText}>No {tab} appointments</Text>
+            <Text style={styles.emptyText}>{tab === 'upcoming' ? t('appointments.noUpcomingShort') : t('appointments.noPastShort')}</Text>
             {tab === 'upcoming' && !isDoctor && (
               <TouchableOpacity
                 style={styles.emptyBtn}
                 onPress={() => navigation.navigate('HomeTab')}
+                accessibilityRole="button"
+                accessibilityLabel={t('appointments.findADoctorBtn')}
               >
-                <Text style={styles.emptyBtnText}>Find a Doctor</Text>
+                <Text style={styles.emptyBtnText}>{t('appointments.findADoctorBtn')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -126,7 +137,7 @@ export default function AppointmentsScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
 
   header: {
@@ -147,7 +158,7 @@ const styles = StyleSheet.create({
     borderRadius: 16, padding: 4,
   },
   tabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 13 },
-  tabBtnActive: { backgroundColor: Colors.white },
+  tabBtnActive: { backgroundColor: Colors.surface },
   tabBtnText: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.8)', fontFamily: 'Poppins_600SemiBold' },
   tabBtnTextActive: { color: Colors.primary, fontFamily: 'Poppins_700Bold' },
 

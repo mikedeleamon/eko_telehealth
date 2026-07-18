@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
+import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import RatingStars from '../../../components/common/RatingStars';
+import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -20,9 +22,12 @@ const PEER_DATA = [
 ];
 
 export default function PeerReviewScreen({ navigation }: Props) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
   return (
     <View style={styles.container}>
-      <EkoHeader title="Peer Reviews" onBack={() => navigation.goBack()} />
+      <EkoHeader title={t('account.peerReviews')} onBack={() => navigation.goBack()} />
       <FlatList
         data={PEER_DATA}
         keyExtractor={(item) => item.id}
@@ -47,11 +52,11 @@ export default function PeerReviewScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
   list: { padding: 16 },
   card: {
-    backgroundColor: Colors.white, borderRadius: 14, padding: 16, marginBottom: 12,
+    backgroundColor: Colors.surface, borderRadius: 14, padding: 16, marginBottom: 12,
     borderLeftWidth: 4, shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 6, elevation: 2,
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },

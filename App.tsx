@@ -12,8 +12,12 @@ import {
 } from '@expo-google-fonts/poppins';
 import * as SplashScreen from 'expo-splash-screen';
 import Toast from 'react-native-toast-message';
+import './src/i18n'; // initialize i18next before any screen renders
 import { AuthProvider } from './src/context/AuthContext';
 import { useAuthStore } from './src/store/authStore';
+import { useLocaleStore } from './src/store/localeStore';
+import { useThemeStore } from './src/store/themeStore';
+import { ThemeProvider, useTheme, useThemeMode } from './src/theme';
 import AppNavigator from './src/navigation/AppNavigator';
 
 SplashScreen.preventAutoHideAsync();
@@ -37,7 +41,9 @@ export default function App() {
   // Keep the splash up until the persisted session has been restored, so
   // returning users land directly on Main instead of flashing Login.
   const authHydrated = useAuthStore((s) => s.hydrated);
-  const ready = fontsLoaded && authHydrated;
+  const localeHydrated = useLocaleStore((s) => s.hydrated);
+  const themeHydrated = useThemeStore((s) => s.hydrated);
+  const ready = fontsLoaded && authHydrated && localeHydrated && themeHydrated;
 
   const onLayout = useCallback(async () => {
     if (ready) await SplashScreen.hideAsync();
@@ -47,15 +53,30 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <View style={{ flex: 1 }} onLayout={onLayout}>
-        <StatusBar style="auto" />
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <AppNavigator />
-          </AuthProvider>
-        </QueryClientProvider>
-        <Toast />
-      </View>
+      <ThemeProvider>
+        <ThemedRoot onLayout={onLayout} />
+      </ThemeProvider>
     </SafeAreaProvider>
+  );
+}
+
+/**
+ * Lives inside ThemeProvider so the root background and status-bar style follow
+ * the active theme — otherwise a dark-themed app would flash a white gutter
+ * behind the navigator and show dark status-bar icons on a dark bar.
+ */
+function ThemedRoot({ onLayout }: { onLayout: () => void }) {
+  const Colors = useTheme();
+  const { isDark } = useThemeMode();
+  return (
+    <View style={{ flex: 1, backgroundColor: Colors.bgLight }} onLayout={onLayout}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <AppNavigator />
+        </AuthProvider>
+      </QueryClientProvider>
+      <Toast />
+    </View>
   );
 }
