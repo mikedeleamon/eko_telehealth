@@ -291,6 +291,64 @@ export interface PaymentStatus extends PaymentIntent {
   appointmentStatus: AppointmentStatus;
 }
 
+/**
+ * A saved payment/payout method. Doctors withdraw earnings TO it; patients pay
+ * consultation fees FROM it. One per account (upsert).
+ *
+ * NOTE (production): the mock stores what the user types locally, but a live
+ * backend must NOT persist raw PANs / full bank numbers. Tokenize via
+ * Flutterwave/PayPal and keep only a provider token + the masked last-4 fields
+ * below. The UI only ever renders the masked form (see paymentMethodLabel).
+ */
+export type PaymentMethodType = 'bank' | 'card' | 'paypal';
+
+export interface PaymentMethod {
+  type: PaymentMethodType;
+  /** Account/card holder name. */
+  accountName: string;
+  // Bank transfer
+  bankName?: string;
+  accountNumber?: string;
+  // Card
+  cardLast4?: string;
+  cardExpiry?: string;
+  // PayPal
+  paypalEmail?: string;
+}
+
+/** One row on the doctor's earnings ledger — a payment in, or a withdrawal out. */
+export interface EarningItem {
+  id: string;
+  kind: 'earning' | 'withdrawal';
+  /** Patient name for an earning, or a withdrawal label. */
+  title: string;
+  /** Display date, e.g. "Feb 18, 2026". */
+  date: string;
+  /** Display time, e.g. "10:00 AM". */
+  time: string;
+  /** Positive Naira amount; the `kind` decides the sign shown. */
+  amount: number;
+  status: 'settled' | 'pending';
+}
+
+/** GET /practice/earnings — the doctor's wallet: balance + ledger. */
+export interface DoctorEarnings {
+  /** Available-to-withdraw balance, in the smallest sensible whole unit (₦). */
+  balance: number;
+  /** Total earned in the current calendar month. */
+  thisMonth: number;
+  /** Withdrawals still processing (not yet settled). */
+  pending: number;
+  /** ISO-4217 code, 'NGN'. */
+  currency: string;
+  items: EarningItem[];
+}
+
+/** POST /practice/payouts — the destination is the saved PaymentMethod, read server-side. */
+export interface CashoutInput {
+  amount: number;
+}
+
 /** A person the account holder can book on behalf of (proxy access). */
 export interface Dependent {
   id: string;

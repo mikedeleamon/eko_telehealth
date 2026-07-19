@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { GlassView, GlassContainer, isLiquidGlassAvailable, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../constants/Colors';
 import { useTheme, useThemeMode, type ThemeColors } from '../theme';
@@ -42,8 +43,13 @@ import AddDependentScreen from '../screens/main/account/AddDependentScreen';
 import AboutUsScreen from '../screens/main/account/AboutUsScreen';
 import PeerReviewScreen from '../screens/main/account/PeerReviewScreen';
 import PatientOverviewScreen from '../screens/main/account/PatientOverviewScreen';
+import PaymentInfoScreen from '../screens/main/account/PaymentInfoScreen';
 import MyHealthScreen from '../screens/main/health/MyHealthScreen';
 import ChangePasswordScreen from '../screens/auth/ChangePasswordScreen';
+
+// Doctor earnings
+import EarningsScreen from '../screens/main/earnings/EarningsScreen';
+import CashOutScreen from '../screens/main/earnings/CashOutScreen';
 
 // Doctor
 import DashboardScreen from '../screens/main/dashboard/DashboardScreen';
@@ -64,6 +70,7 @@ const AccountStack = createNativeStackNavigator();
 const DashboardStack = createNativeStackNavigator();
 const PatientsStack = createNativeStackNavigator();
 const SettingsStack = createNativeStackNavigator();
+const EarningsStack = createNativeStackNavigator();
 
 function HomeNavigator() {
   return (
@@ -128,6 +135,7 @@ function AccountNavigator() {
       <AccountStack.Screen name="MyAccount" component={MyAccountScreen} />
       <AccountStack.Screen name="EditProfile" component={EditProfileScreen} />
       <AccountStack.Screen name="PatientOverview" component={PatientOverviewScreen} />
+      <AccountStack.Screen name="PaymentInfo" component={PaymentInfoScreen} />
       <AccountStack.Screen name="MyHealth" component={MyHealthScreen} />
       <AccountStack.Screen name="Insurance" component={InsuranceScreen} />
       <AccountStack.Screen name="PreferredPharmacy" component={PreferredPharmacyScreen} />
@@ -180,10 +188,23 @@ function SettingsNavigator() {
       <SettingsStack.Screen name="EditProfile" component={EditProfileScreen} />
       <SettingsStack.Screen name="Notifications" component={NotificationsScreen} />
       <SettingsStack.Screen name="Preferences" component={SettingsScreen} />
+      <SettingsStack.Screen name="PaymentInfo" component={PaymentInfoScreen} />
       <SettingsStack.Screen name="ChangePassword" component={ChangePasswordScreen} />
       <SettingsStack.Screen name="Reviews" component={ReviewsScreen} />
       <SettingsStack.Screen name="AboutUs" component={AboutUsScreen} />
     </SettingsStack.Navigator>
+  );
+}
+
+function EarningsNavigator() {
+  return (
+    <EarningsStack.Navigator screenOptions={{ headerShown: false }}>
+      <EarningsStack.Screen name="Earnings" component={EarningsScreen} />
+      <EarningsStack.Screen name="CashOut" component={CashOutScreen} options={{ presentation: 'transparentModal', animation: 'fade' }} />
+      <EarningsStack.Screen name="PaymentInfo" component={PaymentInfoScreen} />
+      <EarningsStack.Screen name="Messages" component={MessagesScreen} />
+      <EarningsStack.Screen name="Chat" component={ChatScreen} />
+    </EarningsStack.Navigator>
   );
 }
 
@@ -202,16 +223,25 @@ const PATIENT_TABS: TabItem[] = [
 ];
 
 const DOCTOR_TABS: TabItem[] = [
+  { name: 'EarningsTab', labelKey: 'tabs.earnings', icon: 'money' },
   { name: 'PatientsTab', labelKey: 'tabs.patients', icon: 'user' },
   { name: 'DashboardTab', labelKey: 'tabs.dashboard', icon: 'dashboard' },
   { name: 'SchedulerTab', labelKey: 'tabs.scheduler', icon: 'calendar' },
   { name: 'SettingsTab', labelKey: 'tabs.settings', icon: 'sliders' },
 ];
 
-function TabBarContent({ state, navigation, items }: any) {
+// iOS 26+ only: the real UIGlassEffect API. Both checks matter — some iOS 26
+// betas expose the class but crash on init, so isGlassEffectAPIAvailable()
+// guards that. Falls back to the systemChromeMaterial BlurView on iOS <26.
+// https://github.com/expo/expo/issues/40911
+const canUseLiquidGlass = Platform.OS === 'ios' && isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
+
+function TabBarContent({ state, navigation, items, glass }: any) {
   const { t } = useTranslation();
   const Colors = useTheme();
+  const { isDark } = useThemeMode();
   const tabStyles = makeTabStyles(Colors);
+  const colorScheme = isDark ? 'dark' : 'light';
   return (
     <>
       {state.routes.map((route: any, index: number) => {
@@ -219,6 +249,13 @@ function TabBarContent({ state, navigation, items }: any) {
         const item = items[index];
         if (!item) return null;
         const label = t(item.labelKey);
+        const icon = (
+          <FontAwesome
+            name={item.icon as any}
+            size={21}
+            color={focused ? Colors.tabBarActive : Colors.tabBarInactive}
+          />
+        );
         return (
           <TouchableOpacity
             key={route.key}
@@ -229,13 +266,21 @@ function TabBarContent({ state, navigation, items }: any) {
             accessibilityLabel={label}
             accessibilityState={{ selected: focused }}
           >
-            <View style={[tabStyles.pill, focused && tabStyles.pillActive]}>
-              <FontAwesome
-                name={item.icon as any}
-                size={21}
-                color={focused ? Colors.tabBarActive : Colors.tabBarInactive}
-              />
-            </View>
+            {glass && focused ? (
+              <GlassView
+                glassEffectStyle={{ style: 'clear', animate: true }}
+                tintColor={Colors.primary}
+                colorScheme={colorScheme}
+                isInteractive
+                style={tabStyles.pill}
+              >
+                {icon}
+              </GlassView>
+            ) : (
+              <View style={[tabStyles.pill, focused && tabStyles.pillActive]}>
+                {icon}
+              </View>
+            )}
             <Text style={[tabStyles.label, focused && tabStyles.labelActive]}>
               {label}
             </Text>
@@ -253,6 +298,24 @@ function CustomTabBar({ state, navigation, items }: any) {
   const { isDark } = useThemeMode();
   const tabStyles = makeTabStyles(Colors);
 
+  // True native Liquid Glass — the bar surface and the active pill are
+  // separate GlassViews inside one GlassContainer so they optically merge
+  // (blend/refract into each other) the way Apple's own tab bars do.
+  if (canUseLiquidGlass) {
+    return (
+      <GlassContainer spacing={20} style={[tabStyles.container, { paddingBottom: pb }]}>
+        <GlassView
+          glassEffectStyle="regular"
+          colorScheme={isDark ? 'dark' : 'light'}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <View style={tabStyles.row}>
+          <TabBarContent state={state} navigation={navigation} items={items} glass />
+        </View>
+      </GlassContainer>
+    );
+  }
+
   if (Platform.OS === 'ios') {
     return (
       <BlurView
@@ -267,12 +330,22 @@ function CustomTabBar({ state, navigation, items }: any) {
     );
   }
 
+  // Android has no native glass material. expo-blur can do a real native
+  // blur on SDK 31+ via the dimezisBlurView library; on older Android it
+  // quietly renders a semi-transparent view instead, so we layer a themed
+  // tint underneath to keep that path from looking washed out.
   return (
-    <View style={[tabStyles.container, tabStyles.androidBg, { paddingBottom: pb }]}>
+    <BlurView
+      intensity={80}
+      tint={isDark ? 'dark' : 'light'}
+      blurMethod="dimezisBlurViewSdk31Plus"
+      style={[tabStyles.container, { paddingBottom: pb }]}
+    >
+      <View style={[StyleSheet.absoluteFill, tabStyles.androidTint]} pointerEvents="none" />
       <View style={tabStyles.row}>
         <TabBarContent state={state} navigation={navigation} items={items} />
       </View>
-    </View>
+    </BlurView>
   );
 }
 
@@ -290,7 +363,7 @@ const makeTabStyles = (Colors: ThemeColors) => StyleSheet.create({
       },
     }),
   },
-  androidBg: { backgroundColor: Colors.tabBar },
+  androidTint: { backgroundColor: Colors.tabBar, opacity: 0.55 },
   row: { flexDirection: 'row', paddingTop: 10 },
   tab: { flex: 1, alignItems: 'center' },
   pill: {
@@ -314,6 +387,7 @@ export default function TabNavigator() {
     >
       {isDoctor ? (
         <>
+          <Tab.Screen name="EarningsTab" component={EarningsNavigator} />
           <Tab.Screen name="PatientsTab" component={PatientsNavigator} />
           <Tab.Screen name="DashboardTab" component={DashboardNavigator} />
           <Tab.Screen name="SchedulerTab" component={AppointmentsNavigator} />

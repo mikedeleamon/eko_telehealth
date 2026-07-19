@@ -1,5 +1,7 @@
 // Shared input formatting + validation helpers for forms.
 
+import type { PaymentMethod } from '../api/types';
+
 // ---- Phone / fax ----
 
 /**
@@ -111,4 +113,35 @@ export function splitFee(fee: string): { symbol: string; amount: number } | null
 /** Formats an amount back into a display string with the given currency prefix. */
 export function formatMoney(symbol: string, amount: number): string {
   return `${symbol}${groupThousands(amount)}`;
+}
+
+// ---- Payment methods ----
+
+/** Last 4 digits of a value, ignoring spaces/dashes. */
+function last4(value?: string): string {
+  const digits = (value ?? '').replace(/\D/g, '');
+  return digits.slice(-4);
+}
+
+/**
+ * One-line, masked label for a saved payment method — never exposes the full
+ * account/card number. e.g. "Bank · GTBank ••••1234", "Card ••••4242",
+ * "PayPal · a@b.com".
+ */
+export function paymentMethodLabel(pm: PaymentMethod | null | undefined): string {
+  if (!pm) return '';
+  switch (pm.type) {
+    case 'bank': {
+      const tail = last4(pm.accountNumber);
+      return `Bank · ${pm.bankName ?? ''}${tail ? ` ••••${tail}` : ''}`.trim();
+    }
+    case 'card': {
+      const tail = pm.cardLast4 || last4(pm.accountNumber);
+      return `Card ••••${tail}`;
+    }
+    case 'paypal':
+      return `PayPal · ${pm.paypalEmail ?? ''}`.trim();
+    default:
+      return pm.accountName ?? '';
+  }
 }

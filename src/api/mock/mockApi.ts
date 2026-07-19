@@ -10,6 +10,7 @@ import {
   MOCK_DOCTORS,
   MOCK_DOCTOR_APPOINTMENTS,
   MOCK_DOCTOR_SCHEDULE,
+  MOCK_EARNINGS,
   MOCK_MEDICAL_NOTES,
   MOCK_NOTIFICATIONS,
   MOCK_PATIENTS,
@@ -28,11 +29,14 @@ import type {
   AppointmentStatus,
   Dependent,
   DoctorAgendaItem,
+  DoctorEarnings,
+  EarningItem,
   Insurance,
   MedicalNote,
   MedicalNoteInput,
   NoteAmendment,
   PatientSummary,
+  PaymentMethod,
   Prescription,
   PrescriptionInput,
   PaymentIntent,
@@ -56,6 +60,11 @@ let mockInsurance: Insurance | null = null;
 let mockPharmacy: Pharmacy | null = null;
 const mockMedicalNotes: MedicalNote[] = [...(MOCK_MEDICAL_NOTES as MedicalNote[])];
 const mockPrescriptions: Prescription[] = [...(MOCK_PRESCRIPTIONS as Prescription[])];
+const mockEarnings: EarningItem[] = [...(MOCK_EARNINGS as EarningItem[])];
+/** Single saved payment/payout method per session (upsert), like insurance/pharmacy. */
+let mockPaymentMethod: PaymentMethod | null = null;
+/** Minimum a doctor can withdraw at once. */
+const MIN_CASHOUT = 1000;
 let mockSettings: UserSettings = {
   pushNotifications: true,
   emailNotifications: true,
@@ -72,6 +81,40 @@ const MOCK_REVIEWS: Review[] = [
 
 /** Simulated network latency so loading states are visible during development. */
 const delay = (ms = 450) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "10:05 AM" from a Date, without relying on Intl. */
+function formatClock(d: Date): string {
+  let h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2, '0');
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+}
+
+/**
+ * Derive the wallet totals from the ledger so balance/pending/month stay
+ * consistent as withdrawals are added. Balance = settled earnings minus every
+ * withdrawal (pending ones are money already on its way out).
+ */
+function summarizeEarnings(): DoctorEarnings {
+  let balance = 0;
+  let pending = 0;
+  let thisMonth = 0;
+  for (const item of mockEarnings) {
+    if (item.kind === 'earning') {
+      if (item.status === 'settled') {
+        balance += item.amount;
+        thisMonth += item.amount;
+      }
+    } else {
+      balance -= item.amount;
+      if (item.status === 'pending') pending += item.amount;
+    }
+  }
+  return { balance, thisMonth, pending, currency: 'NGN', items: [...mockEarnings] };
+}
 
 let appointmentSeq = 100;
 
@@ -276,6 +319,46 @@ export const mockApi = {
     };
     mockPrescriptions.push(prescription);
     return prescription;
+  },
+
+  async getDoctorEarnings(): Promise<DoctorEarnings> {
+    await delay();
+    return summarizeEarnings();
+  },
+
+  /**
+   * Withdraw `amount` to the saved payment method. Mirrors the real payout flow:
+   * validates against the balance + minimum, records a still-processing
+   * ('pending') withdrawal, and returns the updated wallet.
+   */
+  async cashOut(amount: number): Promise<DoctorEarnings> {
+    await delay(600);
+    const { balance } = summarizeEarnings();
+    if (!Number.isFinite(amount) || amount <= 0) throw new Error('Enter a valid amount.');
+    if (amount < MIN_CASHOUT) throw new Error(`The minimum withdrawal is ₦${MIN_CASHOUT.toLocaleString('en-US')}.`);
+    if (amount > balance) throw new Error('Amount exceeds your available balance.');
+    const now = new Date();
+    mockEarnings.unshift({
+      id: `wd-${Date.now()}`,
+      kind: 'withdrawal',
+      title: 'Withdrawal',
+      date: `${MONTH_ABBR[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`,
+      time: formatClock(now),
+      amount,
+      status: 'pending',
+    });
+    return summarizeEarnings();
+  },
+
+  async getPaymentMethod(): Promise<PaymentMethod | null> {
+    await delay(300);
+    return mockPaymentMethod;
+  },
+
+  async savePaymentMethod(input: PaymentMethod): Promise<PaymentMethod> {
+    await delay(500);
+    mockPaymentMethod = input;
+    return input;
   },
 
   async getDependents(): Promise<Dependent[]> {

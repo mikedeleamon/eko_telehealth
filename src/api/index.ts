@@ -14,6 +14,7 @@ import type {
   AppNotification,
   AuthSession,
   CallTokenGrant,
+  CashoutInput,
   ChatMessage,
   ChatTokenGrant,
   Conversation,
@@ -21,10 +22,12 @@ import type {
   Dependent,
   Doctor,
   DoctorAgendaItem,
+  DoctorEarnings,
   Insurance,
   MedicalNote,
   MedicalNoteInput,
   PatientSummary,
+  PaymentMethod,
   Pharmacy,
   Prescription,
   PrescriptionInput,
@@ -277,6 +280,22 @@ export const api = {
       if (env.useMockApi) return mockApi.addPrescription(input);
       return request<Prescription>(`/practice/patients/${input.patientId}/prescriptions`, { method: 'POST', body: input });
     },
+
+    /** GET /practice/earnings — the doctor's wallet: balance + earnings ledger. */
+    earnings(): Promise<DoctorEarnings> {
+      if (env.useMockApi) return mockApi.getDoctorEarnings();
+      return request<DoctorEarnings>('/practice/earnings');
+    },
+
+    /**
+     * POST /practice/payouts — withdraw to the saved payment method. The
+     * backend resolves the destination from /me/payment-method (never sent by
+     * the client) and returns the updated wallet.
+     */
+    cashOut(input: CashoutInput): Promise<DoctorEarnings> {
+      if (env.useMockApi) return mockApi.cashOut(input.amount);
+      return request<DoctorEarnings>('/practice/payouts', { method: 'POST', body: input });
+    },
   },
 
   payments: {
@@ -342,6 +361,22 @@ export const api = {
     savePharmacy(input: Pharmacy): Promise<Pharmacy> {
       if (env.useMockApi) return mockApi.savePharmacy(input);
       return request<Pharmacy>('/me/pharmacy', { method: 'PUT', body: input });
+    },
+
+    /**
+     * GET /me/payment-method — the account's saved payment/payout method, or
+     * null. Doctors withdraw to it; patients pay from it. See the production
+     * note on PaymentMethod: a live backend returns only masked/tokenized data.
+     */
+    paymentMethod(): Promise<PaymentMethod | null> {
+      if (env.useMockApi) return mockApi.getPaymentMethod();
+      return request<PaymentMethod | null>('/me/payment-method');
+    },
+
+    /** PUT /me/payment-method — upsert. */
+    savePaymentMethod(input: PaymentMethod): Promise<PaymentMethod> {
+      if (env.useMockApi) return mockApi.savePaymentMethod(input);
+      return request<PaymentMethod>('/me/payment-method', { method: 'PUT', body: input });
     },
 
     /** GET /me/settings — returns defaults before the first save. */

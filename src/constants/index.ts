@@ -386,6 +386,20 @@ export const MOCK_PATIENTS = [
   },
 ];
 
+/**
+ * Doctor earnings ledger. Earning amounts are take-home (consultation fee minus
+ * the 25% taxes & fees shown on AppointmentDetails, e.g. ₦15,000 fee → ₦11,250).
+ * The mock derives the balance / month / pending totals from these rows.
+ */
+export const MOCK_EARNINGS = [
+  { id: 'ern-1', kind: 'earning', title: 'Emeka Obi', date: 'Jul 18, 2026', time: '10:00 AM', amount: 11250, status: 'settled' },
+  { id: 'ern-2', kind: 'earning', title: 'Alex Stewart', date: 'Jul 17, 2026', time: '2:30 PM', amount: 15000, status: 'settled' },
+  { id: 'ern-3', kind: 'withdrawal', title: 'Withdrawal', date: 'Jul 16, 2026', time: '9:15 AM', amount: 25000, status: 'settled' },
+  { id: 'ern-4', kind: 'earning', title: 'Ngozi Nwosu', date: 'Jul 15, 2026', time: '11:00 AM', amount: 7500, status: 'settled' },
+  { id: 'ern-5', kind: 'earning', title: 'Augustine Watts', date: 'Jul 12, 2026', time: '3:00 PM', amount: 11250, status: 'settled' },
+  { id: 'ern-6', kind: 'earning', title: 'Emeka Obi', date: 'Jul 8, 2026', time: '10:30 AM', amount: 11250, status: 'settled' },
+];
+
 export const TIME_SLOTS = [
   '9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM',
   '11:00 AM', '11:30 AM', '2:00 PM', '2:30 PM',

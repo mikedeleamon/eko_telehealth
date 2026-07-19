@@ -5,7 +5,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
-import type { CreateAppointmentInput, MedicalNoteInput, PrescriptionInput } from '../api/types';
+import type { CashoutInput, CreateAppointmentInput, MedicalNoteInput, PaymentMethod, PrescriptionInput } from '../api/types';
 
 export const queryKeys = {
   doctors: (params?: { category?: string; query?: string }) => ['doctors', params ?? {}] as const,
@@ -19,6 +19,8 @@ export const queryKeys = {
   practiceAppointments: ['practice-appointments'] as const,
   medicalNotes: (patientId: string) => ['medical-notes', patientId] as const,
   prescriptions: (patientId: string) => ['prescriptions', patientId] as const,
+  earnings: ['earnings'] as const,
+  paymentMethod: ['payment-method'] as const,
   providerState: ['provider-state'] as const,
   payment: (id: string) => ['payments', id] as const,
   reviews: (subject?: string) => ['reviews', subject ?? 'all'] as const,
@@ -129,6 +131,20 @@ export function useAddPrescription(patientId: string) {
   });
 }
 
+/** The doctor's wallet — balance + earnings/withdrawal ledger. */
+export function useDoctorEarnings(enabled = true) {
+  return useQuery({ queryKey: queryKeys.earnings, queryFn: api.practice.earnings, enabled });
+}
+
+/** Withdraw to the saved payment method; writes the returned wallet back to cache. */
+export function useCashOut() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CashoutInput) => api.practice.cashOut(input),
+    onSuccess: (data) => qc.setQueryData(queryKeys.earnings, data),
+  });
+}
+
 /** Accept or decline a request; both refresh the practice list. */
 export function useAppointmentDecision() {
   const qc = useQueryClient();
@@ -186,6 +202,19 @@ export function useSavePharmacy() {
   return useMutation({
     mutationFn: api.me.savePharmacy,
     onSuccess: (data) => qc.setQueryData(queryKeys.pharmacy, data),
+  });
+}
+
+/** The account's saved payment/payout method (both roles). */
+export function usePaymentMethod() {
+  return useQuery({ queryKey: queryKeys.paymentMethod, queryFn: api.me.paymentMethod });
+}
+
+export function useSavePaymentMethod() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PaymentMethod) => api.me.savePaymentMethod(input),
+    onSuccess: (data) => qc.setQueryData(queryKeys.paymentMethod, data),
   });
 }
 
