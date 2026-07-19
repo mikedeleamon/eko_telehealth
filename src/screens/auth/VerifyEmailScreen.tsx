@@ -83,13 +83,13 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
 
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('a11y.back')}>
-          <FontAwesome name="arrow-left" size={20} color={Colors.accent} />
+          <FontAwesome name="arrow-left" size={20} color={Colors.primary} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.body}>
         <View style={styles.iconCircle}>
-          <FontAwesome name="envelope" size={30} color={Colors.accent} />
+          <FontAwesome name="envelope" size={30} color={Colors.primary} />
         </View>
 
         <Text style={styles.title}>{t('auth.verifyEmailShort')}</Text>
@@ -131,7 +131,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   body: { flex: 1, paddingHorizontal: 28, paddingTop: 16, alignItems: 'center' },
 
   iconCircle: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.accentFaded,
+    width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.primaryFaded,
     alignItems: 'center', justifyContent: 'center', marginBottom: 24,
   },
   title: {
@@ -149,17 +149,17 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     borderColor: Colors.borderGray, textAlign: 'center', fontSize: 20,
     fontWeight: '700', color: Colors.textDark, backgroundColor: Colors.field,
   },
-  otpBoxFilled: { borderColor: Colors.accent, backgroundColor: Colors.accentFaded },
+  otpBoxFilled: { borderColor: Colors.primary, backgroundColor: Colors.primaryFaded },
 
   btn: {
-    backgroundColor: Colors.accent, borderRadius: 32, height: 56,
+    backgroundColor: Colors.primary, borderRadius: 32, height: 56,
     alignItems: 'center', justifyContent: 'center', width: '100%',
-    marginBottom: 20, shadowColor: Colors.accent,
+    marginBottom: 20, shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
   },
   btnText: { color: Colors.white, fontSize: 16, fontWeight: '700', letterSpacing: 1, fontFamily: 'Poppins_700Bold' },
 
   resendRow: { flexDirection: 'row' },
   resendText: { fontSize: 14, color: Colors.textGray, fontFamily: 'Poppins_400Regular' },
-  resendLink: { fontSize: 14, color: Colors.accent, fontWeight: '700', fontFamily: 'Poppins_700Bold' },
+  resendLink: { fontSize: 14, color: Colors.primary, fontWeight: '700', fontFamily: 'Poppins_700Bold' },
 });

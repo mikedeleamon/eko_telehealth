@@ -274,7 +274,7 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                         </>
                     )}
 
-                    {/* Medical history — shared visit notes across doctors */}
+                    {/* Medical records — shared visit notes across doctors */}
                     <TouchableOpacity
                         style={styles.historyRow}
                         onPress={() =>
@@ -295,6 +295,36 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                             </Text>
                             <Text style={styles.historySub}>
                                 {t('patients.visitNotesAllDoctors')}
+                            </Text>
+                        </View>
+                        <FontAwesome
+                            name='chevron-right'
+                            size={14}
+                            color={Colors.textGray}
+                        />
+                    </TouchableOpacity>
+
+                    {/* Prescription history — current medications + past scripts */}
+                    <TouchableOpacity
+                        style={styles.historyRowStacked}
+                        onPress={() =>
+                            navigation.navigate('PrescriptionHistory', { patient })
+                        }
+                        activeOpacity={0.85}
+                    >
+                        <View style={styles.historyIcon}>
+                            <FontAwesome
+                                name='medkit'
+                                size={16}
+                                color={Colors.primary}
+                            />
+                        </View>
+                        <View style={styles.historyInfo}>
+                            <Text style={styles.historyTitle}>
+                                {t('prescriptions.title')}
+                            </Text>
+                            <Text style={styles.historySub}>
+                                {t('prescriptions.profileSubtitle')}
                             </Text>
                         </View>
                         <FontAwesome
@@ -587,6 +617,23 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
         borderRadius: 16,
         padding: 16,
         marginTop: 24,
+        ...Platform.select({
+            ios: {
+                shadowColor: 'rgba(0,0,0,0.06)',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 1,
+                shadowRadius: 8,
+            },
+            android: { elevation: 2 },
+        }),
+    },
+    historyRowStacked: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: Colors.surface,
+        borderRadius: 16,
+        padding: 16,
+        marginTop: 12,
         ...Platform.select({
             ios: {
                 shadowColor: 'rgba(0,0,0,0.06)',

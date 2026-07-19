@@ -10,14 +10,30 @@ import EkoButton from '../common/EkoButton';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../i18n/useTranslation';
 import { useMedicalNotes, usePracticeAppointments } from '../../hooks/queries';
-import type { Appointment, MedicalNote, MedicalNoteInput, PatientSummary } from '../../api/types';
+import { MONTH_NAMES } from '../../utils/format';
+import type { Appointment, MedicalNote, MedicalNoteInput, NoteAmendment, PatientSummary } from '../../api/types';
+
+/** "Jun 10, 2026 · 3:10 PM" from an ISO timestamp, without relying on Intl. */
+function formatAmendmentTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const month = MONTH_NAMES[d.getMonth()]?.slice(0, 3) ?? '';
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  return `${month} ${d.getDate()}, ${d.getFullYear()} · ${hours}:${minutes} ${ampm}`;
+}
 
 interface Props {
   patient: PatientSummary;
-  /** Existing note → edit (own) or read-only (someone else's). Absent → create. */
+  /** Existing record → locked, read-only view with amendments. Absent → create. */
   note?: MedicalNote;
   onSave: (input: MedicalNoteInput) => void;
   saving?: boolean;
+  /** Append an amendment to the locked record. Returns the updated record. */
+  onAddAmendment?: (text: string) => Promise<MedicalNote | void> | void;
+  amendmentSaving?: boolean;
 }
 
 const SOAP_SECTIONS = [
@@ -37,13 +53,14 @@ const LINKABLE_STATUSES = ['past', 'upcoming'];
  * create; a note authored by the logged-in doctor means edit; anyone else's
  * note renders read-only.
  */
-export default function MedicalNotes({ patient, note, onSave, saving = false }: Props) {
+export default function MedicalNotes({ patient, note, onSave, saving = false, onAddAmendment, amendmentSaving = false }: Props) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
   const { user } = useAuth();
-  const isAuthor = !!note && note.doctorId === user?.id;
-  const readOnly = !!note && !isAuthor;
+  // A saved record is always locked: the SOAP body can never be edited, by the
+  // author or anyone else. Corrections are made as amendments instead.
+  const readOnly = !!note;
   const creating = !note;
 
   const [appointment, setAppointment] = useState<Appointment | null>(null);
@@ -55,6 +72,35 @@ export default function MedicalNotes({ patient, note, onSave, saving = false }: 
     assessment: note?.assessment ?? '',
     plan: note?.plan ?? '',
   });
+
+  // Amendments trail. Seeded from the record and appended to locally so a newly
+  // added amendment shows immediately (the record arrives via route params).
+  const [amendments, setAmendments] = useState<NoteAmendment[]>(note?.amendments ?? []);
+  const [amending, setAmending] = useState(false);
+  const [amendmentText, setAmendmentText] = useState('');
+
+  const submitAmendment = async () => {
+    const text = amendmentText.trim();
+    if (!text || !onAddAmendment) return;
+    const updated = await onAddAmendment(text);
+    if (updated && updated.amendments) {
+      setAmendments(updated.amendments);
+    } else {
+      // Optimistic fallback: stamp with the current doctor, matching the server.
+      setAmendments((prev) => [
+        ...prev,
+        {
+          id: `amd-local-${Date.now()}`,
+          text,
+          authorId: user?.id ?? '',
+          authorName: note?.doctorId === user?.id && note ? note.doctorName : `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+    }
+    setAmendmentText('');
+    setAmending(false);
+  };
 
   // Picker data — only needed in create mode.
   const { data: schedule = [] } = usePracticeAppointments(creating);
@@ -108,7 +154,7 @@ export default function MedicalNotes({ patient, note, onSave, saving = false }: 
           <View style={styles.readOnlyBanner}>
             <FontAwesome name="lock" size={14} color={Colors.textMedium} />
             <Text style={styles.readOnlyText}>
-              {t('patients.readOnlyAuthored', { doctor: note!.doctorName })}
+              {t('patients.lockedRecord', { doctor: note!.doctorName })}
             </Text>
           </View>
         )}
@@ -183,15 +229,86 @@ export default function MedicalNotes({ patient, note, onSave, saving = false }: 
           </View>
         ))}
 
-        {!readOnly && (
+        {creating && (
           <EkoButton
-            title={creating ? t('common.save') : t('common.saveChanges')}
-            variant="accent"
+            title={t('common.save')}
+            variant="primary"
             onPress={save}
             loading={saving}
             disabled={!valid}
             style={styles.saveBtn}
           />
+        )}
+
+        {/* Amendments — the only way to change a locked record. Append-only,
+            unlimited, each stamped with its author and time. */}
+        {readOnly && (
+          <View style={styles.amendmentsSection}>
+            <View style={styles.amendmentsHeader}>
+              <FontAwesome name="file-text-o" size={14} color={Colors.textMedium} />
+              <Text style={styles.amendmentsTitle}>
+                {t('patients.amendments')}{amendments.length > 0 ? ` (${amendments.length})` : ''}
+              </Text>
+            </View>
+
+            {amendments.length === 0 && !amending && (
+              <Text style={styles.amendmentsEmpty}>{t('patients.noAmendments')}</Text>
+            )}
+
+            {amendments.map((a, i) => (
+              <View key={a.id} style={styles.amendmentCard}>
+                <View style={styles.amendmentTop}>
+                  <Text style={styles.amendmentLabel}>{t('patients.amendmentN', { n: i + 1 })}</Text>
+                  <Text style={styles.amendmentMeta}>{formatAmendmentTime(a.createdAt)}</Text>
+                </View>
+                <Text style={styles.amendmentText}>{a.text}</Text>
+                <Text style={styles.amendmentAuthor}>{t('patients.authoredBy', { doctor: a.authorName })}</Text>
+              </View>
+            ))}
+
+            {amending ? (
+              <View style={styles.amendmentEditor}>
+                <View style={styles.inputWrap}>
+                  <TextInput
+                    style={[styles.input, styles.multiline]}
+                    placeholder={t('patients.amendmentPlaceholder')}
+                    placeholderTextColor={Colors.textGray}
+                    value={amendmentText}
+                    onChangeText={setAmendmentText}
+                    multiline
+                    textAlignVertical="top"
+                    accessibilityLabel={t('patients.addAmendment')}
+                  />
+                </View>
+                <View style={styles.amendmentActions}>
+                  <TouchableOpacity
+                    style={styles.amendmentCancel}
+                    onPress={() => { setAmending(false); setAmendmentText(''); }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.cancel')}
+                  >
+                    <Text style={styles.amendmentCancelText}>{t('common.cancel')}</Text>
+                  </TouchableOpacity>
+                  <EkoButton
+                    title={t('patients.saveAmendment')}
+                    variant="primary"
+                    size="sm"
+                    onPress={submitAmendment}
+                    loading={amendmentSaving}
+                    disabled={!amendmentText.trim()}
+                    style={styles.amendmentSaveBtn}
+                  />
+                </View>
+              </View>
+            ) : (
+              <EkoButton
+                title={t('patients.addAmendment')}
+                variant="outline"
+                onPress={() => setAmending(true)}
+                style={styles.addAmendmentBtn}
+              />
+            )}
+          </View>
         )}
       </ScrollView>
 
@@ -298,6 +415,30 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   readText: { fontSize: 14, color: Colors.textDark, lineHeight: 21, fontFamily: 'Poppins_400Regular' },
 
   saveBtn: { marginTop: 4 },
+
+  // Amendments
+  amendmentsSection: {
+    marginTop: 8, borderTopWidth: 1, borderTopColor: Colors.borderGray, paddingTop: 18,
+  },
+  amendmentsHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  amendmentsTitle: { fontSize: 15, fontWeight: '700', color: Colors.textDark, fontFamily: 'Poppins_700Bold' },
+  amendmentsEmpty: { fontSize: 13, color: Colors.textGray, marginBottom: 14, fontFamily: 'Poppins_400Regular' },
+  amendmentCard: {
+    backgroundColor: Colors.surface, borderRadius: 12, padding: 14, marginBottom: 10,
+    borderWidth: 1, borderColor: Colors.borderGray,
+    borderLeftWidth: 3, borderLeftColor: Colors.primary,
+  },
+  amendmentTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  amendmentLabel: { fontSize: 12, fontWeight: '700', color: Colors.primary, fontFamily: 'Poppins_600SemiBold' },
+  amendmentMeta: { fontSize: 11, color: Colors.textGray, fontFamily: 'Poppins_400Regular' },
+  amendmentText: { fontSize: 14, color: Colors.textDark, lineHeight: 21, fontFamily: 'Poppins_400Regular' },
+  amendmentAuthor: { fontSize: 12, color: Colors.textGray, marginTop: 8, fontFamily: 'Poppins_500Medium' },
+  amendmentEditor: { marginTop: 4 },
+  amendmentActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12, marginTop: -4 },
+  amendmentCancel: { paddingVertical: 10, paddingHorizontal: 8 },
+  amendmentCancelText: { fontSize: 14, color: Colors.textGray, fontWeight: '600', fontFamily: 'Poppins_600SemiBold' },
+  amendmentSaveBtn: { paddingHorizontal: 24 },
+  addAmendmentBtn: { marginTop: 4 },
 
   overlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
   sheet: {

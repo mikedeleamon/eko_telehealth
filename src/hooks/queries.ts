@@ -5,7 +5,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
-import type { CreateAppointmentInput, MedicalNoteInput } from '../api/types';
+import type { CreateAppointmentInput, MedicalNoteInput, PrescriptionInput } from '../api/types';
 
 export const queryKeys = {
   doctors: (params?: { category?: string; query?: string }) => ['doctors', params ?? {}] as const,
@@ -18,6 +18,7 @@ export const queryKeys = {
   agenda: ['agenda'] as const,
   practiceAppointments: ['practice-appointments'] as const,
   medicalNotes: (patientId: string) => ['medical-notes', patientId] as const,
+  prescriptions: (patientId: string) => ['prescriptions', patientId] as const,
   providerState: ['provider-state'] as const,
   payment: (id: string) => ['payments', id] as const,
   reviews: (subject?: string) => ['reviews', subject ?? 'all'] as const,
@@ -101,12 +102,30 @@ export function useAddMedicalNote(patientId: string) {
   });
 }
 
-export function useUpdateMedicalNote(patientId: string) {
+/** Append an amendment to a locked record; refreshes the shared record list. */
+export function useAddNoteAmendment(patientId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ noteId, input }: { noteId: string; input: Partial<MedicalNoteInput> }) =>
-      api.practice.updateMedicalNote(noteId, input),
+    mutationFn: ({ noteId, text }: { noteId: string; text: string }) =>
+      api.practice.addNoteAmendment(noteId, text),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.medicalNotes(patientId) }),
+  });
+}
+
+/** A patient's full medication record (current + historical), shared across doctors. */
+export function usePrescriptions(patientId: string) {
+  return useQuery({
+    queryKey: queryKeys.prescriptions(patientId),
+    queryFn: () => api.practice.prescriptions(patientId),
+    enabled: !!patientId,
+  });
+}
+
+export function useAddPrescription(patientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PrescriptionInput) => api.practice.addPrescription(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.prescriptions(patientId) }),
   });
 }
 

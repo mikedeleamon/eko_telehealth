@@ -5,6 +5,9 @@ import { useAuthStore } from '../store/authStore';
 
 export type { UserRole };
 
+// UserRole is the stored account type. It is resolved from the account at
+// sign-in, never chosen by the user on the login form.
+
 interface AuthContextType {
   user: User | null;
   isLoggedIn: boolean;
@@ -14,7 +17,7 @@ interface AuthContextType {
   hasOnboarded: boolean;
   /** False until the persisted session has been restored from disk. */
   isRestoring: boolean;
-  login: (email: string, password: string, role: UserRole) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   completeOnboarding: () => void;
 }
@@ -40,8 +43,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const hasOnboarded = useAuthStore((s) => s.hasOnboarded);
   const hydrated = useAuthStore((s) => s.hydrated);
 
-  const login = async (email: string, password: string, role: UserRole) => {
-    const newSession = await api.auth.login(email, password, role);
+  const login = async (email: string, password: string) => {
+    const newSession = await api.auth.login(email, password);
     useAuthStore.getState().setSession(newSession);
   };
 
@@ -58,7 +61,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       value={{
         user: session?.user ?? null,
         isLoggedIn: !!session,
-        isDoctor: session?.user.role === 'Doctor',
+        isDoctor: session?.user.accountType === 'Doctor',
         hasOnboarded,
         isRestoring: !hydrated,
         login,

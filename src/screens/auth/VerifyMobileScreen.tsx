@@ -70,20 +70,20 @@ export default function VerifyMobileScreen({ navigation }: Props) {
 
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('a11y.back')}>
-          <FontAwesome name="arrow-left" size={20} color={Colors.accent} />
+          <FontAwesome name="arrow-left" size={20} color={Colors.primary} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.body}>
         <View style={styles.iconCircle}>
-          <FontAwesome name="mobile" size={36} color={Colors.accent} />
+          <FontAwesome name="mobile" size={36} color={Colors.primary} />
         </View>
 
         <Text style={styles.title}>{t('auth.mobileVerification')}</Text>
         <Text style={styles.sub}>{t('auth.mobileVerificationBody')}</Text>
 
         <View style={[styles.field, phoneFocused && styles.fieldFocused]}>
-          <FontAwesome name="phone" size={18} color={phoneFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
+          <FontAwesome name="phone" size={18} color={phoneFocused ? Colors.primary : Colors.textGray} style={styles.fieldIcon} />
           <TextInput
             style={styles.fieldInput}
             placeholder={t('auth.phonePlaceholder')}
@@ -136,7 +136,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   body: { flex: 1, paddingHorizontal: 28, paddingTop: 16, alignItems: 'center' },
 
   iconCircle: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.accentFaded,
+    width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.primaryFaded,
     alignItems: 'center', justifyContent: 'center', marginBottom: 24,
   },
   title: {
@@ -154,7 +154,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 20, height: 56, marginBottom: 20, width: '100%',
     borderWidth: 1.5, borderColor: 'transparent',
   },
-  fieldFocused: { borderColor: Colors.accent, backgroundColor: Colors.surface },
+  fieldFocused: { borderColor: Colors.primary, backgroundColor: Colors.surface },
   fieldIcon: { marginRight: 12 },
   fieldInput: { flex: 1, fontSize: 15, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },
 
@@ -164,16 +164,16 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     borderColor: Colors.borderGray, textAlign: 'center', fontSize: 20,
     fontWeight: '700', color: Colors.textDark, backgroundColor: Colors.field,
   },
-  otpBoxFilled: { borderColor: Colors.accent, backgroundColor: Colors.accentFaded },
+  otpBoxFilled: { borderColor: Colors.primary, backgroundColor: Colors.primaryFaded },
 
   btn: {
-    backgroundColor: Colors.accent, borderRadius: 32, height: 56,
+    backgroundColor: Colors.primary, borderRadius: 32, height: 56,
     alignItems: 'center', justifyContent: 'center', width: '100%',
-    marginBottom: 16, shadowColor: Colors.accent,
+    marginBottom: 16, shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
   },
   btnText: { color: Colors.white, fontSize: 16, fontWeight: '700', letterSpacing: 1, fontFamily: 'Poppins_700Bold' },
 
   resendRow: { marginTop: 4 },
-  resendLink: { fontSize: 14, color: Colors.accent, fontWeight: '700', fontFamily: 'Poppins_700Bold' },
+  resendLink: { fontSize: 14, color: Colors.primary, fontWeight: '700', fontFamily: 'Poppins_700Bold' },
 });

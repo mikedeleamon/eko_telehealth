@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Appearance } from 'react-native';
 import { useThemeStore, type ThemeMode } from '../store/themeStore';
-import { darkColors, lightColors, type ThemeColors } from './palette';
+import { useAuthStore } from '../store/authStore';
+import { darkColors, lightColors, makeDoctorColors, type ThemeColors } from './palette';
 
 export type { ThemeColors } from './palette';
-export { lightColors, darkColors } from './palette';
+export { lightColors, darkColors, makeDoctorColors } from './palette';
 
 interface ThemeContextValue {
   colors: ThemeColors;
@@ -36,10 +37,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const scheme: 'light' | 'dark' = mode === 'system' ? (systemDark ? 'dark' : 'light') : mode;
   const isDark = scheme === 'dark';
 
-  const value = useMemo<ThemeContextValue>(
-    () => ({ colors: isDark ? darkColors : lightColors, isDark, mode, scheme, setMode }),
-    [isDark, mode, scheme, setMode],
-  );
+  // Doctors get the orange-led role palette; patients (and logged-out) keep the
+  // default purple brand. Read straight from the auth store since ThemeProvider
+  // sits above AuthProvider.
+  const isDoctor = useAuthStore((s) => s.session?.user.accountType === 'Doctor');
+
+  const value = useMemo<ThemeContextValue>(() => {
+    const base = isDark ? darkColors : lightColors;
+    const colors = isDoctor ? makeDoctorColors(base, isDark) : base;
+    return { colors, isDark, mode, scheme, setMode };
+  }, [isDark, isDoctor, mode, scheme, setMode]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

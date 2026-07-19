@@ -75,8 +75,8 @@ export default function MyAccountScreen({ navigation }: Props) {
             </Text>
             <Text style={styles.userEmail}>{user?.email ?? 'patient@ekotelehealth.com'}</Text>
             <View style={styles.memberBadge}>
-              <FontAwesome name={user?.role === 'Doctor' ? 'user-md' : 'check-circle'} size={11} color={Colors.green} />
-              <Text style={styles.memberText}>  {user?.role === 'Doctor' ? t('account.doctorAccount') : t('account.patientAccount')}</Text>
+              <FontAwesome name={user?.accountType === 'Doctor' ? 'user-md' : 'check-circle'} size={11} color={Colors.green} />
+              <Text style={styles.memberText}>  {user?.accountType === 'Doctor' ? t('account.doctorAccount') : t('account.patientAccount')}</Text>
             </View>
           </View>
           <TouchableOpacity

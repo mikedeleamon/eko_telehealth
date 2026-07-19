@@ -8,7 +8,12 @@ import { useTheme, type ThemeColors } from '../../../theme';
 import { useCancelAppointment, useDoctors } from '../../../hooks/queries';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
+import { useAuth } from '../../../context/AuthContext';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { splitFee, formatMoney } from '../../../utils/format';
+
+/** Share of the fee withheld for platform taxes and fees. */
+const TAXES_FEES_RATE = 0.25;
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -43,6 +48,7 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
+  const { isDoctor } = useAuth();
   const appointment = route.params?.appointment ?? {};
   const { doctor: doctorName, specialty, date, time, type = 'Video Visit', status = 'upcoming' } = appointment;
 
@@ -63,6 +69,21 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
   const statusColor = STATUS_COLORS[status] ?? Colors.textGray;
   const statusLabel = STATUS_LABEL_KEYS[status] ? t(STATUS_LABEL_KEYS[status]) : status;
   const typeIcon = TYPE_ICONS[type] ?? 'calendar';
+
+  // Doctors are paid the fee minus platform taxes & fees, so their view breaks
+  // the gross fee down into what's withheld and what they take home.
+  const feeDisplay = appointment.fee ?? doctor.fee ?? '₦15,000';
+  const parsedFee = splitFee(feeDisplay);
+  const feeBreakdown =
+    isDoctor && parsedFee
+      ? (() => {
+          const deduction = Math.round(parsedFee.amount * TAXES_FEES_RATE);
+          return {
+            taxesAndFees: formatMoney(parsedFee.symbol, deduction),
+            takeHome: formatMoney(parsedFee.symbol, parsedFee.amount - deduction),
+          };
+        })()
+      : null;
 
   const joinCall = () => {
     if (type === 'Video Visit') navigation.navigate('VideoCall', { doctor });
@@ -115,11 +136,30 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
           <DetailRow icon="calendar" label={t('confirmed.date')} value={date ?? '—'} />
           <DetailRow icon="clock-o" label={t('confirmed.time')} value={time ?? '—'} />
           <DetailRow icon={typeIcon} label={t('confirmed.type')} value={t(`options.appointmentType.${type}`, { defaultValue: type })} />
-          <DetailRow icon="dollar" label={t('appointments.fee')} value={appointment.fee ?? doctor.fee ?? '₦15,000'} last />
+          <DetailRow icon="dollar" label={isDoctor ? t('appointments.grossFee') : t('appointments.fee')} value={feeDisplay} last={!feeBreakdown} />
+          {feeBreakdown && (
+            <>
+              <DetailRow
+                icon="scissors"
+                label={t('appointments.taxesAndFees', { rate: Math.round(TAXES_FEES_RATE * 100) })}
+                value={`− ${feeBreakdown.taxesAndFees}`}
+                valueColor={Colors.textMedium}
+              />
+              <DetailRow
+                icon="money"
+                label={t('appointments.takeHomePay')}
+                value={feeBreakdown.takeHome}
+                valueColor={Colors.green}
+                emphasize
+                last
+              />
+            </>
+          )}
         </View>
 
-        {/* What the patient is waiting on, in plain words. */}
-        {awaitingApproval && (
+        {/* What the patient is waiting on, in plain words. Patient-facing only —
+            the doctor is the one who approves, so it doesn't apply to them. */}
+        {awaitingApproval && !isDoctor && (
           <View style={[styles.notice, { backgroundColor: Colors.accent + '14' }]}>
             <FontAwesome name="hourglass-half" size={14} color={Colors.accent} />
             <Text style={styles.noticeText}>
@@ -138,12 +178,31 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        {/* Actions */}
-        {isLive ? (
+        {/* Actions. Payment, booking and rescheduling are patient actions — a
+            doctor gets paid, never pays, so their view only offers joining the
+            visit and messaging. */}
+        {isDoctor ? (
+          <>
+            {isConfirmed && (
+              <EkoButton
+                title={type === 'Video Visit' ? t('appointments.joinVideoCall') : t('appointments.joinAudioCall')}
+                variant="primary"
+                onPress={joinCall}
+                style={styles.btn}
+              />
+            )}
+            <EkoButton
+              title={t('appointments.sendMessage')}
+              variant="outline"
+              onPress={() => navigation.navigate('Chat', { doctor })}
+              style={styles.btn}
+            />
+          </>
+        ) : isLive ? (
           <>
             {awaitingPayment && (
               <EkoButton
-                title={t('payment.pay', { amount: appointment.fee ?? doctor.fee ?? '₦15,000' })}
+                title={t('payment.pay', { amount: feeDisplay })}
                 variant="accent"
                 onPress={() => navigation.navigate('Payment', { appointment, doctor })}
                 style={styles.btn}
@@ -198,14 +257,14 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
   );
 }
 
-function DetailRow({ icon, label, value, last }: { icon: string; label: string; value: string; last?: boolean }) {
+function DetailRow({ icon, label, value, last, valueColor, emphasize }: { icon: string; label: string; value: string; last?: boolean; valueColor?: string; emphasize?: boolean }) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   return (
     <View style={[styles.row, !last && styles.rowBorder]}>
       <FontAwesome name={icon as any} size={15} color={Colors.primary} style={styles.rowIcon} />
       <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue}>{value}</Text>
+      <Text style={[styles.rowValue, emphasize && styles.rowValueEmphasis, valueColor ? { color: valueColor } : null]}>{value}</Text>
     </View>
   );
 }
@@ -237,6 +296,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   rowIcon: { width: 24 },
   rowLabel: { flex: 1, fontSize: 14, color: Colors.textMedium, fontFamily: 'Poppins_400Regular' },
   rowValue: { fontSize: 14, fontWeight: '700', color: Colors.textDark, fontFamily: 'Poppins_600SemiBold' },
+  rowValueEmphasis: { fontSize: 15, fontFamily: 'Poppins_700Bold' },
 
   btn: { width: '100%', marginBottom: 12 },
   notice: {

@@ -52,6 +52,8 @@ import PatientsScreen from '../screens/main/dashboard/PatientsScreen';
 import PatientProfileScreen from '../screens/main/dashboard/PatientProfileScreen';
 import MedicalHistoryScreen from '../screens/main/dashboard/MedicalHistoryScreen';
 import MedicalNotesScreen from '../screens/main/dashboard/MedicalNotesScreen';
+import PrescriptionHistoryScreen from '../screens/main/dashboard/PrescriptionHistoryScreen';
+import AddPrescriptionScreen from '../screens/main/dashboard/AddPrescriptionScreen';
 import DoctorSettingsScreen from '../screens/main/dashboard/DoctorSettingsScreen';
 
 const Tab = createBottomTabNavigator();
@@ -162,6 +164,8 @@ function PatientsNavigator() {
       <PatientsStack.Screen name="PatientProfile" component={PatientProfileScreen} />
       <PatientsStack.Screen name="MedicalHistory" component={MedicalHistoryScreen} />
       <PatientsStack.Screen name="MedicalNotes" component={MedicalNotesScreen} />
+      <PatientsStack.Screen name="PrescriptionHistory" component={PrescriptionHistoryScreen} />
+      <PatientsStack.Screen name="AddPrescription" component={AddPrescriptionScreen} />
       <PatientsStack.Screen name="Chat" component={ChatScreen} />
       <PatientsStack.Screen name="VideoCall" component={VideoCallScreen} options={{ presentation: 'fullScreenModal' }} />
       <PatientsStack.Screen name="AudioCall" component={AudioCallScreen} options={{ presentation: 'fullScreenModal' }} />

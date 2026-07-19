@@ -13,6 +13,7 @@ import {
   MOCK_MEDICAL_NOTES,
   MOCK_NOTIFICATIONS,
   MOCK_PATIENTS,
+  MOCK_PRESCRIPTIONS,
 } from '../../constants';
 import type {
   Appointment,
@@ -30,7 +31,10 @@ import type {
   Insurance,
   MedicalNote,
   MedicalNoteInput,
+  NoteAmendment,
   PatientSummary,
+  Prescription,
+  PrescriptionInput,
   PaymentIntent,
   PaymentStatus,
   Pharmacy,
@@ -51,6 +55,7 @@ const mockDependents: Dependent[] = [
 let mockInsurance: Insurance | null = null;
 let mockPharmacy: Pharmacy | null = null;
 const mockMedicalNotes: MedicalNote[] = [...(MOCK_MEDICAL_NOTES as MedicalNote[])];
+const mockPrescriptions: Prescription[] = [...(MOCK_PRESCRIPTIONS as Prescription[])];
 let mockSettings: UserSettings = {
   pushNotifications: true,
   emailNotifications: true,
@@ -70,17 +75,37 @@ const delay = (ms = 450) => new Promise<void>((resolve) => setTimeout(resolve, m
 
 let appointmentSeq = 100;
 
+/**
+ * Seeded accounts, keyed by email. Stands in for the backend's `users` table:
+ * the account's type (its stored accountType) is looked up here at login rather
+ * than chosen by the caller, mirroring how the real /auth/login reads
+ * users.account_type. Any email not seeded resolves to a Patient account so
+ * arbitrary demo sign-ins still work; to demo the doctor experience, sign in as
+ * dr.johnson@ekotelehealth.com (any password — the mock doesn't check it).
+ */
+const MOCK_ACCOUNTS: Record<string, { id: string; firstName: string; lastName: string; accountType: UserRole }> = {
+  'martin@ekotelehealth.com': { id: 'pat-1', firstName: 'Martin', lastName: 'Doe', accountType: 'Patient' },
+  'dr.johnson@ekotelehealth.com': { id: 'doc-1', firstName: 'Sarah', lastName: 'Johnson', accountType: 'Doctor' },
+};
+
 export const mockApi = {
-  async login(email: string, _password: string, role: UserRole): Promise<AuthSession> {
+  async login(email: string, _password: string): Promise<AuthSession> {
     await delay(700);
-    const isDoctor = role === 'Doctor';
+    const normalized = email.trim().toLowerCase();
+    // Look the account up by email; unknown emails default to a patient account.
+    const account = MOCK_ACCOUNTS[normalized] ?? {
+      id: 'pat-1',
+      firstName: 'Martin',
+      lastName: 'Doe',
+      accountType: 'Patient' as UserRole,
+    };
     return {
       user: {
-        id: isDoctor ? 'doc-1' : 'pat-1',
-        firstName: isDoctor ? 'Sarah' : 'Martin',
-        lastName: isDoctor ? 'Johnson' : 'Doe',
-        email: email || (isDoctor ? 'dr.johnson@ekotelehealth.com' : 'martin@ekotelehealth.com'),
-        role,
+        id: account.id,
+        firstName: account.firstName,
+        lastName: account.lastName,
+        email: normalized || 'martin@ekotelehealth.com',
+        accountType: account.accountType,
       },
       accessToken: 'mock-access-token',
       refreshToken: 'mock-refresh-token',
@@ -91,7 +116,7 @@ export const mockApi = {
     firstName: string;
     lastName: string;
     email: string;
-    role: UserRole;
+    accountType: UserRole;
     /** Accepted to match the live contract; the mock user model has no phone. */
     phone?: string;
   }): Promise<void> {
@@ -200,27 +225,57 @@ export const mockApi = {
       doctorId: 'doc-1',
       doctorName: 'Dr. Sarah Johnson',
       doctorSpecialty: 'Primary Care',
+      amendments: [],
       createdAt: new Date().toISOString(),
     };
     mockMedicalNotes.push(note);
     return note;
   },
 
-  async updateMedicalNote(noteId: string, input: Partial<MedicalNoteInput>): Promise<MedicalNote> {
-    await delay(500);
+  /**
+   * Append an amendment to a locked record. The SOAP body is never touched —
+   * this only adds to the amendments trail, mirroring the immutable record on
+   * the backend. Author is stamped here (the mock doctor session).
+   */
+  async addNoteAmendment(noteId: string, text: string): Promise<MedicalNote> {
+    await delay(400);
     const note = mockMedicalNotes.find((n) => n.id === noteId);
-    if (!note) throw new Error('Note not found.');
-    // Mirrors the server-side authorship check.
-    if (note.doctorId !== 'doc-1') throw new Error('Only the authoring doctor can edit this note.');
-    Object.assign(note, {
-      reason: input.reason ?? note.reason,
-      subjective: input.subjective ?? note.subjective,
-      objective: input.objective ?? note.objective,
-      assessment: input.assessment ?? note.assessment,
-      plan: input.plan ?? note.plan,
-      updatedAt: new Date().toISOString(),
-    });
+    if (!note) throw new Error('Record not found.');
+    const amendment: NoteAmendment = {
+      id: `amd-${Date.now()}`,
+      text,
+      authorId: 'doc-1',
+      authorName: 'Dr. Sarah Johnson',
+      createdAt: new Date().toISOString(),
+    };
+    note.amendments = [...(note.amendments ?? []), amendment];
     return { ...note };
+  },
+
+  async getPrescriptions(patientId: string): Promise<Prescription[]> {
+    await delay();
+    return mockPrescriptions
+      .filter((p) => p.patientId === patientId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+
+  async addPrescription(input: PrescriptionInput): Promise<Prescription> {
+    await delay(500);
+    // Prescriber is stamped here, never taken from the client. A freshly written
+    // prescription is a current medication ('active'). The mock doctor session
+    // is always doc-1 / Dr. Sarah Johnson.
+    const now = new Date();
+    const prescription: Prescription = {
+      id: `rx-${Date.now()}`,
+      ...input,
+      status: 'active',
+      doctorId: 'doc-1',
+      doctorName: 'Dr. Sarah Johnson',
+      datePrescribed: `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`,
+      createdAt: now.toISOString(),
+    };
+    mockPrescriptions.push(prescription);
+    return prescription;
   },
 
   async getDependents(): Promise<Dependent[]> {
@@ -319,7 +374,7 @@ export const mockApi = {
       firstName: input.firstName ?? 'Martin',
       lastName: input.lastName ?? 'Doe',
       email: 'martin@ekotelehealth.com',
-      role: 'Patient',
+      accountType: 'Patient',
     };
   },
 

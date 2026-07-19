@@ -29,14 +29,14 @@ export default function ForgotPassLandingScreen({ navigation }: Props) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('a11y.back')}>
-          <FontAwesome name="arrow-left" size={20} color={Colors.accent} />
+          <FontAwesome name="arrow-left" size={20} color={Colors.primary} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.body}>
         {/* Icon */}
         <View style={styles.iconCircle}>
-          <FontAwesome name="lock" size={32} color={Colors.accent} />
+          <FontAwesome name="lock" size={32} color={Colors.primary} />
         </View>
 
         <Text style={styles.title}>{t('auth.forgotOrNew')}</Text>
@@ -52,13 +52,13 @@ export default function ForgotPassLandingScreen({ navigation }: Props) {
             accessibilityLabel={t(opt.labelKey)}
           >
             <View style={styles.cardIcon}>
-              <FontAwesome name={opt.icon as any} size={22} color={Colors.accent} />
+              <FontAwesome name={opt.icon as any} size={22} color={Colors.primary} />
             </View>
             <View style={styles.cardText}>
               <Text style={styles.cardTitle}>{t(opt.labelKey)}</Text>
               <Text style={styles.cardSub}>{t(opt.subKey)}</Text>
             </View>
-            <FontAwesome name="chevron-right" size={14} color={Colors.accent} />
+            <FontAwesome name="chevron-right" size={14} color={Colors.primary} />
           </TouchableOpacity>
         ))}
       </View>
@@ -74,7 +74,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
 
   iconCircle: {
     width: 80, height: 80, borderRadius: 40,
-    backgroundColor: Colors.accentFaded,
+    backgroundColor: Colors.primaryFaded,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 24, alignSelf: 'center',
   },
@@ -98,7 +98,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   },
   cardIcon: {
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: Colors.accentFaded,
+    backgroundColor: Colors.primaryFaded,
     alignItems: 'center', justifyContent: 'center', marginRight: 14,
   },
   cardText: { flex: 1 },

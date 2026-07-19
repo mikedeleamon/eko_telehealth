@@ -87,3 +87,28 @@ export function isValidDate(v: string, opts: { allowFuture?: boolean } = {}): bo
 }
 
 export { MONTH_NAMES };
+
+// ---- Money ----
+
+/** Groups an integer with thousands separators without relying on Intl (Hermes). */
+export function groupThousands(n: number): string {
+  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+/**
+ * Splits a display fee string (e.g. "₦15,000") into its numeric amount and the
+ * currency symbol/prefix so amounts can be recomputed (deductions, take-home)
+ * and re-formatted in the same currency. Returns null when there's no number.
+ */
+export function splitFee(fee: string): { symbol: string; amount: number } | null {
+  const digits = fee.replace(/[^\d]/g, '');
+  if (!digits) return null;
+  // Everything before the first digit is the currency prefix (e.g. "₦", "$").
+  const symbol = fee.slice(0, fee.search(/\d/)).trim();
+  return { symbol, amount: parseInt(digits, 10) };
+}
+
+/** Formats an amount back into a display string with the given currency prefix. */
+export function formatMoney(symbol: string, amount: number): string {
+  return `${symbol}${groupThousands(amount)}`;
+}

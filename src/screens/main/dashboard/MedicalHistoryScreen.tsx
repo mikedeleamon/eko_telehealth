@@ -83,6 +83,15 @@ export default function MedicalHistoryScreen({ navigation, route }: Props) {
         {item.visitType ? (
           <Text style={styles.visitType}>{item.visitType}</Text>
         ) : null}
+
+        {item.amendments && item.amendments.length > 0 ? (
+          <View style={styles.amendmentChip}>
+            <FontAwesome name="file-text-o" size={10} color={Colors.primary} />
+            <Text style={styles.amendmentChipText}>
+              {t('patients.amendmentCount', { count: item.amendments.length })}
+            </Text>
+          </View>
+        ) : null}
       </TouchableOpacity>
     );
   };
@@ -120,7 +129,7 @@ export default function MedicalHistoryScreen({ navigation, route }: Props) {
       <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
         <EkoButton
           title={t('patients.addMedicalNotes')}
-          variant="accent"
+          variant="primary"
           onPress={() => navigation.navigate('MedicalNotes', { patient })}
         />
       </View>
@@ -176,6 +185,12 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   reasonIcon: { width: 20, marginTop: 2 },
   reasonText: { flex: 1, fontSize: 13, color: Colors.textMedium, lineHeight: 19, fontFamily: 'Poppins_500Medium' },
   visitType: { fontSize: 11, color: Colors.textGray, marginTop: 6, marginLeft: 20, fontFamily: 'Poppins_400Regular' },
+  amendmentChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
+    backgroundColor: Colors.primaryFaded, borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3, marginTop: 8, marginLeft: 20,
+  },
+  amendmentChipText: { fontSize: 11, color: Colors.primary, fontWeight: '600', fontFamily: 'Poppins_600SemiBold' },
 
   empty: { alignItems: 'center', marginTop: 70, paddingHorizontal: 32 },
   emptyText: { fontSize: 16, color: Colors.textGray, marginTop: 12, fontFamily: 'Poppins_600SemiBold' },

@@ -268,6 +268,73 @@ export const MOCK_MEDICAL_NOTES = [
   },
 ];
 
+/**
+ * Prescriptions per patient. 'active' rows are current medications; 'completed'
+ * and 'discontinued' are the historical trail. Doctor identity mirrors the
+ * shared record model (any treating doctor's scripts appear here).
+ */
+export const MOCK_PRESCRIPTIONS = [
+  // Emeka (p1) — hypertension
+  {
+    id: 'rx-1', patientId: 'p1', drug: 'Amlodipine', strength: '10 mg', form: 'Tablet', route: 'Oral',
+    frequency: 'Once daily', duration: 'Ongoing', quantity: '30', refills: '3',
+    instructions: 'Take one tablet in the morning with water.',
+    status: 'active', doctorId: 'doc-1', doctorName: 'Dr. Sarah Johnson',
+    datePrescribed: 'Jun 20, 2026', createdAt: '2026-06-20T10:10:00Z',
+  },
+  {
+    id: 'rx-2', patientId: 'p1', drug: 'Lisinopril', strength: '10 mg', form: 'Tablet', route: 'Oral',
+    frequency: 'Once daily', duration: 'Ongoing', quantity: '30', refills: '3',
+    instructions: 'Take one tablet daily. Monitor blood pressure.',
+    status: 'active', doctorId: 'doc-1', doctorName: 'Dr. Sarah Johnson',
+    datePrescribed: 'Jun 20, 2026', createdAt: '2026-06-20T10:12:00Z',
+  },
+  {
+    id: 'rx-3', patientId: 'p1', drug: 'Hydrochlorothiazide', strength: '25 mg', form: 'Tablet', route: 'Oral',
+    frequency: 'Once daily', duration: '90 days', quantity: '90', refills: '0',
+    instructions: 'Discontinued — switched to amlodipine due to ankle oedema.',
+    status: 'discontinued', doctorId: 'doc-1', doctorName: 'Dr. Sarah Johnson',
+    datePrescribed: 'Feb 14, 2026', createdAt: '2026-02-14T09:30:00Z',
+  },
+  // Augustine (p4) — migraine
+  {
+    id: 'rx-4', patientId: 'p4', drug: 'Propranolol', strength: '40 mg', form: 'Tablet', route: 'Oral',
+    frequency: 'Twice daily', duration: 'Ongoing', quantity: '60', refills: '2',
+    instructions: 'Migraine prophylaxis. Do not stop abruptly.',
+    status: 'active', doctorId: 'doc-1', doctorName: 'Dr. Sarah Johnson',
+    datePrescribed: 'Jun 10, 2026', createdAt: '2026-06-10T15:15:00Z',
+  },
+  {
+    id: 'rx-5', patientId: 'p4', drug: 'Sumatriptan', strength: '50 mg', form: 'Tablet', route: 'Oral',
+    frequency: 'As needed', duration: 'PRN', quantity: '9', refills: '1',
+    instructions: 'Take at onset of migraine. Max 2 tablets in 24 hours.',
+    status: 'active', doctorId: 'doc-1', doctorName: 'Dr. Sarah Johnson',
+    datePrescribed: 'Apr 3, 2026', createdAt: '2026-04-03T11:45:00Z',
+  },
+  {
+    id: 'rx-6', patientId: 'p4', drug: 'Amitriptyline', strength: '10 mg', form: 'Tablet', route: 'Oral',
+    frequency: 'At night', duration: '30 days', quantity: '30', refills: '0',
+    instructions: 'Completed trial — limited benefit, prophylaxis switched to propranolol.',
+    status: 'completed', doctorId: 'doc-1', doctorName: 'Dr. Sarah Johnson',
+    datePrescribed: 'Jan 8, 2026', createdAt: '2026-01-08T13:20:00Z',
+  },
+  // Alex (p3) — diabetes
+  {
+    id: 'rx-7', patientId: 'p3', drug: 'Metformin', strength: '1000 mg', form: 'Tablet', route: 'Oral',
+    frequency: 'Twice daily', duration: 'Ongoing', quantity: '60', refills: '5',
+    instructions: 'Take with breakfast and dinner to reduce GI upset.',
+    status: 'active', doctorId: 'doc-1', doctorName: 'Dr. Sarah Johnson',
+    datePrescribed: 'Jun 12, 2026', createdAt: '2026-06-12T14:50:00Z',
+  },
+  {
+    id: 'rx-8', patientId: 'p3', drug: 'Empagliflozin', strength: '10 mg', form: 'Tablet', route: 'Oral',
+    frequency: 'Once daily', duration: 'Ongoing', quantity: '30', refills: '3',
+    instructions: 'Take in the morning. Stay well hydrated.',
+    status: 'active', doctorId: 'doc-1', doctorName: 'Dr. Sarah Johnson',
+    datePrescribed: 'Jun 12, 2026', createdAt: '2026-06-12T14:52:00Z',
+  },
+];
+
 export const MOCK_PATIENTS = [
   {
     id: 'p1', name: 'Emeka Obi', age: 34, gender: 'Male', condition: 'Hypertension', lastVisit: 'Jun 20, 2026',

@@ -52,7 +52,17 @@ export default function DashboardScreen({ navigation }: Props) {
   const remaining = agenda.length;
 
   // Real requests: appointments this doctor hasn't answered yet.
-  const requests = practiceAppointments.filter((a) => a.status === 'pending_approval');
+  const allRequests = practiceAppointments.filter((a) => a.status === 'pending_approval');
+
+  // Search filters both lists by patient name. On doctor-scoped rows the
+  // counterparty name lives in `doctor` (requests) / `name` (agenda).
+  const query = search.trim().toLowerCase();
+  const requests = query
+    ? allRequests.filter((a) => a.doctor.toLowerCase().includes(query))
+    : allRequests;
+  const filteredAgenda = query
+    ? agenda.filter((a) => a.name.toLowerCase().includes(query))
+    : agenda;
 
   const respond = (id: string, name: string, decide: 'accept' | 'decline') => {
     decision.mutate(
@@ -151,7 +161,7 @@ export default function DashboardScreen({ navigation }: Props) {
               {(provider.state === 'none' || provider.state === 'rejected') && (
                 <EkoButton
                   title={t('dashboard.applyNow')}
-                  variant="accent"
+                  variant="primary"
                   onPress={() => navigation.navigate('ProviderApply')}
                   style={styles.onboardBtn}
                 />
@@ -171,7 +181,7 @@ export default function DashboardScreen({ navigation }: Props) {
           </View>
 
           {requests.length === 0 ? (
-            <Text style={styles.emptyRequests}>{t('dashboard.noPendingRequests')}</Text>
+            <Text style={styles.emptyRequests}>{query.length > 0 ? t('dashboard.noMatchesFor', { query: search.trim() }) : t('dashboard.noPendingRequests')}</Text>
           ) : (
             requests.map((req, i) => (
               <View key={req.id} style={[styles.requestCard, { backgroundColor: Colors.cardColors[i % 2 === 0 ? 0 : 1] }]}>
@@ -215,7 +225,10 @@ export default function DashboardScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
 
-          {agenda.map((appt) => {
+          {filteredAgenda.length === 0 && query.length > 0 ? (
+            <Text style={styles.emptyRequests}>{t('dashboard.noMatchesFor', { query: search.trim() })}</Text>
+          ) : null}
+          {filteredAgenda.map((appt) => {
             const meta = STATUS_META[appt.status] ?? STATUS_META.confirmed;
             return (
               <TouchableOpacity

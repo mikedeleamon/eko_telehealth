@@ -7,7 +7,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../constants/Colors';
-import { useTheme, type ThemeColors } from '../../theme';
+import { useTheme, useThemeMode, makeDoctorColors, type ThemeColors } from '../../theme';
 import { GENDER_OPTIONS } from '../../constants';
 import { useTranslation } from '../../i18n/useTranslation';
 import { api } from '../../api';
@@ -26,11 +26,15 @@ const criteria = (pw: string, t: (k: string) => string) => [
 ];
 
 export default function SignupScreen({ navigation }: Props) {
-  const Colors = useTheme();
+  const base = useTheme();
+  const { isDark } = useThemeMode();
+  const [userType, setUserType] = useState<'Patient' | 'Doctor'>('Patient');
+  // Preview the role's brand: picking Doctor turns the accent orange so the
+  // sign-up flow already reflects the theme the account will get.
+  const Colors = userType === 'Doctor' ? makeDoctorColors(base, isDark) : base;
   const styles = makeStyles(Colors);
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  const [userType, setUserType] = useState<'Patient' | 'Doctor'>('Patient');
   const [email, setEmail] = useState('');
   const [confirmEmail, setConfirmEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -81,7 +85,7 @@ export default function SignupScreen({ navigation }: Props) {
         lastName: lastName.trim(),
         email: email.trim(),
         password,
-        role: userType,
+        accountType: userType,
         phone: phone.trim(),
       });
       navigation.navigate('VerifyEmail', { email: email.trim() });
@@ -104,7 +108,7 @@ export default function SignupScreen({ navigation }: Props) {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('a11y.back')}>
-          <FontAwesome name="arrow-left" size={20} color={Colors.accent} />
+          <FontAwesome name="arrow-left" size={20} color={Colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('auth.createAnAccount')}</Text>
         <View style={{ width: 28 }} />
@@ -131,12 +135,12 @@ export default function SignupScreen({ navigation }: Props) {
           ))}
         </View>
 
-        <AuthField icon="at" placeholder={t('auth.email')} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-        <AuthField icon="at" placeholder={t('auth.confirmEmail')} value={confirmEmail} onChangeText={setConfirmEmail} keyboardType="email-address" autoCapitalize="none" />
+        <AuthField colorsOverride={Colors} icon="at" placeholder={t('auth.email')} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+        <AuthField colorsOverride={Colors} icon="at" placeholder={t('auth.confirmEmail')} value={confirmEmail} onChangeText={setConfirmEmail} keyboardType="email-address" autoCapitalize="none" />
 
         {/* Password with strength indicator */}
         <View style={[styles.field, pwFocused && styles.fieldFocused]}>
-          <FontAwesome name="lock" size={18} color={pwFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
+          <FontAwesome name="lock" size={18} color={pwFocused ? Colors.primary : Colors.textGray} style={styles.fieldIcon} />
           <TextInput
             style={styles.fieldInput}
             placeholder={t('auth.password')}
@@ -164,13 +168,13 @@ export default function SignupScreen({ navigation }: Props) {
           </View>
         )}
 
-        <AuthField icon="user" placeholder={t('auth.firstName')} value={firstName} onChangeText={setFirstName} />
-        <AuthField icon="user" placeholder={t('auth.lastName')} value={lastName} onChangeText={setLastName} />
-        <AuthField icon="mobile" placeholder={t('auth.mobileNumber')} value={phone} onChangeText={(val: string) => setPhone(sanitizePhoneInput(val))} keyboardType="phone-pad" />
+        <AuthField colorsOverride={Colors} icon="user" placeholder={t('auth.firstName')} value={firstName} onChangeText={setFirstName} />
+        <AuthField colorsOverride={Colors} icon="user" placeholder={t('auth.lastName')} value={lastName} onChangeText={setLastName} />
+        <AuthField colorsOverride={Colors} icon="mobile" placeholder={t('auth.mobileNumber')} value={phone} onChangeText={(val: string) => setPhone(sanitizePhoneInput(val))} keyboardType="phone-pad" />
 
         {/* Date of birth — typeable (masked to DD-MM-YYYY) with a calendar shortcut */}
         <View style={[styles.field, dobFocused && styles.fieldFocused]}>
-          <FontAwesome name="calendar" size={18} color={dobFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
+          <FontAwesome name="calendar" size={18} color={dobFocused ? Colors.primary : Colors.textGray} style={styles.fieldIcon} />
           <TextInput
             style={styles.fieldInput}
             placeholder={t('auth.dobPlaceholder')}
@@ -184,7 +188,7 @@ export default function SignupScreen({ navigation }: Props) {
             maxLength={10}
           />
           <TouchableOpacity onPress={() => setDobCalendar(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <FontAwesome name="calendar-o" size={18} color={Colors.accent} />
+            <FontAwesome name="calendar-o" size={18} color={Colors.primary} />
           </TouchableOpacity>
         </View>
 
@@ -197,12 +201,14 @@ export default function SignupScreen({ navigation }: Props) {
 
         {/* Checkboxes */}
         <CheckRow
+          colorsOverride={Colors}
           checked={termsAccepted}
           onToggle={() => setTermsAccepted(v => !v)}
           label={t('auth.termsPrefix')}
           linkText={t('auth.termsLink')}
         />
         <CheckRow
+          colorsOverride={Colors}
           checked={hipaaAccepted}
           onToggle={() => setHipaaAccepted(v => !v)}
           label={t('auth.termsPrefix')}
@@ -230,7 +236,7 @@ export default function SignupScreen({ navigation }: Props) {
             <Text style={styles.modalTitle}>{t('auth.selectGender')}</Text>
             {GENDER_OPTIONS.map(g => (
               <TouchableOpacity key={g} style={styles.modalOption} onPress={() => { setGender(g); setGenderModal(false); }} accessibilityRole="radio" accessibilityState={{ selected: gender === g }}>
-                <FontAwesome name={gender === g ? 'dot-circle-o' : 'circle-o'} size={20} color={gender === g ? Colors.accent : Colors.textGray} />
+                <FontAwesome name={gender === g ? 'dot-circle-o' : 'circle-o'} size={20} color={gender === g ? Colors.primary : Colors.textGray} />
                 <Text style={styles.modalOptionText}>{t(`options.gender.${g}`)}</Text>
               </TouchableOpacity>
             ))}
@@ -241,13 +247,14 @@ export default function SignupScreen({ navigation }: Props) {
   );
 }
 
-function AuthField({ icon, ...props }: any) {
-  const Colors = useTheme();
+function AuthField({ icon, colorsOverride, ...props }: any) {
+  const themeColors = useTheme();
+  const Colors = colorsOverride ?? themeColors;
   const styles = makeStyles(Colors);
   const [focused, setFocused] = useState(false);
   return (
     <View style={[styles.field, focused && styles.fieldFocused]}>
-      <FontAwesome name={icon} size={18} color={focused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
+      <FontAwesome name={icon} size={18} color={focused ? Colors.primary : Colors.textGray} style={styles.fieldIcon} />
       <TextInput
         style={styles.fieldInput}
         placeholderTextColor={Colors.textGray}
@@ -259,8 +266,9 @@ function AuthField({ icon, ...props }: any) {
   );
 }
 
-function CheckRow({ checked, onToggle, label, linkText }: { checked: boolean; onToggle: () => void; label: string; linkText: string }) {
-  const Colors = useTheme();
+function CheckRow({ checked, onToggle, label, linkText, colorsOverride }: { checked: boolean; onToggle: () => void; label: string; linkText: string; colorsOverride?: ThemeColors }) {
+  const themeColors = useTheme();
+  const Colors = colorsOverride ?? themeColors;
   const styles = makeStyles(Colors);
   return (
     <TouchableOpacity style={styles.checkRow} onPress={onToggle} activeOpacity={0.7}>
@@ -288,12 +296,12 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   content: { paddingHorizontal: 24, paddingTop: 8 },
 
   toggle: {
-    flexDirection: 'row', borderWidth: 1.5, borderColor: Colors.accent,
+    flexDirection: 'row', borderWidth: 1.5, borderColor: Colors.primary,
     borderRadius: 32, overflow: 'hidden', marginBottom: 20,
   },
   toggleBtn: { flex: 1, paddingVertical: 11, alignItems: 'center' },
-  toggleBtnActive: { backgroundColor: Colors.accent },
-  toggleText: { fontSize: 14, fontWeight: '600', color: Colors.accent, fontFamily: 'Poppins_600SemiBold' },
+  toggleBtnActive: { backgroundColor: Colors.primary },
+  toggleText: { fontSize: 14, fontWeight: '600', color: Colors.primary, fontFamily: 'Poppins_600SemiBold' },
   toggleTextActive: { color: Colors.white },
 
   field: {
@@ -302,7 +310,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 20, height: 54,
     marginBottom: 14, borderWidth: 1.5, borderColor: 'transparent',
   },
-  fieldFocused: { borderColor: Colors.accent, backgroundColor: Colors.surface },
+  fieldFocused: { borderColor: Colors.primary, backgroundColor: Colors.surface },
   fieldIcon: { marginRight: 12 },
   fieldInput: { flex: 1, fontSize: 15, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },
 
@@ -319,18 +327,18 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   checkRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
   checkbox: {
     width: 22, height: 22, borderRadius: 4,
-    borderWidth: 2, borderColor: Colors.accent,
+    borderWidth: 2, borderColor: Colors.primary,
     alignItems: 'center', justifyContent: 'center',
     marginRight: 10, marginTop: 1, flexShrink: 0,
   },
-  checkboxChecked: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  checkboxChecked: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   checkText: { flex: 1, fontSize: 13, color: Colors.textGray, lineHeight: 20, fontFamily: 'Poppins_400Regular' },
-  checkLink: { color: Colors.accent, fontWeight: '600' },
+  checkLink: { color: Colors.primary, fontWeight: '600' },
 
   submitBtn: {
-    backgroundColor: Colors.accent, borderRadius: 32, height: 56,
+    backgroundColor: Colors.primary, borderRadius: 32, height: 56,
     alignItems: 'center', justifyContent: 'center', marginTop: 8,
-    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 6 },
+    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
   },
   submitBtnText: {

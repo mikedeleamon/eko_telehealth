@@ -81,7 +81,7 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
         {/* Header row */}
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>
-            {user?.role === 'Doctor' ? t('doctors.welcomeDoctor', { name: user.lastName }) : t('doctors.findYourConsultation')}
+            {user?.accountType === 'Doctor' ? t('doctors.welcomeDoctor', { name: user.lastName }) : t('doctors.findYourConsultation')}
           </Text>
 
           <View style={styles.headerIcons}>

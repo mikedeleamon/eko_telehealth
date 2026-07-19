@@ -52,7 +52,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('a11y.back')}>
-            <FontAwesome name="arrow-left" size={20} color={Colors.accent} />
+            <FontAwesome name="arrow-left" size={20} color={Colors.primary} />
           </TouchableOpacity>
         </View>
 
@@ -62,7 +62,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 
           {/* Email field */}
           <View style={[styles.field, emailFocused && styles.fieldFocused]}>
-            <FontAwesome name="envelope-o" size={17} color={emailFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
+            <FontAwesome name="envelope-o" size={17} color={emailFocused ? Colors.primary : Colors.textGray} style={styles.fieldIcon} />
             <TextInput
               style={styles.fieldInput}
               placeholder={t('auth.emailAddress')}
@@ -131,14 +131,14 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 20, height: 56,
     marginBottom: 24, borderWidth: 1.5, borderColor: 'transparent',
   },
-  fieldFocused: { borderColor: Colors.accent, backgroundColor: Colors.surface },
+  fieldFocused: { borderColor: Colors.primary, backgroundColor: Colors.surface },
   fieldIcon: { marginRight: 12 },
   fieldInput: { flex: 1, fontSize: 15, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },
 
   submitBtn: {
-    backgroundColor: Colors.accent, borderRadius: 32, height: 56,
+    backgroundColor: Colors.primary, borderRadius: 32, height: 56,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 6 },
+    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
   },
   submitBtnText: {
@@ -159,7 +159,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   closeBtn: {
     position: 'absolute', top: -14, right: -14,
     width: 32, height: 32, borderRadius: 16,
-    backgroundColor: Colors.accent,
+    backgroundColor: Colors.primary,
     alignItems: 'center', justifyContent: 'center',
   },
   modalTitle: {
@@ -168,7 +168,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     fontFamily: 'Poppins_700Bold',
   },
   modalEmail: {
-    fontSize: 14, color: Colors.accent, fontWeight: '600',
+    fontSize: 14, color: Colors.primary, fontWeight: '600',
     marginBottom: 8, fontFamily: 'Poppins_600SemiBold',
   },
   modalSub: {
@@ -176,7 +176,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     marginBottom: 24, fontFamily: 'Poppins_400Regular',
   },
   tryAgainBtn: {
-    backgroundColor: Colors.accent, borderRadius: 32, height: 50,
+    backgroundColor: Colors.primary, borderRadius: 32, height: 50,
     paddingHorizontal: 48, alignItems: 'center', justifyContent: 'center', width: '100%',
   },
   tryAgainText: { color: Colors.white, fontSize: 15, fontWeight: '700', fontFamily: 'Poppins_700Bold' },

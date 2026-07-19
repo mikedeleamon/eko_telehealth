@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  KeyboardAvoidingView, Platform, TextInput, StatusBar,
+  KeyboardAvoidingView, Platform, TextInput, StatusBar, Image,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
@@ -22,7 +22,6 @@ export default function LoginScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { login } = useAuth();
-  const [userType, setUserType] = useState<'Patient' | 'Doctor'>('Patient');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -33,7 +32,8 @@ export default function LoginScreen({ navigation }: Props) {
   const handleLogin = async () => {
     setLoading(true);
     try {
-      await login(email.trim(), password, userType);
+      // Role is resolved server-side from the account, not chosen at sign-in.
+      await login(email.trim(), password);
     } catch (err) {
       Toast.show({
         type: 'error',
@@ -59,31 +59,15 @@ export default function LoginScreen({ navigation }: Props) {
         {/* Logo */}
         <View style={styles.logoArea}>
           <View style={styles.logoCircle}>
-            <FontAwesome name="heartbeat" size={30} color={Colors.white} />
+            <Image source={require('../../../assets/EkoTelehealthIcon.png')} style={styles.logoIcon} resizeMode="contain" />
           </View>
           <Text style={styles.brandName}>Eko</Text>
           <Text style={styles.brandTagline}>TELEHEALTH</Text>
         </View>
 
-        {/* Patient / Doctor toggle */}
-        <View style={styles.toggle}>
-          {(['Patient', 'Doctor'] as const).map(role => (
-            <TouchableOpacity
-              key={role}
-              style={[styles.toggleBtn, userType === role && styles.toggleBtnActive]}
-              onPress={() => setUserType(role)}
-              activeOpacity={0.8}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: userType === role }}
-            >
-              <Text style={[styles.toggleText, userType === role && styles.toggleTextActive]}>{role === 'Patient' ? t('auth.loginAsPatient') : t('auth.loginAsDoctor')}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
         {/* Email */}
         <View style={[styles.field, emailFocused && styles.fieldFocused]}>
-          <FontAwesome name="at" size={18} color={emailFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
+          <FontAwesome name="at" size={18} color={emailFocused ? Colors.primary : Colors.textGray} style={styles.fieldIcon} />
           <TextInput
             style={styles.fieldInput}
             placeholder={t('auth.email')}
@@ -100,7 +84,7 @@ export default function LoginScreen({ navigation }: Props) {
 
         {/* Password */}
         <View style={[styles.field, pwFocused && styles.fieldFocused]}>
-          <FontAwesome name="lock" size={18} color={pwFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
+          <FontAwesome name="lock" size={18} color={pwFocused ? Colors.primary : Colors.textGray} style={styles.fieldIcon} />
           <TextInput
             style={styles.fieldInput}
             placeholder={t('auth.password')}
@@ -145,36 +129,24 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   logoArea: { alignItems: 'center', marginBottom: 44 },
   logoCircle: {
     width: 76, height: 76, borderRadius: 38,
-    backgroundColor: Colors.accent,
+    backgroundColor: Colors.primary,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 16,
-    shadowColor: Colors.accent,
+    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
     shadowRadius: 16,
     elevation: 8,
   },
+  logoIcon: { width: 52, height: 52 },
   brandName: {
     fontSize: 34, fontWeight: '700', color: '#1A1A3E',
     fontFamily: 'Poppins_700Bold',
   },
   brandTagline: {
-    fontSize: 11, color: Colors.accent, letterSpacing: 4, marginTop: 3,
+    fontSize: 11, color: Colors.primary, letterSpacing: 4, marginTop: 3,
     fontFamily: 'Poppins_500Medium',
   },
-
-  toggle: {
-    flexDirection: 'row',
-    borderWidth: 1.5,
-    borderColor: Colors.accent,
-    borderRadius: 32,
-    overflow: 'hidden',
-    marginBottom: 28,
-  },
-  toggleBtn: { flex: 1, paddingVertical: 13, alignItems: 'center' },
-  toggleBtnActive: { backgroundColor: Colors.accent },
-  toggleText: { fontSize: 15, fontWeight: '600', color: Colors.accent, fontFamily: 'Poppins_600SemiBold' },
-  toggleTextActive: { color: Colors.white },
 
   field: {
     flexDirection: 'row', alignItems: 'center',
@@ -183,15 +155,15 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1.5, borderColor: 'transparent',
   },
-  fieldFocused: { borderColor: Colors.accent, backgroundColor: Colors.surface },
+  fieldFocused: { borderColor: Colors.primary, backgroundColor: Colors.surface },
   fieldIcon: { marginRight: 12 },
   fieldInput: { flex: 1, fontSize: 15, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },
 
   loginBtn: {
-    backgroundColor: Colors.accent, borderRadius: 32, height: 56,
+    backgroundColor: Colors.primary, borderRadius: 32, height: 56,
     alignItems: 'center', justifyContent: 'center',
     marginTop: 4, marginBottom: 20,
-    shadowColor: Colors.accent,
+    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -203,9 +175,9 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   },
 
   forgotRow: { alignItems: 'flex-end', marginBottom: 48 },
-  forgotText: { fontSize: 14, color: Colors.accent, fontFamily: 'Poppins_500Medium' },
+  forgotText: { fontSize: 14, color: Colors.primary, fontFamily: 'Poppins_500Medium' },
 
   signupRow: { flexDirection: 'row', justifyContent: 'center' },
   signupLabel: { fontSize: 14, color: Colors.textGray, fontFamily: 'Poppins_400Regular' },
-  signupLink: { fontSize: 14, color: Colors.accent, fontWeight: '700', fontFamily: 'Poppins_700Bold' },
+  signupLink: { fontSize: 14, color: Colors.primary, fontWeight: '700', fontFamily: 'Poppins_700Bold' },
 });

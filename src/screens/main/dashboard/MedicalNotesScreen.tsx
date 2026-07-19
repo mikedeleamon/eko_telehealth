@@ -6,7 +6,7 @@ import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import MedicalNotes from '../../../components/medical/MedicalNotes';
-import { useAddMedicalNote, useUpdateMedicalNote } from '../../../hooks/queries';
+import { useAddMedicalNote, useAddNoteAmendment } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import type { MedicalNote as MedicalNoteType, MedicalNoteInput, PatientSummary } from '../../../api/types';
 
@@ -26,19 +26,25 @@ export default function MedicalNotesScreen({ navigation, route }: Props) {
   const patient = route.params?.patient as PatientSummary;
   const note = route.params?.note as MedicalNoteType | undefined;
   const addNote = useAddMedicalNote(patient?.id ?? '');
-  const updateNote = useUpdateMedicalNote(patient?.id ?? '');
-  const saving = addNote.isPending || updateNote.isPending;
+  const addAmendment = useAddNoteAmendment(patient?.id ?? '');
+  const saving = addNote.isPending;
 
   const handleSave = async (input: MedicalNoteInput) => {
     try {
-      if (note) {
-        await updateNote.mutateAsync({ noteId: note.id, input });
-      } else {
-        await addNote.mutateAsync(input);
-      }
+      await addNote.mutateAsync(input);
       navigation.goBack();
     } catch (err) {
       Alert.alert(t('patients.couldNotSaveNote'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
+    }
+  };
+
+  // Records are immutable — a saved record can only be amended, never edited.
+  const handleAddAmendment = async (text: string) => {
+    if (!note) return;
+    try {
+      return await addAmendment.mutateAsync({ noteId: note.id, text });
+    } catch (err) {
+      Alert.alert(t('patients.couldNotSaveAmendment'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
     }
   };
 
@@ -49,7 +55,14 @@ export default function MedicalNotesScreen({ navigation, route }: Props) {
         onBack={() => navigation.goBack()}
       />
       {patient ? (
-        <MedicalNotes patient={patient} note={note} onSave={handleSave} saving={saving} />
+        <MedicalNotes
+          patient={patient}
+          note={note}
+          onSave={handleSave}
+          saving={saving}
+          onAddAmendment={handleAddAmendment}
+          amendmentSaving={addAmendment.isPending}
+        />
       ) : null}
     </View>
   );

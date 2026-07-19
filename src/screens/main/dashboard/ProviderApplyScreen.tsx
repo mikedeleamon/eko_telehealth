@@ -105,7 +105,7 @@ export default function ProviderApplyScreen({ navigation }: Props) {
           onChangeText={setFee}
         />
 
-        <EkoButton title={t('provider.submitApplication')} variant="accent" onPress={submit} loading={loading} style={styles.btn} />
+        <EkoButton title={t('provider.submitApplication')} variant="primary" onPress={submit} loading={loading} style={styles.btn} />
       </ScrollView>
     </KeyboardAvoidingView>
   );

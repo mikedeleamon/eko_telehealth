@@ -84,6 +84,38 @@ export const lightColors = {
 
 export type ThemeColors = typeof lightColors;
 
+/**
+ * Doctor role palette. Doctors get the warm orange as their leading brand
+ * colour — header gradients, the tab bar and primary buttons — while the app's
+ * purple steps back to become the secondary accent. Everything else (surfaces,
+ * text ramp, status colours) is inherited from the active light/dark base, so a
+ * doctor still gets correct dark-mode surfaces; only the brand hues swap.
+ *
+ * Derived from the base rather than hand-authored so the two roles can never
+ * drift out of sync as tokens are added.
+ */
+export function makeDoctorColors(base: ThemeColors, isDark: boolean): ThemeColors {
+  return {
+    ...base,
+    // Orange leads: chrome, icons, primary buttons, focus.
+    primary: base.accent,
+    primaryLight: isDark ? '#FF9E80' : '#FF9576',
+    primaryDark: base.accentDark,
+    primaryFaded: base.accentFaded,
+    // Purple becomes the secondary accent (badges, secondary highlights).
+    accent: base.primary,
+    accentDark: base.primaryDark,
+    accentFaded: base.primaryFaded,
+    // Header gradient goes orange.
+    gradientStart: isDark ? '#E8622A' : '#F9764F',
+    gradientEnd: isDark ? '#F97653' : '#FBA07E',
+    // Footer (tab bar) active state goes orange.
+    tabBarActive: base.accent,
+    // Tinted shadow follows the new brand colour in light mode.
+    shadow: isDark ? base.shadow : 'rgba(249, 118, 83, 0.12)',
+  };
+}
+
 export const darkColors: ThemeColors = {
   // Auth orange — the warm accent reads well on dark, so it barely shifts.
   accent: '#F97653',

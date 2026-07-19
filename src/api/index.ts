@@ -26,6 +26,8 @@ import type {
   MedicalNoteInput,
   PatientSummary,
   Pharmacy,
+  Prescription,
+  PrescriptionInput,
   PaymentIntent,
   PaymentStatus,
   ProviderState,
@@ -37,10 +39,14 @@ import type {
 
 export const api = {
   auth: {
-    /** POST /auth/login */
-    login(email: string, password: string, role: UserRole): Promise<AuthSession> {
-      if (env.useMockApi) return mockApi.login(email, password, role);
-      return request<AuthSession>('/auth/login', { method: 'POST', body: { email, password, role }, anonymous: true });
+    /**
+     * POST /auth/login — the account's type is resolved from the stored account
+     * (users.account_type), never sent by the client, so a user can't sign in as
+     * an account type theirs isn't.
+     */
+    login(email: string, password: string): Promise<AuthSession> {
+      if (env.useMockApi) return mockApi.login(email, password);
+      return request<AuthSession>('/auth/login', { method: 'POST', body: { email, password }, anonymous: true });
     },
 
     /**
@@ -55,7 +61,7 @@ export const api = {
       lastName: string;
       email: string;
       password: string;
-      role: UserRole;
+      accountType: UserRole;
       phone?: string;
     }): Promise<void> {
       if (env.useMockApi) return mockApi.signup(input);
@@ -242,10 +248,34 @@ export const api = {
       return request<MedicalNote>(`/practice/patients/${input.patientId}/notes`, { method: 'POST', body: input });
     },
 
-    /** PATCH /practice/notes/:noteId — server rejects non-authors. */
-    updateMedicalNote(noteId: string, input: Partial<MedicalNoteInput>): Promise<MedicalNote> {
-      if (env.useMockApi) return mockApi.updateMedicalNote(noteId, input);
-      return request<MedicalNote>(`/practice/notes/${noteId}`, { method: 'PATCH', body: input });
+    /**
+     * POST /practice/notes/:noteId/amendments — append an amendment to a locked
+     * record. Records are immutable, so there is no PATCH to edit the SOAP body;
+     * corrections are made as append-only amendments. Author is stamped
+     * server-side from the bearer token.
+     */
+    addNoteAmendment(noteId: string, text: string): Promise<MedicalNote> {
+      if (env.useMockApi) return mockApi.addNoteAmendment(noteId, text);
+      return request<MedicalNote>(`/practice/notes/${noteId}/amendments`, { method: 'POST', body: { text } });
+    },
+
+    /**
+     * GET /practice/patients/:patientId/prescriptions — the patient's full
+     * medication record (current + historical), shared across treating doctors.
+     */
+    prescriptions(patientId: string): Promise<Prescription[]> {
+      if (env.useMockApi) return mockApi.getPrescriptions(patientId);
+      return request<Prescription[]>(`/practice/patients/${patientId}/prescriptions`);
+    },
+
+    /**
+     * POST /practice/patients/:patientId/prescriptions — write a new
+     * prescription (becomes a current medication). Prescriber is stamped
+     * server-side from the bearer token.
+     */
+    addPrescription(input: PrescriptionInput): Promise<Prescription> {
+      if (env.useMockApi) return mockApi.addPrescription(input);
+      return request<Prescription>(`/practice/patients/${input.patientId}/prescriptions`, { method: 'POST', body: input });
     },
   },
 

@@ -84,7 +84,7 @@ export default function ChangePasswordScreen({ navigation, route }: Props) {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('a11y.back')}>
-            <FontAwesome name="arrow-left" size={20} color={Colors.accent} />
+            <FontAwesome name="arrow-left" size={20} color={Colors.primary} />
           </TouchableOpacity>
         </View>
 
@@ -96,7 +96,7 @@ export default function ChangePasswordScreen({ navigation, route }: Props) {
               prove identity with the code instead. */}
           {!isReset && (
             <View style={[styles.field, currentFocused && styles.fieldFocused]}>
-              <FontAwesome name="lock" size={18} color={currentFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
+              <FontAwesome name="lock" size={18} color={currentFocused ? Colors.primary : Colors.textGray} style={styles.fieldIcon} />
               <TextInput
                 style={styles.fieldInput}
                 placeholder={t('auth.currentPasswordPlaceholder')}
@@ -115,7 +115,7 @@ export default function ChangePasswordScreen({ navigation, route }: Props) {
 
           {/* New password */}
           <View style={[styles.field, newFocused && styles.fieldFocused]}>
-            <FontAwesome name="lock" size={18} color={newFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
+            <FontAwesome name="lock" size={18} color={newFocused ? Colors.primary : Colors.textGray} style={styles.fieldIcon} />
             <TextInput
               style={styles.fieldInput}
               placeholder={t('auth.newPasswordPlaceholder')}
@@ -133,7 +133,7 @@ export default function ChangePasswordScreen({ navigation, route }: Props) {
 
           {/* Confirm password */}
           <View style={[styles.field, confirmFocused && styles.fieldFocused]}>
-            <FontAwesome name="lock" size={18} color={confirmFocused ? Colors.accent : Colors.textGray} style={styles.fieldIcon} />
+            <FontAwesome name="lock" size={18} color={confirmFocused ? Colors.primary : Colors.textGray} style={styles.fieldIcon} />
             <TextInput
               style={styles.fieldInput}
               placeholder={t('auth.confirmPasswordPlaceholder')}
@@ -193,14 +193,14 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 20, height: 56, marginBottom: 16,
     borderWidth: 1.5, borderColor: 'transparent',
   },
-  fieldFocused: { borderColor: Colors.accent, backgroundColor: Colors.surface },
+  fieldFocused: { borderColor: Colors.primary, backgroundColor: Colors.surface },
   fieldIcon: { marginRight: 12 },
   fieldInput: { flex: 1, fontSize: 15, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },
 
   submitBtn: {
-    backgroundColor: Colors.accent, borderRadius: 32, height: 56,
+    backgroundColor: Colors.primary, borderRadius: 32, height: 56,
     alignItems: 'center', justifyContent: 'center', marginBottom: 28,
-    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 6 },
+    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
   },
   submitBtnText: {
@@ -209,8 +209,8 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   },
 
   rulesCard: {
-    borderWidth: 1.5, borderColor: Colors.accent, borderRadius: 16,
-    padding: 18, backgroundColor: Colors.accentFaded,
+    borderWidth: 1.5, borderColor: Colors.primary, borderRadius: 16,
+    padding: 18, backgroundColor: Colors.primaryFaded,
   },
   rulesTitle: {
     fontSize: 14, fontWeight: '700', color: Colors.textDark,
@@ -219,7 +219,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   ruleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   ruleDot: {
     width: 6, height: 6, borderRadius: 3,
-    backgroundColor: Colors.accent, marginRight: 10,
+    backgroundColor: Colors.primary, marginRight: 10,
   },
   ruleText: { fontSize: 13, color: Colors.textMedium, fontFamily: 'Poppins_400Regular' },
 });
