@@ -22,6 +22,12 @@ export interface User {
   email: string;
   /** The account's stored type. See {@link AccountType}. */
   accountType: UserRole;
+  /**
+   * Languages this account holder speaks (task 2.5) — personal, editable
+   * from EditProfileScreen. Distinct from the app's own display language
+   * (store/localeStore.ts) — this is who they can communicate with.
+   */
+  spokenLanguages: string[];
 }
 
 export interface AuthSession {
@@ -47,6 +53,10 @@ export interface Doctor {
   available: boolean;
   nextAvailable: string;
   avatar: string | null;
+  /** Admin-granted privilege — Home Visit can only be booked when this is true. */
+  canProvideInHome: boolean;
+  /** Languages this provider consults in — what the language filter searches. */
+  spokenLanguages: string[];
 }
 
 /**
@@ -184,8 +194,19 @@ export interface MedicalNote {
   reason: string;
   subjective: string;
   objective: string;
+  /** Free-text assessment (legacy) — mirrors the primary diagnosis for new records. */
   assessment: string;
+  /** Structured assessment: the principal diagnosis. */
+  primaryDiagnosis?: string;
+  /** Additional diagnoses, in order. */
+  secondaryDiagnoses?: string[];
   plan: string;
+  /**
+   * 'draft' records are still editable by their author; 'final' records are
+   * locked — the SOAP body can never be edited, only amended. Absent = 'final'
+   * (legacy records predate drafts).
+   */
+  status?: 'draft' | 'final';
   /** Append-only addenda to this locked record, oldest first. */
   amendments?: NoteAmendment[];
   /** ISO timestamp — required; lists sort on this, not the display date. */
@@ -203,7 +224,11 @@ export interface MedicalNoteInput {
   subjective: string;
   objective: string;
   assessment: string;
+  primaryDiagnosis?: string;
+  secondaryDiagnoses?: string[];
   plan: string;
+  /** 'draft' saves a resumable draft; 'final' locks the record. Defaults to 'final'. */
+  status?: 'draft' | 'final';
 }
 
 /**
@@ -257,6 +282,72 @@ export interface PrescriptionInput {
   instructions?: string;
 }
 
+/**
+ * A laboratory result on a patient's record. Both doctors and patients can view
+ * and add labs (patients log outside results; doctors record ordered tests).
+ * Fields follow lab record-keeping best practice: test identity (name + LOINC),
+ * specimen, the result value with unit + reference range + interpretation flag,
+ * order/result dates, the ordering provider and performing lab, and an optional
+ * scanned report attachment.
+ */
+export type LabStatus = 'ordered' | 'collected' | 'resulted';
+/** Interpretation of the value against its reference range. */
+export type LabFlag = 'normal' | 'low' | 'high' | 'critical' | 'abnormal';
+
+export interface LabResult {
+  id: string;
+  patientId: string;
+  /** Test or panel name, e.g. "Complete Blood Count", "Fasting Glucose". */
+  testName: string;
+  /** LOINC code, when known — the standard identifier for the observation. */
+  loincCode?: string;
+  /** Specimen type, e.g. "Blood", "Serum", "Urine". */
+  specimen: string;
+  /** Measured value, e.g. "5.4". Free text so qualitative results fit too. */
+  value: string;
+  /** Unit of measure, e.g. "mmol/L". */
+  unit?: string;
+  /** Reference/normal range, e.g. "3.9–5.5". */
+  referenceRange?: string;
+  flag: LabFlag;
+  status: LabStatus;
+  /** Ordering provider (may differ from whoever entered the record). */
+  orderedBy?: string;
+  /** Performing laboratory / facility. */
+  performingLab?: string;
+  /** Display date the specimen was collected, e.g. "Jul 10, 2026". */
+  collectedDate: string;
+  /** Display date the result came back. */
+  resultedDate?: string;
+  /** Interpretation / clinical notes. */
+  notes?: string;
+  /** Scanned report (PDF/image): R2 url/key (live) or local uri (mock). */
+  attachmentUrl?: string | null;
+  attachmentName?: string;
+  /** ISO timestamp — lists sort on this. */
+  createdAt: string;
+}
+
+/** Author of the record is contextual (patient vs doctor); patientId comes from the route. */
+export interface LabInput {
+  testName: string;
+  loincCode?: string;
+  specimen: string;
+  value: string;
+  unit?: string;
+  referenceRange?: string;
+  flag: LabFlag;
+  status: LabStatus;
+  orderedBy?: string;
+  performingLab?: string;
+  collectedDate: string;
+  resultedDate?: string;
+  notes?: string;
+  /** R2 object key from a prior presign, when a report was attached. */
+  attachmentKey?: string;
+  attachmentName?: string;
+}
+
 export interface DoctorAgendaItem {
   id: string;
   name: string;
@@ -272,23 +363,126 @@ export interface Review {
   text: string;
   /** Display date, e.g. "Jul 16, 2026". */
   date: string;
+  /** Short headline for the review, App Store style. */
+  title?: string;
+  /** The author actually completed a consultation with the subject. */
+  verified?: boolean;
+  /** Number of comments/replies on the review (display-only count). */
+  comments?: number;
 }
 
-export interface PaymentIntent {
+/**
+ * Aggregate ratings for a subject — powers the App Store-style summary header
+ * (big average + total + per-star distribution bars). Computed server-side over
+ * published reviews only, so it always matches the visible list.
+ */
+export interface ReviewSummary {
+  /** Mean rating to one decimal, e.g. 4.5. 0 when there are no reviews. */
+  average: number;
+  /** Total number of published ratings. */
+  total: number;
+  /** Count per star: index 0 = 1★ … index 4 = 5★. */
+  distribution: [number, number, number, number, number];
+}
+
+export type ComplaintCategory = 'billing' | 'appointment' | 'provider' | 'technical' | 'other';
+export type ComplaintStatus = 'pending' | 'resolved' | 'dismissed';
+
+/** A report a patient or doctor filed via Settings → Report a Problem (task 2.1). */
+export interface Complaint {
+  id: string;
+  category: ComplaintCategory;
+  subject: string;
+  description: string;
+  status: ComplaintStatus;
+  /** Admin's note, shown once resolved/dismissed. */
+  resolutionNote?: string;
+  /** Display date, e.g. "Jul 19, 2026". */
+  submittedAt: string;
+}
+
+export interface ComplaintInput {
+  category: ComplaintCategory;
+  subject: string;
+  description: string;
+}
+
+/**
+ * NGN fee breakdown for a visit (see backend lib/pricing.ts
+ * computeFeeBreakdown). Independent of whatever currency was actually
+ * charged at the gateway (e.g. USD for PayPal) — always canonical NGN.
+ */
+export interface FeeBreakdown {
+  consultationFee: number;
+  serviceCharge: number;
+  /** 0 unless the visit is a Video Visit — Clinic/Home visits are VAT-exempt. */
+  vat: number;
+  discount: number;
+  providerCommission: number;
+  /** consultationFee − providerCommission. VAT is never withheld from this. */
+  providerPayout: number;
+}
+
+/**
+ * Why a promo code did or didn't apply — see backend services/promos.ts.
+ * 'applied' is the only status with a nonzero discount.
+ */
+export type PromoStatus = 'applied' | 'not_found' | 'inactive' | 'expired' | 'min_spend' | 'limit_reached' | 'user_limit_reached';
+
+/** GET /payments/preview/:appointmentId — what a visit will cost before checkout starts. */
+export interface PaymentPreview extends FeeBreakdown {
+  /** consultationFee + serviceCharge + vat − discount. */
+  patientTotal: number;
+  /** Set only when a code was passed to the preview call; explains why discount is (or isn't) applied. */
+  promoStatus?: PromoStatus | null;
+}
+
+export interface PaymentIntent extends FeeBreakdown {
   id: string;
   /** 'flutterwave' | 'paypal' — the two providers named in the pitch. */
   provider: string;
+  /** What's actually charged at the gateway — patientTotal in NGN for Flutterwave, or its currency conversion for PayPal. */
   amount: number;
   currency: string;
   /** Provider checkout URL or client secret, depending on provider. */
   checkoutRef: string;
   status: 'pending' | 'succeeded' | 'failed';
+  /** The promo code that produced `discount`, if any (uppercased). */
+  promoCode?: string;
 }
 
 /** GET /payments/:id — the post-checkout truth, since the redirect proves nothing. */
 export interface PaymentStatus extends PaymentIntent {
   /** The visit is only booked once this reads 'upcoming'. */
   appointmentStatus: AppointmentStatus;
+}
+
+/**
+ * GET /me/payments — one settled payment on a patient's spend history.
+ *
+ * `amount`/`currency` are what was actually charged at the gateway (USD for
+ * PayPal, NGN for Flutterwave) — don't sum these across receipts, it mixes
+ * currencies. consultationFee/serviceCharge/vat/discount are always
+ * canonical NGN regardless of gateway, so those are what a "total spent"
+ * figure should sum instead.
+ */
+export interface PaymentReceipt {
+  id: string;
+  doctorName: string;
+  specialty: string;
+  visitType: VisitType;
+  date: string;
+  time: string;
+  provider: string;
+  amount: number;
+  currency: string;
+  consultationFee?: number;
+  serviceCharge?: number;
+  vat?: number;
+  discount: number;
+  promoCode?: string;
+  /** ISO 8601 — when the payment was created (not the visit date). */
+  createdAt: string;
 }
 
 /**
@@ -369,6 +563,46 @@ export interface Pharmacy {
   name?: string;
   address: string;
   fax: string;
+}
+
+/**
+ * A stored document / credential (Doctor "Documents & Certifications"). Files
+ * live in R2; this row is the metadata. `url` is the object key (or public URL)
+ * in live mode, and the local file uri in mock mode.
+ */
+export type DocumentCategory = 'license' | 'certification' | 'government-id' | 'insurance' | 'other';
+
+export interface StoredDocument {
+  id: string;
+  /** User-facing title, e.g. "MDCN Practising License 2026". */
+  name: string;
+  category: DocumentCategory;
+  /** Original file name, e.g. "license.pdf". */
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  /** R2 key/public URL (live) or local file uri (mock); null if not resolvable. */
+  url: string | null;
+  /** Display date, e.g. "Jul 20, 2026". */
+  uploadedAt: string;
+  /** ISO timestamp — lists sort on this. */
+  createdAt: string;
+}
+
+/** A file chosen from the device, ready to upload. */
+export interface PickedFile {
+  uri: string;
+  name: string;
+  mimeType: string;
+  size: number;
+}
+
+/** POST /uploads/presign response — a short-lived R2 PUT URL. */
+export interface PresignResult {
+  uploadUrl: string;
+  key: string;
+  publicUrl: string | null;
+  expiresIn: number;
 }
 
 /** Theme preference. 'system' follows the device's light/dark appearance. */

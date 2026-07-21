@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, StatusBar, Platform, Alert,
+  View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, StatusBar, Platform, Alert, Modal,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,6 +31,15 @@ const STATUS_META: Record<string, { color: string; icon: string; tint: string | 
   pending: { color: Colors.orange, icon: 'clock-o', tint: Colors.cardColors[0] },
 };
 
+/** Statuses the agenda filter offers, in display order. Labels come from i18n. */
+const AGENDA_STATUSES = ['confirmed', 'pending', 'rescheduled', 'cancelled'] as const;
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  confirmed: 'dashboard.statusConfirmed',
+  pending: 'dashboard.statusPending',
+  rescheduled: 'dashboard.statusRescheduled',
+  cancelled: 'dashboard.statusCancelled',
+};
+
 export default function DashboardScreen({ navigation }: Props) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
@@ -38,6 +47,14 @@ export default function DashboardScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [search, setSearch] = useState('');
+  // Agenda status filter. Empty = show all; any subset filters Today's list.
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [activeStatuses, setActiveStatuses] = useState<string[]>([]);
+  const filtersActive = activeStatuses.length > 0;
+  const toggleStatus = (status: string) =>
+    setActiveStatuses((prev) =>
+      prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status],
+    );
 
   const firstName = user?.firstName ?? 'Doctor';
   const { data: provider } = useProviderState();
@@ -60,9 +77,11 @@ export default function DashboardScreen({ navigation }: Props) {
   const requests = query
     ? allRequests.filter((a) => a.doctor.toLowerCase().includes(query))
     : allRequests;
-  const filteredAgenda = query
-    ? agenda.filter((a) => a.name.toLowerCase().includes(query))
-    : agenda;
+  const filteredAgenda = agenda.filter((a) => {
+    if (query && !a.name.toLowerCase().includes(query)) return false;
+    if (activeStatuses.length && !activeStatuses.includes(a.status)) return false;
+    return true;
+  });
 
   const respond = (id: string, name: string, decide: 'accept' | 'decline') => {
     decision.mutate(
@@ -127,8 +146,14 @@ export default function DashboardScreen({ navigation }: Props) {
             onChangeText={setSearch}
           />
           <View style={styles.searchDivider} />
-          <TouchableOpacity onPress={() => navigation.navigate('PatientsTab')}>
-            <FontAwesome name="sliders" size={16} color={Colors.textGray} />
+          <TouchableOpacity
+            onPress={() => setFilterOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t('dashboard.filterTitle')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <FontAwesome name="sliders" size={16} color={filtersActive ? Colors.primary : Colors.textGray} />
+            {filtersActive && <View style={styles.filterDot} />}
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -225,8 +250,12 @@ export default function DashboardScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
 
-          {filteredAgenda.length === 0 && query.length > 0 ? (
-            <Text style={styles.emptyRequests}>{t('dashboard.noMatchesFor', { query: search.trim() })}</Text>
+          {filteredAgenda.length === 0 && (query.length > 0 || filtersActive) ? (
+            <Text style={styles.emptyRequests}>
+              {query.length > 0
+                ? t('dashboard.noMatchesFor', { query: search.trim() })
+                : t('dashboard.noMatchingStatus')}
+            </Text>
           ) : null}
           {filteredAgenda.map((appt) => {
             const meta = STATUS_META[appt.status] ?? STATUS_META.confirmed;
@@ -253,6 +282,51 @@ export default function DashboardScreen({ navigation }: Props) {
           })}
         </View>
       </ScrollView>
+
+      {/* Agenda status filter sheet */}
+      <Modal visible={filterOpen} transparent animationType="slide" onRequestClose={() => setFilterOpen(false)}>
+        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setFilterOpen(false)}>
+          <TouchableOpacity style={styles.sheet} activeOpacity={1} onPress={() => {}}>
+            <View style={styles.grabber} />
+            <View style={styles.sheetHead}>
+              <Text style={styles.sheetTitle}>{t('dashboard.filterTitle')}</Text>
+              {filtersActive && (
+                <TouchableOpacity onPress={() => setActiveStatuses([])} accessibilityRole="button" accessibilityLabel={t('dashboard.filterShowAll')}>
+                  <Text style={styles.sheetReset}>{t('dashboard.filterShowAll')}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={styles.sheetLabel}>{t('dashboard.filterByStatus')}</Text>
+            <View style={styles.chipRow}>
+              {AGENDA_STATUSES.map((status) => {
+                const selected = activeStatuses.includes(status);
+                const meta = STATUS_META[status];
+                return (
+                  <TouchableOpacity
+                    key={status}
+                    style={[styles.chip, selected && { backgroundColor: meta.color + '1A', borderColor: meta.color }]}
+                    onPress={() => toggleStatus(status)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: selected }}
+                    accessibilityLabel={t(STATUS_LABEL_KEYS[status])}
+                  >
+                    <FontAwesome name={meta.icon as any} size={13} color={selected ? meta.color : Colors.textGray} />
+                    <Text style={[styles.chipText, selected && { color: meta.color, fontWeight: '700' }]}>
+                      {t(STATUS_LABEL_KEYS[status])}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <EkoButton
+              title={t('dashboard.filterApply')}
+              variant="primary"
+              onPress={() => setFilterOpen(false)}
+              style={styles.sheetApply}
+            />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -298,6 +372,11 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 14, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },
   searchDivider: { width: 1, height: 18, backgroundColor: Colors.borderGray },
+  filterDot: {
+    position: 'absolute', top: -4, right: -5,
+    width: 9, height: 9, borderRadius: 5, backgroundColor: Colors.accent,
+    borderWidth: 1.5, borderColor: Colors.surface,
+  },
 
   body: { flex: 1 },
   section: { paddingHorizontal: 16, paddingTop: 20 },
@@ -368,4 +447,30 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   apptType: { fontSize: 10, color: Colors.textGray, marginTop: 2, letterSpacing: 0.5, fontFamily: 'Poppins_400Regular' },
   apptTimeWrap: { flexDirection: 'row', alignItems: 'center' },
   apptTime: { fontSize: 12, color: Colors.textMedium, fontFamily: 'Poppins_500Medium' },
+
+  // Filter sheet
+  overlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: Colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    padding: 24, paddingBottom: 36,
+  },
+  grabber: {
+    alignSelf: 'center', width: 40, height: 4, borderRadius: 2,
+    backgroundColor: Colors.borderGray, marginBottom: 16,
+  },
+  sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  sheetTitle: { fontSize: 18, fontWeight: '800', color: Colors.textDark, fontFamily: 'Poppins_700Bold' },
+  sheetReset: { fontSize: 13, color: Colors.primary, fontWeight: '600', fontFamily: 'Poppins_600SemiBold' },
+  sheetLabel: {
+    fontSize: 12, fontWeight: '700', color: Colors.textGray, marginBottom: 10,
+    textTransform: 'uppercase', letterSpacing: 0.6, fontFamily: 'Poppins_600SemiBold',
+  },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
+  chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20,
+    borderWidth: 1.5, borderColor: Colors.borderGray, backgroundColor: Colors.bgLight,
+  },
+  chipText: { fontSize: 13, color: Colors.textMedium, fontWeight: '500', fontFamily: 'Poppins_500Medium' },
+  sheetApply: { width: '100%' },
 });

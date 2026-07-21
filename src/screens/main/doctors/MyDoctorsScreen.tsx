@@ -50,7 +50,11 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
     const matchSpecialty = !filters.specialties.length || filters.specialties.includes(d.category);
     const matchRating = d.rating >= filters.minRating;
     const matchAvailable = !filters.availableOnly || d.available;
-    return matchSearch && matchChip && matchSpecialty && matchRating && matchAvailable;
+    // Matches if the doctor speaks ANY of the selected languages (task 2.5) —
+    // an "and" would demand a doctor speak every language the patient picked,
+    // which isn't what "find someone who speaks my language" means.
+    const matchLanguage = !filters.languages.length || filters.languages.some((l) => d.spokenLanguages.includes(l));
+    return matchSearch && matchChip && matchSpecialty && matchRating && matchAvailable && matchLanguage;
   });
 
   const todayAppts = appointments.filter(a => a.status === 'upcoming').slice(0, 2);
@@ -134,7 +138,7 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
               name="sliders"
               size={16}
               color={
-                filters.specialties.length || filters.minRating > 0 || filters.availableOnly
+                filters.specialties.length || filters.minRating > 0 || filters.availableOnly || filters.languages.length
                   ? Colors.primary
                   : Colors.textGray
               }

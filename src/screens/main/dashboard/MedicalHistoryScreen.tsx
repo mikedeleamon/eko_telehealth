@@ -47,9 +47,10 @@ export default function MedicalHistoryScreen({ navigation, route }: Props) {
 
   const renderNote = ({ item }: { item: MedicalNote }) => {
     const mine = item.doctorId === user?.id;
+    const isDraft = (item.status ?? 'final') === 'draft';
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={[styles.card, isDraft && styles.cardDraft]}
         activeOpacity={0.85}
         onPress={() => navigation.navigate('MedicalNotes', { patient, note: item })}
       >
@@ -58,7 +59,12 @@ export default function MedicalHistoryScreen({ navigation, route }: Props) {
             <FontAwesome name="calendar" size={11} color={Colors.primary} />
             <Text style={styles.dateText}>{item.date}</Text>
           </View>
-          {mine ? (
+          {isDraft ? (
+            <View style={styles.draftPill}>
+              <FontAwesome name="pencil" size={10} color={Colors.white} />
+              <Text style={styles.draftPillText}>{t('patients.draftBadge')}</Text>
+            </View>
+          ) : mine ? (
             <View style={styles.youPill}>
               <Text style={styles.youPillText}>{t('patients.you')}</Text>
             </View>
@@ -173,6 +179,13 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 3,
   },
   youPillText: { fontSize: 11, color: Colors.white, fontWeight: '700', fontFamily: 'Poppins_600SemiBold' },
+  cardDraft: { borderWidth: 1, borderColor: Colors.accent + '55', borderStyle: 'dashed' },
+  draftPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: Colors.orange, borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 3,
+  },
+  draftPillText: { fontSize: 11, color: Colors.white, fontWeight: '700', fontFamily: 'Poppins_600SemiBold' },
   lockRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   lockText: { fontSize: 11, color: Colors.textGray, fontFamily: 'Poppins_400Regular' },
 

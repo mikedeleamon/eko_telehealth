@@ -44,8 +44,12 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
   const { doctor, slot, date, type } = route.params ?? {};
+  // Home Visit is an admin-granted privilege (task 2.3) — only offered for
+  // doctors certified for it. The backend enforces this too (routes/
+  // appointments.ts), so this is UX, not the actual gate.
+  const availableTypes = doctor?.canProvideInHome ? TYPES : TYPES.filter((opt) => opt.label !== 'Home Visit');
   const [selectedType, setSelectedType] = useState(
-    TYPES.some((t) => t.label === type) ? type : 'Video Visit'
+    availableTypes.some((t) => t.label === type) ? type : 'Video Visit'
   );
   const createAppointment = useCreateAppointment();
   const loading = createAppointment.isPending;
@@ -123,7 +127,7 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
 
         <Text style={styles.sectionLabel}>{t('appointments.appointmentTypeLabel')}</Text>
         <View style={styles.typeRow}>
-          {TYPES.map((opt) => (
+          {availableTypes.map((opt) => (
             <TouchableOpacity
               key={opt.label}
               style={[styles.typeBtn, selectedType === opt.label && styles.typeBtnActive]}

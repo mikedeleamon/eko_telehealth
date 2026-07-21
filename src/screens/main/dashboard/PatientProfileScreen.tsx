@@ -334,6 +334,36 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                         />
                     </TouchableOpacity>
 
+                    {/* Labs — shared lab results, view + add */}
+                    <TouchableOpacity
+                        style={styles.historyRowStacked}
+                        onPress={() =>
+                            navigation.navigate('Labs', { patient })
+                        }
+                        activeOpacity={0.85}
+                    >
+                        <View style={styles.historyIcon}>
+                            <FontAwesome
+                                name='flask'
+                                size={16}
+                                color={Colors.primary}
+                            />
+                        </View>
+                        <View style={styles.historyInfo}>
+                            <Text style={styles.historyTitle}>
+                                {t('labs.title')}
+                            </Text>
+                            <Text style={styles.historySub}>
+                                {t('labs.profileSubtitle')}
+                            </Text>
+                        </View>
+                        <FontAwesome
+                            name='chevron-right'
+                            size={14}
+                            color={Colors.textGray}
+                        />
+                    </TouchableOpacity>
+
                     {/* Actions */}
                     <View style={styles.actionsRow}>
                         <TouchableOpacity

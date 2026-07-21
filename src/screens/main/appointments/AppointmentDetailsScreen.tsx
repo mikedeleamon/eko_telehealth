@@ -5,15 +5,12 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
-import { useCancelAppointment, useDoctors } from '../../../hooks/queries';
+import { useAppointmentBreakdown, useCancelAppointment, useDoctors } from '../../../hooks/queries';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
 import { useAuth } from '../../../context/AuthContext';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { splitFee, formatMoney } from '../../../utils/format';
-
-/** Share of the fee withheld for platform taxes and fees. */
-const TAXES_FEES_RATE = 0.25;
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -70,19 +67,25 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
   const statusLabel = STATUS_LABEL_KEYS[status] ? t(STATUS_LABEL_KEYS[status]) : status;
   const typeIcon = TYPE_ICONS[type] ?? 'calendar';
 
-  // Doctors are paid the fee minus platform taxes & fees, so their view breaks
-  // the gross fee down into what's withheld and what they take home.
   const feeDisplay = appointment.fee ?? doctor.fee ?? '₦15,000';
-  const parsedFee = splitFee(feeDisplay);
+
+  // Doctors are paid the fee minus platform commission (and VAT, for Video
+  // Visits) — the breakdown comes from the settled payment on the server,
+  // never computed locally, since the platform's rates are admin-managed and
+  // can change (see backend lib/pricing.ts). Only fetched once a payment
+  // could actually exist to break down.
+  const { data: breakdown } = useAppointmentBreakdown(appointment.id, isDoctor && isConfirmed);
+  const feeSymbol = splitFee(feeDisplay)?.symbol ?? '₦';
   const feeBreakdown =
-    isDoctor && parsedFee
-      ? (() => {
-          const deduction = Math.round(parsedFee.amount * TAXES_FEES_RATE);
-          return {
-            taxesAndFees: formatMoney(parsedFee.symbol, deduction),
-            takeHome: formatMoney(parsedFee.symbol, parsedFee.amount - deduction),
-          };
-        })()
+    breakdown && breakdown.consultationFee > 0
+      ? {
+          commissionRate: Math.round((breakdown.providerCommission / breakdown.consultationFee) * 1000) / 10,
+          vatRate: Math.round((breakdown.vat / breakdown.consultationFee) * 1000) / 10,
+          platformFee: formatMoney(feeSymbol, breakdown.providerCommission),
+          vat: formatMoney(feeSymbol, breakdown.vat),
+          hasVat: breakdown.vat > 0,
+          takeHome: formatMoney(feeSymbol, breakdown.providerPayout),
+        }
       : null;
 
   const joinCall = () => {
@@ -140,11 +143,19 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
           {feeBreakdown && (
             <>
               <DetailRow
-                icon="scissors"
-                label={t('appointments.taxesAndFees', { rate: Math.round(TAXES_FEES_RATE * 100) })}
-                value={`− ${feeBreakdown.taxesAndFees}`}
+                icon="briefcase"
+                label={t('appointments.platformFee', { rate: feeBreakdown.commissionRate })}
+                value={`− ${feeBreakdown.platformFee}`}
                 valueColor={Colors.textMedium}
               />
+              {feeBreakdown.hasVat && (
+                <DetailRow
+                  icon="university"
+                  label={t('appointments.vat', { rate: feeBreakdown.vatRate })}
+                  value={`− ${feeBreakdown.vat}`}
+                  valueColor={Colors.textMedium}
+                />
+              )}
               <DetailRow
                 icon="money"
                 label={t('appointments.takeHomePay')}

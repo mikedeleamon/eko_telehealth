@@ -7,6 +7,7 @@ import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
+import { LANGUAGE_OPTIONS } from '../../../constants';
 import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
@@ -19,13 +20,16 @@ export interface DoctorFilters {
   specialties: string[];
   minRating: number;
   availableOnly: boolean;
+  /** Task 2.5 — matches if the doctor speaks ANY of the selected languages. */
+  languages: string[];
 }
 
-export const EMPTY_FILTERS: DoctorFilters = { specialties: [], minRating: 0, availableOnly: false };
+export const EMPTY_FILTERS: DoctorFilters = { specialties: [], minRating: 0, availableOnly: false, languages: [] };
 
 // Only dimensions the Doctor model can actually filter on: `category`,
-// `rating`, and `available`. Availability windows, visit type, and insurance
-// have no backing fields — chips for them would be decoration.
+// `rating`, `available`, and (task 2.5) `spokenLanguages`. Availability
+// windows, visit type, and insurance have no backing fields — chips for
+// them would be decoration.
 const SPECIALTIES = ['Primary Care', 'Eye Doctor', 'OBGYN', 'Cardiology', 'Dermatology', 'Neurology'];
 
 export default function FilterScreen({ navigation, route }: Props) {
@@ -36,6 +40,7 @@ export default function FilterScreen({ navigation, route }: Props) {
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>(initial.specialties);
   const [minRating, setMinRating] = useState(initial.minRating);
   const [availableOnly, setAvailableOnly] = useState(initial.availableOnly);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(initial.languages);
 
   const toggle = (arr: string[], setArr: (v: string[]) => void, val: string) => {
     setArr(arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]);
@@ -82,6 +87,14 @@ export default function FilterScreen({ navigation, route }: Props) {
           </View>
         </Section>
 
+        <Section title={t('doctors.language')}>
+          <View style={styles.chipRow}>
+            {LANGUAGE_OPTIONS.map((lang) => (
+              <ChipBtn key={lang} label={lang} active={selectedLanguages.includes(lang)} onPress={() => toggle(selectedLanguages, setSelectedLanguages, lang)} />
+            ))}
+          </View>
+        </Section>
+
         <View style={styles.actions}>
           <EkoButton
             title={t('doctors.reset')}
@@ -90,6 +103,7 @@ export default function FilterScreen({ navigation, route }: Props) {
               setSelectedSpecialties([]);
               setMinRating(0);
               setAvailableOnly(false);
+              setSelectedLanguages([]);
             }}
             style={styles.resetBtn}
           />
@@ -101,7 +115,7 @@ export default function FilterScreen({ navigation, route }: Props) {
               // pushing a new instance of it onto the stack.
               navigation.navigate({
                 name: 'MyDoctors',
-                params: { filters: { specialties: selectedSpecialties, minRating, availableOnly } },
+                params: { filters: { specialties: selectedSpecialties, minRating, availableOnly, languages: selectedLanguages } },
                 merge: true,
               } as never)
             }

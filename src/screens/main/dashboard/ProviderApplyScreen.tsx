@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
@@ -8,7 +8,7 @@ import EkoHeader from '../../../components/common/EkoHeader';
 import EkoTextField from '../../../components/common/EkoTextField';
 import EkoSelectField, { OTHER_OPTION } from '../../../components/common/EkoSelectField';
 import EkoButton from '../../../components/common/EkoButton';
-import { PROVIDER_CATEGORY_OPTIONS, SPECIALTY_OPTIONS } from '../../../constants';
+import { LANGUAGE_OPTIONS, PROVIDER_CATEGORY_OPTIONS, SPECIALTY_OPTIONS } from '../../../constants';
 import { api } from '../../../api';
 import { queryKeys } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
@@ -33,8 +33,15 @@ export default function ProviderApplyScreen({ navigation }: Props) {
   const [category, setCategory] = useState('');
   const [location, setLocation] = useState('');
   const [fee, setFee] = useState('');
+  // Patients search/match by shared language (task 2.5) — captured here,
+  // once, and carried onto the doctors row when this application is approved.
+  const [spokenLanguages, setSpokenLanguages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const qc = useQueryClient();
+
+  const toggleLanguage = (lang: string) => {
+    setSpokenLanguages((prev) => (prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang]));
+  };
 
   const submit = async () => {
     const resolvedSpecialty = specialty === OTHER_OPTION ? specialtyOther.trim() : specialty.trim();
@@ -42,6 +49,7 @@ export default function ProviderApplyScreen({ navigation }: Props) {
     if (category.trim().length < 2) return Alert.alert('', t('provider.valCategory'));
     if (location.trim().length < 2) return Alert.alert('', t('provider.valLocation'));
     if (!fee.trim()) return Alert.alert('', t('provider.valFee'));
+    if (!spokenLanguages.length) return Alert.alert('', t('provider.valLanguages'));
 
     setLoading(true);
     try {
@@ -50,6 +58,7 @@ export default function ProviderApplyScreen({ navigation }: Props) {
         category: category.trim(),
         location: location.trim(),
         fee: fee.trim(),
+        spokenLanguages,
       });
       qc.invalidateQueries({ queryKey: queryKeys.providerState });
       Alert.alert(
@@ -105,6 +114,24 @@ export default function ProviderApplyScreen({ navigation }: Props) {
           onChangeText={setFee}
         />
 
+        <Text style={styles.chipLabel}>{t('provider.spokenLanguages')}</Text>
+        <View style={styles.chipRow}>
+          {LANGUAGE_OPTIONS.map((lang) => {
+            const active = spokenLanguages.includes(lang);
+            return (
+              <TouchableOpacity
+                key={lang}
+                style={[styles.chip, active && styles.chipActive]}
+                onPress={() => toggleLanguage(lang)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{lang}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         <EkoButton title={t('provider.submitApplication')} variant="primary" onPress={submit} loading={loading} style={styles.btn} />
       </ScrollView>
     </KeyboardAvoidingView>
@@ -118,5 +145,17 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     fontSize: 13, color: Colors.textGray, lineHeight: 20,
     marginBottom: 20, fontFamily: 'Poppins_400Regular',
   },
+  chipLabel: {
+    fontSize: 13, fontWeight: '600', color: Colors.textMedium,
+    marginBottom: 8, marginLeft: 2, fontFamily: 'Poppins_600SemiBold',
+  },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
+  chip: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    borderWidth: 1.5, borderColor: Colors.borderGray, backgroundColor: Colors.surface,
+  },
+  chipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  chipText: { fontSize: 13, color: Colors.textMedium, fontWeight: '500' },
+  chipTextActive: { color: Colors.white },
   btn: { marginTop: 8 },
 });

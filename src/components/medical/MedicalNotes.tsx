@@ -27,71 +27,81 @@ function formatAmendmentTime(iso: string): string {
 
 interface Props {
   patient: PatientSummary;
-  /** Existing record → locked, read-only view with amendments. Absent → create. */
+  /** Existing record. A 'final' note → locked read-only view; a 'draft' → editable. */
   note?: MedicalNote;
+  /** Finalize (lock) the record. */
   onSave: (input: MedicalNoteInput) => void;
   saving?: boolean;
+  /** Save as a resumable draft (create or update). */
+  onSaveDraft?: (input: MedicalNoteInput) => void;
+  savingDraft?: boolean;
   /** Append an amendment to the locked record. Returns the updated record. */
   onAddAmendment?: (text: string) => Promise<MedicalNote | void> | void;
   amendmentSaving?: boolean;
 }
 
-const SOAP_SECTIONS = [
-  { key: 'subjective', labelKey: 'patients.subjective', helperKey: 'patients.subjectiveHelper' },
-  { key: 'objective', labelKey: 'patients.objective', helperKey: 'patients.objectiveHelper' },
-  { key: 'assessment', labelKey: 'patients.assessment', helperKey: 'patients.assessmentHelper' },
-  { key: 'plan', labelKey: 'patients.plan', helperKey: 'patients.planHelper' },
-] as const;
+/** The three free-text SOAP sections; Assessment is rendered specially between O and P. */
+const TEXT_SECTIONS = {
+  subjective: { labelKey: 'patients.subjective', helperKey: 'patients.subjectiveHelper' },
+  objective: { labelKey: 'patients.objective', helperKey: 'patients.objectiveHelper' },
+  plan: { labelKey: 'patients.plan', helperKey: 'patients.planHelper' },
+} as const;
 
-type SoapKey = (typeof SOAP_SECTIONS)[number]['key'];
+type TextKey = keyof typeof TEXT_SECTIONS;
 
 /** Notes can only document real visits — booked or completed, not pending. */
 const LINKABLE_STATUSES = ['past', 'upcoming'];
 
 /**
- * SOAP-format visit note form. Mode is derived, never passed: no note means
- * create; a note authored by the logged-in doctor means edit; anyone else's
- * note renders read-only.
+ * SOAP-format visit note form. Mode is derived: no note → create; a 'draft'
+ * note → resume editing; a 'final' note → locked, read-only with amendments.
+ * The Assessment section captures a structured Primary Diagnosis plus any number
+ * of Secondary Diagnoses. Saving is a two-step commit: Save Draft keeps it
+ * editable; Save (behind a confirmation) locks it permanently.
  */
-export default function MedicalNotes({ patient, note, onSave, saving = false, onAddAmendment, amendmentSaving = false }: Props) {
+export default function MedicalNotes({ patient, note, onSave, saving = false, onSaveDraft, savingDraft = false, onAddAmendment, amendmentSaving = false }: Props) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
   const { user } = useAuth();
-  // A saved record is always locked: the SOAP body can never be edited, by the
-  // author or anyone else. Corrections are made as amendments instead.
-  const readOnly = !!note;
+
+  // A 'final' record is locked forever; a 'draft' is still editable by its
+  // author. Legacy records without a status are treated as final.
+  const isFinal = !!note && (note.status ?? 'final') === 'final';
+  const readOnly = isFinal;
   const creating = !note;
+  const editingDraft = !!note && !isFinal;
+  const editable = !readOnly;
 
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [reason, setReason] = useState(note?.reason ?? '');
-  const [soap, setSoap] = useState<Record<SoapKey, string>>({
+  const [text, setText] = useState<Record<TextKey, string>>({
     subjective: note?.subjective ?? '',
     objective: note?.objective ?? '',
-    assessment: note?.assessment ?? '',
     plan: note?.plan ?? '',
   });
+  const [primaryDiagnosis, setPrimaryDiagnosis] = useState(note?.primaryDiagnosis ?? '');
+  const [secondaryDiagnoses, setSecondaryDiagnoses] = useState<string[]>(note?.secondaryDiagnoses ?? []);
 
-  // Amendments trail. Seeded from the record and appended to locally so a newly
-  // added amendment shows immediately (the record arrives via route params).
+  // Amendments trail (final records only).
   const [amendments, setAmendments] = useState<NoteAmendment[]>(note?.amendments ?? []);
   const [amending, setAmending] = useState(false);
   const [amendmentText, setAmendmentText] = useState('');
 
   const submitAmendment = async () => {
-    const text = amendmentText.trim();
-    if (!text || !onAddAmendment) return;
-    const updated = await onAddAmendment(text);
+    const value = amendmentText.trim();
+    if (!value || !onAddAmendment) return;
+    const updated = await onAddAmendment(value);
     if (updated && updated.amendments) {
       setAmendments(updated.amendments);
     } else {
-      // Optimistic fallback: stamp with the current doctor, matching the server.
       setAmendments((prev) => [
         ...prev,
         {
           id: `amd-local-${Date.now()}`,
-          text,
+          text: value,
           authorId: user?.id ?? '',
           authorName: note?.doctorId === user?.id && note ? note.doctorName : `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
           createdAt: new Date().toISOString(),
@@ -102,7 +112,7 @@ export default function MedicalNotes({ patient, note, onSave, saving = false, on
     setAmending(false);
   };
 
-  // Picker data — only needed in create mode.
+  // Picker data — only needed when creating.
   const { data: schedule = [] } = usePracticeAppointments(creating);
   const { data: existingNotes = [] } = useMedicalNotes(creating ? patient.id : '');
 
@@ -110,38 +120,154 @@ export default function MedicalNotes({ patient, note, onSave, saving = false, on
     () => schedule.filter((a) => a.patientId === patient.id && LINKABLE_STATUSES.includes(a.status)),
     [schedule, patient.id],
   );
-  /** Appointments this doctor already documented — disabled, not hidden. */
   const notedAppointmentIds = useMemo(
-    () => new Set(existingNotes.filter((n) => n.doctorId === user?.id).map((n) => n.appointmentId)),
+    () => new Set(existingNotes.filter((n) => n.doctorId === user?.id && (n.status ?? 'final') === 'final').map((n) => n.appointmentId)),
     [existingNotes, user?.id],
   );
 
-  const setSection = (key: SoapKey, value: string) => setSoap((prev) => ({ ...prev, [key]: value }));
+  const setTextSection = (key: TextKey, value: string) => setText((prev) => ({ ...prev, [key]: value }));
+  const setSecondary = (i: number, value: string) =>
+    setSecondaryDiagnoses((prev) => prev.map((d, idx) => (idx === i ? value : d)));
+  const addSecondary = () => setSecondaryDiagnoses((prev) => [...prev, '']);
+  const removeSecondary = (i: number) => setSecondaryDiagnoses((prev) => prev.filter((_, idx) => idx !== i));
 
-  const hasSoapContent = SOAP_SECTIONS.some((s) => soap[s.key].trim().length > 0);
-  const valid = (creating ? !!appointment : true) && reason.trim().length > 0 && hasSoapContent;
+  // A visit must be linked; a draft needs at least a reason; finalizing also
+  // requires a primary diagnosis (the minimum for a real assessment).
+  const hasVisit = creating ? !!appointment : true;
+  const canDraft = hasVisit && reason.trim().length > 0;
+  const canFinalize = canDraft && primaryDiagnosis.trim().length > 0;
 
   const pickAppointment = (a: Appointment) => {
     setAppointment(a);
-    // The schedule stores the visit reason in `specialty`; pre-fill but keep editable.
     if (!reason.trim()) setReason(a.specialty);
     setPickerOpen(false);
   };
 
-  const save = () => {
-    if (!valid) return;
-    onSave({
-      patientId: patient.id,
-      appointmentId: note?.appointmentId ?? appointment!.id,
-      date: note?.date ?? appointment!.date,
-      visitType: note?.visitType ?? appointment!.type,
-      reason: reason.trim(),
-      subjective: soap.subjective.trim(),
-      objective: soap.objective.trim(),
-      assessment: soap.assessment.trim(),
-      plan: soap.plan.trim(),
-    });
+  const buildInput = (status: 'draft' | 'final'): MedicalNoteInput => ({
+    patientId: patient.id,
+    appointmentId: note?.appointmentId ?? appointment!.id,
+    date: note?.date ?? appointment!.date,
+    visitType: note?.visitType ?? appointment!.type,
+    reason: reason.trim(),
+    subjective: text.subjective.trim(),
+    objective: text.objective.trim(),
+    assessment: primaryDiagnosis.trim(),
+    primaryDiagnosis: primaryDiagnosis.trim(),
+    secondaryDiagnoses: secondaryDiagnoses.map((d) => d.trim()).filter(Boolean),
+    plan: text.plan.trim(),
+    status,
+  });
+
+  const handleSaveDraft = () => {
+    if (!canDraft || !onSaveDraft) return;
+    onSaveDraft(buildInput('draft'));
   };
+
+  const confirmSave = () => {
+    setConfirmOpen(false);
+    onSave(buildInput('final'));
+  };
+
+  const renderTextSection = (key: TextKey) => {
+    const meta = TEXT_SECTIONS[key];
+    return (
+      <View key={key}>
+        <Text style={styles.fieldLabel}>{t(meta.labelKey)}</Text>
+        {readOnly ? (
+          <View style={styles.readCard}>
+            <Text style={styles.readText}>{note![key] || '—'}</Text>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.helper}>{t(meta.helperKey)}</Text>
+            <View style={styles.inputWrap}>
+              <TextInput
+                style={[styles.input, styles.multiline]}
+                placeholder={t(meta.labelKey)}
+                placeholderTextColor={Colors.textGray}
+                value={text[key]}
+                onChangeText={(val) => setTextSection(key, val)}
+                multiline
+                textAlignVertical="top"
+                accessibilityLabel={t(meta.labelKey)}
+              />
+            </View>
+          </>
+        )}
+      </View>
+    );
+  };
+
+  const renderAssessment = () => (
+    <View>
+      <Text style={styles.fieldLabel}>{t('patients.assessment')}</Text>
+      {readOnly ? (
+        note!.primaryDiagnosis ? (
+          <View style={styles.readCard}>
+            <Text style={styles.dxLabel}>{t('patients.primaryDiagnosis')}</Text>
+            <Text style={styles.readText}>{note!.primaryDiagnosis || '—'}</Text>
+            {note!.secondaryDiagnoses && note!.secondaryDiagnoses.length > 0 ? (
+              <>
+                <Text style={[styles.dxLabel, { marginTop: 10 }]}>{t('patients.secondaryDiagnosis')}</Text>
+                {note!.secondaryDiagnoses.map((d, i) => (
+                  <Text key={i} style={styles.readText}>• {d}</Text>
+                ))}
+              </>
+            ) : null}
+          </View>
+        ) : (
+          <View style={styles.readCard}>
+            <Text style={styles.readText}>{note!.assessment || '—'}</Text>
+          </View>
+        )
+      ) : (
+        <>
+          <Text style={styles.helper}>{t('patients.assessmentHelper')}</Text>
+          <Text style={styles.dxLabel}>{t('patients.primaryDiagnosis')}</Text>
+          <View style={styles.inputWrap}>
+            <TextInput
+              style={styles.input}
+              placeholder={t('patients.primaryDiagnosisPlaceholder')}
+              placeholderTextColor={Colors.textGray}
+              value={primaryDiagnosis}
+              onChangeText={setPrimaryDiagnosis}
+              accessibilityLabel={t('patients.primaryDiagnosis')}
+            />
+          </View>
+
+          {secondaryDiagnoses.length > 0 && (
+            <Text style={styles.dxLabel}>{t('patients.secondaryDiagnosis')}</Text>
+          )}
+          {secondaryDiagnoses.map((d, i) => (
+            <View key={i} style={styles.secondaryRow}>
+              <View style={[styles.inputWrap, styles.secondaryInputWrap]}>
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('patients.secondaryDiagnosisPlaceholder')}
+                  placeholderTextColor={Colors.textGray}
+                  value={d}
+                  onChangeText={(val) => setSecondary(i, val)}
+                  accessibilityLabel={`${t('patients.secondaryDiagnosis')} ${i + 1}`}
+                />
+              </View>
+              <TouchableOpacity
+                onPress={() => removeSecondary(i)}
+                style={styles.removeDx}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={t('patients.removeDiagnosis')}
+              >
+                <FontAwesome name="times-circle" size={20} color={Colors.textGray} />
+              </TouchableOpacity>
+            </View>
+          ))}
+          <TouchableOpacity onPress={addSecondary} style={styles.addDxLink} accessibilityRole="button">
+            <Text style={styles.addDxText}>{t('patients.addSecondaryDiagnosis')}</Text>
+          </TouchableOpacity>
+        </>
+      )}
+    </View>
+  );
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -156,6 +282,12 @@ export default function MedicalNotes({ patient, note, onSave, saving = false, on
             <Text style={styles.readOnlyText}>
               {t('patients.lockedRecord', { doctor: note!.doctorName })}
             </Text>
+          </View>
+        )}
+        {editingDraft && (
+          <View style={styles.draftBanner}>
+            <FontAwesome name="pencil-square-o" size={14} color={Colors.accent} />
+            <Text style={styles.draftBannerText}>{t('patients.draftBanner')}</Text>
           </View>
         )}
 
@@ -201,47 +333,33 @@ export default function MedicalNotes({ patient, note, onSave, saving = false, on
           </View>
         )}
 
-        {/* SOAP sections */}
-        {SOAP_SECTIONS.map((s) => (
-          <View key={s.key}>
-            <Text style={styles.fieldLabel}>{t(s.labelKey)}</Text>
-            {readOnly ? (
-              <View style={styles.readCard}>
-                <Text style={styles.readText}>{soap[s.key] || '—'}</Text>
-              </View>
-            ) : (
-              <>
-                <Text style={styles.helper}>{t(s.helperKey)}</Text>
-                <View style={styles.inputWrap}>
-                  <TextInput
-                    style={[styles.input, styles.multiline]}
-                    placeholder={t(s.labelKey)}
-                    placeholderTextColor={Colors.textGray}
-                    value={soap[s.key]}
-                    onChangeText={(val) => setSection(s.key, val)}
-                    multiline
-                    textAlignVertical="top"
-                    accessibilityLabel={t(s.labelKey)}
-                  />
-                </View>
-              </>
-            )}
-          </View>
-        ))}
+        {/* SOAP — Subjective, Objective, Assessment (structured), Plan */}
+        {renderTextSection('subjective')}
+        {renderTextSection('objective')}
+        {renderAssessment()}
+        {renderTextSection('plan')}
 
-        {creating && (
-          <EkoButton
-            title={t('common.save')}
-            variant="primary"
-            onPress={save}
-            loading={saving}
-            disabled={!valid}
-            style={styles.saveBtn}
-          />
+        {editable && (
+          <View style={styles.saveRow}>
+            <EkoButton
+              title={t('patients.saveDraft')}
+              variant="outline"
+              onPress={handleSaveDraft}
+              loading={savingDraft}
+              disabled={!canDraft}
+              style={styles.draftBtn}
+            />
+            <EkoButton
+              title={t('common.save')}
+              variant="primary"
+              onPress={() => setConfirmOpen(true)}
+              disabled={!canFinalize}
+              style={styles.saveBtn}
+            />
+          </View>
         )}
 
-        {/* Amendments — the only way to change a locked record. Append-only,
-            unlimited, each stamped with its author and time. */}
+        {/* Amendments — the only way to change a locked record. */}
         {readOnly && (
           <View style={styles.amendmentsSection}>
             <View style={styles.amendmentsHeader}>
@@ -364,6 +482,31 @@ export default function MedicalNotes({ patient, note, onSave, saving = false, on
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* Save confirmation — records are immutable once finalized. */}
+      <Modal visible={confirmOpen} transparent animationType="fade" onRequestClose={() => setConfirmOpen(false)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <View style={styles.confirmIcon}>
+              <FontAwesome name="lock" size={22} color={Colors.primary} />
+            </View>
+            <Text style={styles.confirmTitle}>{t('patients.confirmSaveTitle')}</Text>
+            <Text style={styles.confirmBody}>{t('patients.confirmSaveBody')}</Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={styles.confirmCancel} onPress={() => setConfirmOpen(false)} accessibilityRole="button">
+                <Text style={styles.confirmCancelText}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <EkoButton
+                title={t('patients.confirmSaveButton')}
+                variant="primary"
+                onPress={confirmSave}
+                loading={saving}
+                style={styles.confirmSaveBtn}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -378,6 +521,12 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
   },
   readOnlyText: { flex: 1, fontSize: 13, color: Colors.textMedium, fontFamily: 'Poppins_500Medium' },
+  draftBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: Colors.accent + '14', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
+  },
+  draftBannerText: { flex: 1, fontSize: 13, color: Colors.textMedium, fontFamily: 'Poppins_500Medium' },
 
   fieldLabel: {
     fontSize: 13, fontWeight: '600', color: Colors.textMedium,
@@ -385,6 +534,13 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   },
   helper: { fontSize: 11, color: Colors.textGray, marginBottom: 6, marginLeft: 2, fontFamily: 'Poppins_400Regular' },
   fieldIcon: { marginRight: 10 },
+
+  dxLabel: { fontSize: 12, fontWeight: '700', color: Colors.textGray, marginBottom: 6, marginLeft: 2, fontFamily: 'Poppins_600SemiBold' },
+  secondaryRow: { flexDirection: 'row', alignItems: 'center' },
+  secondaryInputWrap: { flex: 1 },
+  removeDx: { paddingLeft: 10, paddingBottom: 16 },
+  addDxLink: { paddingVertical: 4, marginBottom: 16 },
+  addDxText: { fontSize: 14, color: Colors.primary, fontWeight: '700', fontFamily: 'Poppins_600SemiBold' },
 
   appointmentField: {
     flexDirection: 'row', alignItems: 'center',
@@ -414,11 +570,13 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   },
   readText: { fontSize: 14, color: Colors.textDark, lineHeight: 21, fontFamily: 'Poppins_400Regular' },
 
-  saveBtn: { marginTop: 4 },
+  saveRow: { flexDirection: 'row', gap: 12, marginTop: 4 },
+  draftBtn: { flex: 1 },
+  saveBtn: { flex: 1 },
 
   // Amendments
   amendmentsSection: {
-    marginTop: 8, borderTopWidth: 1, borderTopColor: Colors.borderGray, paddingTop: 18,
+    marginTop: 20, borderTopWidth: 1, borderTopColor: Colors.borderGray, paddingTop: 18,
   },
   amendmentsHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   amendmentsTitle: { fontSize: 15, fontWeight: '700', color: Colors.textDark, fontFamily: 'Poppins_700Bold' },
@@ -476,4 +634,20 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     fontSize: 13, color: Colors.textGray, textAlign: 'center',
     marginTop: 12, lineHeight: 19, fontFamily: 'Poppins_400Regular',
   },
+
+  // Confirm modal
+  confirmOverlay: { flex: 1, backgroundColor: Colors.overlay, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  confirmCard: {
+    backgroundColor: Colors.surface, borderRadius: 20, padding: 24, width: '100%', alignItems: 'center',
+  },
+  confirmIcon: {
+    width: 54, height: 54, borderRadius: 27, backgroundColor: Colors.primaryFaded,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 14,
+  },
+  confirmTitle: { fontSize: 18, fontWeight: '800', color: Colors.textDark, textAlign: 'center', fontFamily: 'Poppins_700Bold' },
+  confirmBody: { fontSize: 14, color: Colors.textMedium, textAlign: 'center', lineHeight: 21, marginTop: 8, marginBottom: 20, fontFamily: 'Poppins_400Regular' },
+  confirmActions: { flexDirection: 'row', alignItems: 'center', gap: 12, alignSelf: 'stretch' },
+  confirmCancel: { flex: 1, alignItems: 'center', justifyContent: 'center', height: 50, borderRadius: 25, borderWidth: 1.5, borderColor: Colors.borderGray },
+  confirmCancelText: { fontSize: 15, color: Colors.textMedium, fontWeight: '600', fontFamily: 'Poppins_600SemiBold' },
+  confirmSaveBtn: { flex: 1 },
 });

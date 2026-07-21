@@ -12,6 +12,7 @@ import Cross from '../../../components/common/Cross';
 import { useAuth } from '../../../context/AuthContext';
 import { api } from '../../../api';
 import { useAuthStore } from '../../../store/authStore';
+import { LANGUAGE_OPTIONS } from '../../../constants';
 import { sanitizePhoneInput, isValidPhone } from '../../../utils/format';
 import { useTranslation } from '../../../i18n/useTranslation';
 
@@ -28,7 +29,14 @@ export default function EditProfileScreen({ navigation }: Props) {
   const [firstName, setFirstName] = useState(user?.firstName ?? '');
   const [lastName, setLastName] = useState(user?.lastName ?? '');
   const [phone, setPhone] = useState('');
+  // Who this account holder can communicate with (task 2.5) — distinct from
+  // the app's own display language, set separately in Settings.
+  const [spokenLanguages, setSpokenLanguages] = useState<string[]>(user?.spokenLanguages ?? []);
   const [loading, setLoading] = useState(false);
+
+  const toggleLanguage = (lang: string) => {
+    setSpokenLanguages((prev) => (prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang]));
+  };
 
   const save = async () => {
     if (!firstName.trim() || !lastName.trim()) return Alert.alert('', t('account.nameEmpty'));
@@ -39,6 +47,7 @@ export default function EditProfileScreen({ navigation }: Props) {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         ...(phone.trim() ? { phone: phone.trim() } : {}),
+        spokenLanguages,
       });
       // Refresh the persisted session so the whole app shows the new name.
       const session = useAuthStore.getState().session;
@@ -97,6 +106,24 @@ export default function EditProfileScreen({ navigation }: Props) {
           <EkoTextField label={t('account.email')} placeholder={t('account.email')} icon="envelope-o" value={user?.email ?? ''} editable={false} />
           <EkoTextField label={t('account.phone')} placeholder={t('account.phonePlaceholder')} icon="phone" value={phone} onChangeText={(val) => setPhone(sanitizePhoneInput(val))} keyboardType="phone-pad" />
 
+          <Text style={styles.chipLabel}>{t('account.spokenLanguages')}</Text>
+          <View style={styles.chipRow}>
+            {LANGUAGE_OPTIONS.map((lang) => {
+              const active = spokenLanguages.includes(lang);
+              return (
+                <TouchableOpacity
+                  key={lang}
+                  style={[styles.chip, active && styles.chipActive]}
+                  onPress={() => toggleLanguage(lang)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                >
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{lang}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
           <EkoButton title={t('account.update')} variant="accent" onPress={save} loading={loading} style={styles.btn} />
         </View>
       </ScrollView>
@@ -143,5 +170,17 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   },
 
   form: { paddingHorizontal: 20 },
+  chipLabel: {
+    fontSize: 13, fontWeight: '600', color: Colors.textMedium,
+    marginTop: 4, marginBottom: 8, marginLeft: 2, fontFamily: 'Poppins_600SemiBold',
+  },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  chip: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    borderWidth: 1.5, borderColor: Colors.borderGray, backgroundColor: Colors.field,
+  },
+  chipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  chipText: { fontSize: 13, color: Colors.textMedium, fontWeight: '500' },
+  chipTextActive: { color: Colors.white },
   btn: { marginTop: 8 },
 });

@@ -144,6 +144,19 @@ export default function SettingsScreen({ navigation }: Props) {
             <ToggleRow label={t('settings.locationAccess')} sub={t('settings.locationAccessSub')} settingKey="locationAccess" />
           </View>
 
+          <Text style={styles.sectionTitle}>{t('settings.support')}</Text>
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.langRow}
+              onPress={() => navigation.navigate('ReportProblem')}
+              accessibilityRole="button"
+              accessibilityLabel={t('settings.reportProblem')}
+            >
+              <Text style={styles.langLabel}>{t('settings.reportProblem')}</Text>
+              <FontAwesome name="chevron-right" size={14} color={Colors.textGray} />
+            </TouchableOpacity>
+          </View>
+
           <Text style={styles.version}>{t('common.appName')} {t('account.version', { version: '1.0.0' })}</Text>
         </ScrollView>
       )}

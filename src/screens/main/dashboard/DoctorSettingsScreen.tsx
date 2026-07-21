@@ -19,6 +19,7 @@ interface Props {
 const MENU_ITEMS = [
   { icon: 'user', labelKey: 'account.editProfile', screen: 'EditProfile', color: '#5A5DED' },
   { icon: 'credit-card', labelKey: 'account.paymentInfo', screen: 'PaymentInfo', color: '#00897B' },
+  { icon: 'certificate', labelKey: 'documents.title', screen: 'Documents', color: '#7C4DFF' },
   { icon: 'bell', labelKey: 'account.notifications', screen: 'Notifications', color: '#0097A7' },
   { icon: 'cog', labelKey: 'settings.preferences', screen: 'Preferences', color: '#607D8B' },
   { icon: 'lock', labelKey: 'account.changePassword', screen: 'ChangePassword', color: '#E91E63' },

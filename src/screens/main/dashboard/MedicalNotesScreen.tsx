@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -6,7 +6,7 @@ import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import MedicalNotes from '../../../components/medical/MedicalNotes';
-import { useAddMedicalNote, useAddNoteAmendment } from '../../../hooks/queries';
+import { useAddMedicalNote, useAddNoteAmendment, useUpdateMedicalNote } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import type { MedicalNote as MedicalNoteType, MedicalNoteInput, PatientSummary } from '../../../api/types';
 
@@ -26,17 +26,34 @@ export default function MedicalNotesScreen({ navigation, route }: Props) {
   const patient = route.params?.patient as PatientSummary;
   const note = route.params?.note as MedicalNoteType | undefined;
   const addNote = useAddMedicalNote(patient?.id ?? '');
+  const updateNote = useUpdateMedicalNote(patient?.id ?? '');
   const addAmendment = useAddNoteAmendment(patient?.id ?? '');
-  const saving = addNote.isPending;
+  // Track which button is mid-flight so only its spinner shows.
+  const [pending, setPending] = useState<'draft' | 'final' | null>(null);
 
-  const handleSave = async (input: MedicalNoteInput) => {
+  // A draft (existing note that isn't final) is updated in place; a brand-new
+  // record is created. Both paths carry the status set by the form.
+  const persist = async (input: MedicalNoteInput, which: 'draft' | 'final') => {
+    setPending(which);
     try {
-      await addNote.mutateAsync(input);
+      if (note && (note.status ?? 'final') !== 'final') {
+        await updateNote.mutateAsync({ noteId: note.id, input });
+      } else {
+        await addNote.mutateAsync(input);
+      }
       navigation.goBack();
     } catch (err) {
-      Alert.alert(t('patients.couldNotSaveNote'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
+      Alert.alert(
+        which === 'draft' ? t('patients.couldNotSaveDraft') : t('patients.couldNotSaveNote'),
+        err instanceof Error ? err.message : t('common.somethingWentWrong'),
+      );
+    } finally {
+      setPending(null);
     }
   };
+
+  const handleSave = (input: MedicalNoteInput) => persist(input, 'final');
+  const handleSaveDraft = (input: MedicalNoteInput) => persist(input, 'draft');
 
   // Records are immutable — a saved record can only be amended, never edited.
   const handleAddAmendment = async (text: string) => {
@@ -59,7 +76,9 @@ export default function MedicalNotesScreen({ navigation, route }: Props) {
           patient={patient}
           note={note}
           onSave={handleSave}
-          saving={saving}
+          saving={pending === 'final'}
+          onSaveDraft={handleSaveDraft}
+          savingDraft={pending === 'draft'}
           onAddAmendment={handleAddAmendment}
           amendmentSaving={addAmendment.isPending}
         />

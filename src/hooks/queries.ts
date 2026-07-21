@@ -5,7 +5,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
-import type { CashoutInput, CreateAppointmentInput, MedicalNoteInput, PaymentMethod, PrescriptionInput } from '../api/types';
+import type { CashoutInput, ComplaintInput, CreateAppointmentInput, DocumentCategory, LabInput, MedicalNoteInput, PaymentMethod, PickedFile, PrescriptionInput } from '../api/types';
 
 export const queryKeys = {
   doctors: (params?: { category?: string; query?: string }) => ['doctors', params ?? {}] as const,
@@ -19,15 +19,23 @@ export const queryKeys = {
   practiceAppointments: ['practice-appointments'] as const,
   medicalNotes: (patientId: string) => ['medical-notes', patientId] as const,
   prescriptions: (patientId: string) => ['prescriptions', patientId] as const,
+  myPrescriptions: ['my-prescriptions'] as const,
+  myPayments: ['my-payments'] as const,
   earnings: ['earnings'] as const,
   paymentMethod: ['payment-method'] as const,
   providerState: ['provider-state'] as const,
   payment: (id: string) => ['payments', id] as const,
+  paymentPreview: (appointmentId: string, code?: string) => ['payment-preview', appointmentId, code ?? ''] as const,
+  appointmentBreakdown: (id: string) => ['appointment-breakdown', id] as const,
   reviews: (subject?: string) => ['reviews', subject ?? 'all'] as const,
+  reviewSummary: (subject?: string) => ['review-summary', subject ?? 'all'] as const,
+  complaints: ['complaints'] as const,
   dependents: ['dependents'] as const,
   insurance: ['insurance'] as const,
   pharmacy: ['pharmacy'] as const,
   settings: ['settings'] as const,
+  documents: ['documents'] as const,
+  labs: (patientId?: string) => ['labs', patientId ?? 'me'] as const,
 };
 
 export function useDoctors(params?: { category?: string; query?: string }) {
@@ -104,6 +112,16 @@ export function useAddMedicalNote(patientId: string) {
   });
 }
 
+/** Create or finalize/update a draft record; refreshes the shared record list. */
+export function useUpdateMedicalNote(patientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ noteId, input }: { noteId: string; input: MedicalNoteInput }) =>
+      api.practice.updateMedicalNote(noteId, input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.medicalNotes(patientId) }),
+  });
+}
+
 /** Append an amendment to a locked record; refreshes the shared record list. */
 export function useAddNoteAmendment(patientId: string) {
   const qc = useQueryClient();
@@ -155,6 +173,30 @@ export function useAppointmentDecision() {
       qc.invalidateQueries({ queryKey: queryKeys.practiceAppointments });
       qc.invalidateQueries({ queryKey: queryKeys.agenda });
     },
+  });
+}
+
+/** A doctor's take-home detail for a paid visit — only meaningful once a payment has settled. */
+export function useAppointmentBreakdown(id: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.appointmentBreakdown(id),
+    queryFn: () => api.practice.appointmentBreakdown(id),
+    enabled: enabled && !!id,
+    retry: false, // 404 until the visit is paid — not worth retrying
+  });
+}
+
+/**
+ * The fee breakdown for a visit before checkout starts (PaymentScreen).
+ * `code` is part of the query key — applying/clearing a promo code is a
+ * genuinely different query, not a refetch of the same one, so the cache
+ * can't serve a stale (or stale-discounted) amount across that change.
+ */
+export function usePaymentPreview(appointmentId: string, code?: string) {
+  return useQuery({
+    queryKey: queryKeys.paymentPreview(appointmentId, code),
+    queryFn: () => api.payments.preview(appointmentId, code),
+    enabled: !!appointmentId,
   });
 }
 
@@ -222,12 +264,67 @@ export function useSettings() {
   return useQuery({ queryKey: queryKeys.settings, queryFn: api.me.settings });
 }
 
+/** The signed-in patient's own prescriptions (read-only self view). */
+export function useMyPrescriptions() {
+  return useQuery({ queryKey: queryKeys.myPrescriptions, queryFn: api.me.prescriptions });
+}
+
+/** The signed-in patient's settled payment history (PaymentHistoryScreen). */
+export function useMyPayments() {
+  return useQuery({ queryKey: queryKeys.myPayments, queryFn: api.me.payments });
+}
+
 export function useSaveSettings() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: api.me.saveSettings,
     // Write the server's copy back so a rejected toggle can't drift from it.
     onSuccess: (data) => qc.setQueryData(queryKeys.settings, data),
+  });
+}
+
+// ── Documents & Certifications (Doctor) ─────────────────────────────────────
+
+export function useDocuments() {
+  return useQuery({ queryKey: queryKeys.documents, queryFn: api.documents.list });
+}
+
+export function useUploadDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { name: string; category: DocumentCategory; file: PickedFile }) => api.documents.upload(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.documents }),
+  });
+}
+
+export function useRemoveDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.documents.remove(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.documents }),
+  });
+}
+
+// ── Labs ────────────────────────────────────────────────────────────────────
+
+/** Labs for a roster patient (pass patientId) or the signed-in patient (omit it). */
+export function useLabs(patientId?: string) {
+  return useQuery({ queryKey: queryKeys.labs(patientId), queryFn: () => api.labs.list(patientId) });
+}
+
+export function useAddLab(patientId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ data, file }: { data: LabInput; file?: PickedFile }) => api.labs.add({ patientId }, data, file),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.labs(patientId) }),
+  });
+}
+
+export function useRemoveLab(patientId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.labs.remove(id, patientId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.labs(patientId) }),
   });
 }
 
@@ -240,17 +337,37 @@ export function useReviews(subject?: string) {
   return useQuery({ queryKey: queryKeys.reviews(subject), queryFn: () => api.reviews.list(subject) });
 }
 
+export function useReviewSummary(subject?: string) {
+  return useQuery({ queryKey: queryKeys.reviewSummary(subject), queryFn: () => api.reviews.summary(subject) });
+}
+
 export function useSubmitReview() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { subject: string; rating: number; text: string }) => api.reviews.submit(input),
+    mutationFn: (input: { subject: string; rating: number; text: string; title?: string }) => api.reviews.submit(input),
     // Submissions are 'pending' until moderated, so the published list won't
     // change yet — invalidate anyway for when moderation is instant (mock).
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['reviews'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['reviews'] });
+      qc.invalidateQueries({ queryKey: ['review-summary'] });
+    },
   });
 }
 
 export function useDoctorAgenda(enabled = true) {
   // Gate on role at the call site: /practice/agenda 403s for non-doctors.
   return useQuery({ queryKey: queryKeys.agenda, queryFn: api.practice.agenda, enabled });
+}
+
+/** The signed-in user's own filed reports (Settings → Report a Problem). */
+export function useComplaints() {
+  return useQuery({ queryKey: queryKeys.complaints, queryFn: api.complaints.list });
+}
+
+export function useSubmitComplaint() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ComplaintInput) => api.complaints.submit(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.complaints }),
+  });
 }

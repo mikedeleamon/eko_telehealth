@@ -17,6 +17,8 @@ import type {
   CashoutInput,
   ChatMessage,
   ChatTokenGrant,
+  Complaint,
+  ComplaintInput,
   Conversation,
   CreateAppointmentInput,
   Dependent,
@@ -31,14 +33,44 @@ import type {
   Pharmacy,
   Prescription,
   PrescriptionInput,
+  FeeBreakdown,
   PaymentIntent,
+  PaymentPreview,
+  PaymentReceipt,
   PaymentStatus,
   ProviderState,
   Review,
+  ReviewSummary,
+  StoredDocument,
+  DocumentCategory,
+  PickedFile,
+  PresignResult,
+  LabResult,
+  LabInput,
   User,
   UserRole,
   UserSettings,
 } from './types';
+
+/**
+ * Presign an R2 PUT for `kind`, upload the picked file's bytes straight to R2,
+ * and return the object key to record with the metadata. Live mode only — the
+ * backend never receives the bytes. Callers in mock mode skip this entirely.
+ */
+async function uploadToR2(kind: 'document' | 'lab', file: PickedFile): Promise<string> {
+  const presign = await request<PresignResult>('/uploads/presign', {
+    method: 'POST',
+    body: { kind, contentType: file.mimeType },
+  });
+  const blob = await (await fetch(file.uri)).blob();
+  const put = await fetch(presign.uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.mimeType },
+    body: blob,
+  });
+  if (!put.ok) throw new Error('Upload failed. Please try again.');
+  return presign.key;
+}
 
 export const api = {
   auth: {
@@ -97,7 +129,7 @@ export const api = {
     },
 
     /** PATCH /auth/me — update the signed-in user's profile (not email; that's the login id). */
-    updateProfile(input: { firstName?: string; lastName?: string; phone?: string }): Promise<User> {
+    updateProfile(input: { firstName?: string; lastName?: string; phone?: string; spokenLanguages?: string[] }): Promise<User> {
       if (env.useMockApi) return mockApi.updateProfile(input);
       return request<User>('/auth/me', { method: 'PATCH', body: input });
     },
@@ -234,6 +266,15 @@ export const api = {
     },
 
     /**
+     * GET /practice/appointments/:id/breakdown — the doctor's take-home detail
+     * for a paid visit. 404s until a payment has actually settled.
+     */
+    appointmentBreakdown(id: string): Promise<FeeBreakdown> {
+      if (env.useMockApi) return mockApi.getAppointmentBreakdown(id);
+      return request<FeeBreakdown>(`/practice/appointments/${id}/breakdown`);
+    },
+
+    /**
      * GET /practice/patients/:patientId/notes — every SOAP note for the
      * patient, across all treating doctors (shared record).
      */
@@ -249,6 +290,16 @@ export const api = {
     addMedicalNote(input: MedicalNoteInput): Promise<MedicalNote> {
       if (env.useMockApi) return mockApi.addMedicalNote(input);
       return request<MedicalNote>(`/practice/patients/${input.patientId}/notes`, { method: 'POST', body: input });
+    },
+
+    /**
+     * PATCH /practice/notes/:noteId — update a DRAFT record (save-draft-again or
+     * finalize by sending status:'final'). Only drafts are mutable; a finalized
+     * record is immutable and the backend rejects edits to it.
+     */
+    updateMedicalNote(noteId: string, input: MedicalNoteInput): Promise<MedicalNote> {
+      if (env.useMockApi) return mockApi.updateMedicalNote(noteId, input);
+      return request<MedicalNote>(`/practice/notes/${noteId}`, { method: 'PATCH', body: input });
     },
 
     /**
@@ -300,10 +351,24 @@ export const api = {
 
   payments: {
     /**
+     * GET /payments/preview/:appointmentId?code=X — the fee breakdown for a
+     * visit, without creating a payment row or checkout session. Lets
+     * PaymentScreen show "you'll pay ₦X" before the patient picks a
+     * provider, and reflect a promo code's discount (or its rejection
+     * reason) as the patient types one in.
+     */
+    preview(appointmentId: string, code?: string): Promise<PaymentPreview> {
+      if (env.useMockApi) return mockApi.getPaymentPreview(appointmentId, code);
+      const qs = code ? `?code=${encodeURIComponent(code)}` : '';
+      return request<PaymentPreview>(`/payments/preview/${appointmentId}${qs}`);
+    },
+
+    /**
      * POST /payments/intent — backend creates a Flutterwave/PayPal checkout.
      * Only valid once the doctor has accepted (status 'pending_payment').
+     * `code` is re-validated server-side — never trust the discount preview() showed.
      */
-    createIntent(input: { appointmentId: string; provider: 'flutterwave' | 'paypal' }): Promise<PaymentIntent> {
+    createIntent(input: { appointmentId: string; provider: 'flutterwave' | 'paypal'; code?: string }): Promise<PaymentIntent> {
       if (env.useMockApi) return mockApi.createPaymentIntent(input);
       return request<PaymentIntent>('/payments/intent', { method: 'POST', body: input });
     },
@@ -379,6 +444,16 @@ export const api = {
       return request<PaymentMethod>('/me/payment-method', { method: 'PUT', body: input });
     },
 
+    /**
+     * GET /me/prescriptions — the signed-in patient's own medication record
+     * (current + historical). Read-only from the patient's side; only a
+     * prescriber can add to it.
+     */
+    prescriptions(): Promise<Prescription[]> {
+      if (env.useMockApi) return mockApi.getMyPrescriptions();
+      return request<Prescription[]>('/me/prescriptions');
+    },
+
     /** GET /me/settings — returns defaults before the first save. */
     settings(): Promise<UserSettings> {
       if (env.useMockApi) return mockApi.getSettings();
@@ -390,6 +465,12 @@ export const api = {
       if (env.useMockApi) return mockApi.saveSettings(input);
       return request<UserSettings>('/me/settings', { method: 'PATCH', body: input });
     },
+
+    /** GET /me/payments — this patient's settled payment history, newest first. */
+    payments(): Promise<PaymentReceipt[]> {
+      if (env.useMockApi) return mockApi.getMyPayments();
+      return request<PaymentReceipt[]>('/me/payments');
+    },
   },
 
   providers: {
@@ -400,7 +481,7 @@ export const api = {
     },
 
     /** POST /providers/apply — submit for admin review; approval creates the profile. */
-    apply(input: { specialty: string; category: string; location: string; fee: string }): Promise<{ id: string; status: string; submittedAt: string }> {
+    apply(input: { specialty: string; category: string; location: string; fee: string; spokenLanguages: string[] }): Promise<{ id: string; status: string; submittedAt: string }> {
       if (env.useMockApi) return Promise.resolve({ id: 'mock-app', status: 'pending', submittedAt: 'Today' });
       return request('/providers/apply', { method: 'POST', body: input });
     },
@@ -422,6 +503,94 @@ export const api = {
     },
   },
 
+  /** Doctor "Documents & Certifications" — R2-backed credential storage. */
+  documents: {
+    /** GET /me/documents */
+    list(): Promise<StoredDocument[]> {
+      if (env.useMockApi) return mockApi.getDocuments();
+      return request<StoredDocument[]>('/me/documents');
+    },
+
+    /**
+     * Upload a picked file and record it. In live mode this presigns an R2 PUT,
+     * uploads the bytes straight to R2, then records the metadata — the backend
+     * never receives the file. In mock mode it just stores the local uri.
+     */
+    async upload(input: { name: string; category: DocumentCategory; file: PickedFile }): Promise<StoredDocument> {
+      const { name, category, file } = input;
+      if (env.useMockApi) {
+        return mockApi.addDocument({
+          name,
+          category,
+          fileName: file.name,
+          mimeType: file.mimeType,
+          sizeBytes: file.size,
+          url: file.uri,
+        });
+      }
+      const key = await uploadToR2('document', file);
+      return request<StoredDocument>('/me/documents', {
+        method: 'POST',
+        body: {
+          name,
+          category,
+          fileName: file.name,
+          mimeType: file.mimeType,
+          sizeBytes: file.size,
+          key,
+        },
+      });
+    },
+
+    /** DELETE /me/documents/:id */
+    remove(id: string): Promise<void> {
+      if (env.useMockApi) return mockApi.removeDocument(id);
+      return request<void>(`/me/documents/${id}`, { method: 'DELETE' });
+    },
+  },
+
+  /**
+   * Lab results. Two surfaces share one store: a patient's own labs (/me/labs)
+   * and a doctor viewing a roster patient's labs
+   * (/practice/patients/:patientId/labs). Pass `patientId` for the doctor
+   * surface; omit it for the signed-in patient's own record.
+   */
+  labs: {
+    /** GET labs for a patient (doctor) or the signed-in patient (omit patientId). */
+    list(patientId?: string): Promise<LabResult[]> {
+      if (env.useMockApi) return mockApi.getLabs(patientId);
+      return patientId
+        ? request<LabResult[]>(`/practice/patients/${patientId}/labs`)
+        : request<LabResult[]>('/me/labs');
+    },
+
+    /**
+     * Add a lab result, optionally with a scanned report. In live mode a report
+     * is uploaded to R2 first (presigned PUT) and only its key is recorded.
+     */
+    async add(target: { patientId?: string }, data: LabInput, file?: PickedFile): Promise<LabResult> {
+      const body: LabInput = { ...data };
+      if (file) {
+        body.attachmentName = file.name;
+        if (!env.useMockApi) body.attachmentKey = await uploadToR2('lab', file);
+      }
+      if (env.useMockApi) {
+        return mockApi.addLab(target.patientId, body, file?.uri ?? null);
+      }
+      return target.patientId
+        ? request<LabResult>(`/practice/patients/${target.patientId}/labs`, { method: 'POST', body })
+        : request<LabResult>('/me/labs', { method: 'POST', body });
+    },
+
+    /** Remove a lab result (doctor surface passes patientId; patient omits it). */
+    remove(id: string, patientId?: string): Promise<void> {
+      if (env.useMockApi) return mockApi.removeLab(id);
+      return patientId
+        ? request<void>(`/practice/patients/${patientId}/labs/${id}`, { method: 'DELETE' })
+        : request<void>(`/me/labs/${id}`, { method: 'DELETE' });
+    },
+  },
+
   reviews: {
     /** GET /reviews?subject= — published reviews (moderated by the admin console). */
     list(subject?: string): Promise<Review[]> {
@@ -430,10 +599,31 @@ export const api = {
       return request<Review[]>(`/reviews${suffix}`);
     },
 
+    /** GET /reviews/summary?subject= — average + total + per-star distribution. */
+    summary(subject?: string): Promise<ReviewSummary> {
+      if (env.useMockApi) return mockApi.getReviewSummary();
+      const suffix = subject ? `?subject=${encodeURIComponent(subject)}` : '';
+      return request<ReviewSummary>(`/reviews/summary${suffix}`);
+    },
+
     /** POST /reviews — submit for moderation; goes live once an admin approves. */
-    submit(input: { subject: string; rating: number; text: string }): Promise<Review> {
+    submit(input: { subject: string; rating: number; text: string; title?: string }): Promise<Review> {
       if (env.useMockApi) return mockApi.submitReview(input);
       return request<Review>('/reviews', { method: 'POST', body: input });
+    },
+  },
+
+  complaints: {
+    /** GET /complaints — the signed-in user's own filed reports, newest first. */
+    list(): Promise<Complaint[]> {
+      if (env.useMockApi) return mockApi.getComplaints();
+      return request<Complaint[]>('/complaints');
+    },
+
+    /** POST /complaints — file a report; goes to the admin queue as 'pending'. */
+    submit(input: ComplaintInput): Promise<Complaint> {
+      if (env.useMockApi) return mockApi.submitComplaint(input);
+      return request<Complaint>('/complaints', { method: 'POST', body: input });
     },
   },
 };

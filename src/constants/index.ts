@@ -47,6 +47,14 @@ export const INSURANCE_PROVIDER_OPTIONS = [
   'Total Health Trust', 'NHIS', 'Blue Cross Blue Shield', 'Aetna', 'Cigna',
 ];
 
+// Languages patients/providers can select as spoken (task 2.5) — the app's
+// major Nigerian languages plus common international ones for the
+// international-provider use case. Distinct from the app's own display
+// language (i18n locales, EN/FR only).
+export const LANGUAGE_OPTIONS = [
+  'English', 'Yoruba', 'Igbo', 'Hausa', 'Pidgin', 'French', 'Arabic', 'Spanish', 'Portuguese',
+];
+
 export const SPECIALTY_CHIPS = [
   { label: 'Primary Care', count: 10, color: '#F97653' },
   { label: 'Eye Doctor', count: 8, color: '#6C5CE7' },
@@ -74,6 +82,8 @@ export const MOCK_DOCTORS = [
     available: true,
     nextAvailable: '29, June',
     avatar: null,
+    canProvideInHome: true,
+    spokenLanguages: ['English', 'Igbo'],
   },
   {
     id: '2',
@@ -87,6 +97,8 @@ export const MOCK_DOCTORS = [
     available: true,
     nextAvailable: '29, June',
     avatar: null,
+    canProvideInHome: false,
+    spokenLanguages: ['English', 'Yoruba', 'Pidgin'],
   },
   {
     id: '3',
@@ -100,6 +112,8 @@ export const MOCK_DOCTORS = [
     available: false,
     nextAvailable: '2, July',
     avatar: null,
+    canProvideInHome: false,
+    spokenLanguages: ['English', 'Yoruba'],
   },
   {
     id: '4',
@@ -113,6 +127,8 @@ export const MOCK_DOCTORS = [
     available: true,
     nextAvailable: '30, June',
     avatar: null,
+    canProvideInHome: false,
+    spokenLanguages: ['English'],
   },
   {
     id: '5',
@@ -126,6 +142,8 @@ export const MOCK_DOCTORS = [
     available: true,
     nextAvailable: '1, July',
     avatar: null,
+    canProvideInHome: true,
+    spokenLanguages: ['English', 'Hausa', 'Pidgin'],
   },
 ];
 
@@ -332,6 +350,29 @@ export const MOCK_PRESCRIPTIONS = [
     instructions: 'Take in the morning. Stay well hydrated.',
     status: 'active', doctorId: 'doc-1', doctorName: 'Dr. Sarah Johnson',
     datePrescribed: 'Jun 12, 2026', createdAt: '2026-06-12T14:52:00Z',
+  },
+  // Martin (pat-1) — the signed-in mock patient's own medication record,
+  // shown in the patient-facing Prescriptions tab.
+  {
+    id: 'rx-9', patientId: 'pat-1', drug: 'Cetirizine', strength: '10 mg', form: 'Tablet', route: 'Oral',
+    frequency: 'Once daily', duration: 'Ongoing', quantity: '30', refills: '2',
+    instructions: 'Take one tablet daily for seasonal allergies.',
+    status: 'active', doctorId: 'doc-1', doctorName: 'Dr. Amara Okafor',
+    datePrescribed: 'Jul 4, 2026', createdAt: '2026-07-04T10:00:00Z',
+  },
+  {
+    id: 'rx-10', patientId: 'pat-1', drug: 'Omeprazole', strength: '20 mg', form: 'Capsule', route: 'Oral',
+    frequency: 'Once daily', duration: '28 days', quantity: '28', refills: '1',
+    instructions: 'Take 30 minutes before breakfast.',
+    status: 'active', doctorId: 'doc-1', doctorName: 'Dr. Amara Okafor',
+    datePrescribed: 'Jun 20, 2026', createdAt: '2026-06-20T09:00:00Z',
+  },
+  {
+    id: 'rx-11', patientId: 'pat-1', drug: 'Amoxicillin', strength: '500 mg', form: 'Capsule', route: 'Oral',
+    frequency: 'Three times daily', duration: '7 days', quantity: '21', refills: '0',
+    instructions: 'Completed course for chest infection.',
+    status: 'completed', doctorId: 'doc-1', doctorName: 'Dr. Amara Okafor',
+    datePrescribed: 'Mar 12, 2026', createdAt: '2026-03-12T16:30:00Z',
   },
 ];
 

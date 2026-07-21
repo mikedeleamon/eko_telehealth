@@ -7,11 +7,13 @@ import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
+import EkoTextField from '../../../components/common/EkoTextField';
 import RatingStars from '../../../components/common/RatingStars';
 import { api } from '../../../api';
-import { queryKeys } from '../../../hooks/queries';
+import { queryKeys, usePaymentPreview } from '../../../hooks/queries';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { splitFee, formatMoney } from '../../../utils/format';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -24,6 +26,17 @@ const PAYMENT_METHODS = [
   { id: 'flutterwave', labelKey: 'payment.methodFlutterwave', icon: 'money' },
   { id: 'paypal', labelKey: 'payment.methodPaypal', icon: 'paypal' },
 ];
+
+// Maps a rejected PromoStatus (everything but 'applied') to the i18n key
+// explaining why. See backend services/promos.ts for the source of truth.
+const PROMO_ERROR_KEYS: Record<string, string> = {
+  not_found: 'payment.promoNotFound',
+  inactive: 'payment.promoInactive',
+  expired: 'payment.promoExpired',
+  min_spend: 'payment.promoMinSpend',
+  limit_reached: 'payment.promoLimitReached',
+  user_limit_reached: 'payment.promoUserLimitReached',
+};
 
 /**
  * Pays for an appointment the doctor has already ACCEPTED — it no longer
@@ -39,9 +52,24 @@ export default function PaymentScreen({ navigation, route }: Props) {
   const { appointment, doctor } = route.params ?? {};
   const [method, setMethod] = useState('flutterwave');
   const [loading, setLoading] = useState(false);
+  const [promoInput, setPromoInput] = useState('');
+  // The code actually being previewed/paid with — only set once the patient
+  // taps Apply, so the preview doesn't refetch on every keystroke.
+  const [appliedPromo, setAppliedPromo] = useState('');
   const qc = useQueryClient();
 
   const fee = appointment?.fee ?? doctor?.fee ?? '₦15,000';
+  const feeSymbol = splitFee(fee)?.symbol ?? '₦';
+
+  // The real charge — consultation fee + service charge + VAT (Video Visit
+  // only) − any promo discount — comes from the server (admin-managed rates
+  // and codes, backend lib/pricing.ts / services/promos.ts), not computed
+  // locally. Falls back to the raw fee while this loads so the screen isn't blank.
+  const { data: preview } = usePaymentPreview(appointment?.id ?? '', appliedPromo || undefined);
+  const total = preview ? formatMoney(feeSymbol, preview.patientTotal) : fee;
+  const promoError = appliedPromo && preview?.promoStatus && preview.promoStatus !== 'applied'
+    ? t(PROMO_ERROR_KEYS[preview.promoStatus] ?? 'payment.promoErrorGeneric')
+    : undefined;
 
   const pay = async () => {
     if (!appointment?.id) return Alert.alert('', t('payment.notAvailable'));
@@ -50,6 +78,8 @@ export default function PaymentScreen({ navigation, route }: Props) {
       const intent = await api.payments.createIntent({
         appointmentId: appointment.id,
         provider: method === 'paypal' ? 'paypal' : 'flutterwave',
+        // Re-validated server-side — never trust the discount preview() showed.
+        code: appliedPromo || undefined,
       });
 
       if (/^https?:\/\//.test(intent.checkoutRef)) {
@@ -122,12 +152,64 @@ export default function PaymentScreen({ navigation, route }: Props) {
           {t('payment.handoffNote')}
         </Text>
 
+        <Text style={styles.sectionLabel}>{t('payment.promoCodeTitle')}</Text>
+        <View style={styles.promoRow}>
+          <EkoTextField
+            value={promoInput}
+            onChangeText={(v: string) => setPromoInput(v.toUpperCase())}
+            placeholder={t('payment.promoCodePlaceholder')}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            containerStyle={styles.promoInput}
+            error={promoError}
+          />
+          <TouchableOpacity
+            style={[styles.promoApplyBtn, !promoInput.trim() && styles.promoApplyBtnDisabled]}
+            onPress={() => setAppliedPromo(promoInput.trim())}
+            disabled={!promoInput.trim()}
+            accessibilityRole="button"
+            accessibilityLabel={t('payment.apply')}
+          >
+            <Text style={styles.promoApplyText}>{t('payment.apply')}</Text>
+          </TouchableOpacity>
+        </View>
+        {preview?.promoStatus === 'applied' && (
+          <Text style={styles.promoSuccess}>{t('payment.promoApplied', { code: appliedPromo })}</Text>
+        )}
+
+        {preview && (
+          <View style={styles.breakdownCard}>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>{t('payment.consultation')}</Text>
+              <Text style={styles.breakdownValue}>{formatMoney(feeSymbol, preview.consultationFee)}</Text>
+            </View>
+            {preview.serviceCharge > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>{t('payment.serviceFee')}</Text>
+                <Text style={styles.breakdownValue}>{formatMoney(feeSymbol, preview.serviceCharge)}</Text>
+              </View>
+            )}
+            {preview.vat > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>{t('payment.vat')}</Text>
+                <Text style={styles.breakdownValue}>{formatMoney(feeSymbol, preview.vat)}</Text>
+              </View>
+            )}
+            {preview.discount > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>{t('payment.promoDiscount')}</Text>
+                <Text style={[styles.breakdownValue, styles.discountValue]}>− {formatMoney(feeSymbol, preview.discount)}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>{t('payment.totalAmount')}</Text>
-          <Text style={styles.totalValue}>{fee}</Text>
+          <Text style={styles.totalValue}>{total}</Text>
         </View>
 
-        <EkoButton title={t('payment.pay', { amount: fee })} variant="accent" onPress={pay} loading={loading} />
+        <EkoButton title={t('payment.pay', { amount: total })} variant="accent" onPress={pay} loading={loading} />
       </ScrollView>
     </View>
   );
@@ -164,6 +246,23 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     fontSize: 12, color: Colors.textGray, lineHeight: 18,
     marginTop: 16, fontFamily: 'Poppins_400Regular',
   },
+  promoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  promoInput: { flex: 1, marginBottom: 0 },
+  promoApplyBtn: {
+    height: 54, paddingHorizontal: 18, borderRadius: 12,
+    backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center',
+  },
+  promoApplyBtnDisabled: { backgroundColor: Colors.borderGray },
+  promoApplyText: { color: Colors.white, fontWeight: '700', fontSize: 14 },
+  promoSuccess: { fontSize: 12, color: Colors.green, marginTop: -8, marginBottom: 12, fontFamily: 'Poppins_400Regular' },
+  breakdownCard: {
+    backgroundColor: Colors.surface, borderRadius: 12, borderWidth: 1, borderColor: Colors.borderGray,
+    padding: 14, marginTop: 16,
+  },
+  breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
+  breakdownLabel: { fontSize: 13, color: Colors.textMedium, fontFamily: 'Poppins_400Regular' },
+  breakdownValue: { fontSize: 13, color: Colors.textDark, fontWeight: '600', fontFamily: 'Poppins_600SemiBold' },
+  discountValue: { color: Colors.green },
   totalRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     backgroundColor: Colors.bgLight, borderRadius: 12, padding: 16, marginBottom: 20, marginTop: 8,
