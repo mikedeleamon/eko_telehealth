@@ -5,16 +5,27 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
+import { useContentBlocks } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
 }
 
+/**
+ * Mission + contact copy come from the CMS (task 2.2) so an admin can update
+ * them without a developer — falls back to the i18n strings while loading or
+ * if a block is missing. "What We Offer" stays static: it's a structured
+ * feature list, not prose, and doesn't fit a single-textarea editor well.
+ */
 export default function AboutUsScreen({ navigation }: Props) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
+  const { data: blocks = [] } = useContentBlocks();
+  const mission = blocks.find((b) => b.key === 'about_mission');
+  const contact = blocks.find((b) => b.key === 'about_contact');
+
   return (
     <View style={styles.container}>
       <EkoHeader title={t('account.aboutUs')} onBack={() => navigation.goBack()} />
@@ -26,8 +37,8 @@ export default function AboutUsScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t('about.ourMission')}</Text>
-          <Text style={styles.cardText}>{t('about.missionBody')}</Text>
+          <Text style={styles.cardTitle}>{mission?.title ?? t('about.ourMission')}</Text>
+          <Text style={styles.cardText}>{mission?.body ?? t('about.missionBody')}</Text>
         </View>
 
         <View style={styles.card}>
@@ -47,8 +58,8 @@ export default function AboutUsScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t('about.contactUs')}</Text>
-          <Text style={styles.cardText}>{t('about.contactBody')}</Text>
+          <Text style={styles.cardTitle}>{contact?.title ?? t('about.contactUs')}</Text>
+          <Text style={styles.cardText}>{contact?.body ?? t('about.contactBody')}</Text>
         </View>
 
         <Text style={styles.copyright}>{t('about.copyright')}</Text>

@@ -50,6 +50,7 @@ const fr: TranslationSchema = {
     hidePassword: 'Masquer le mot de passe',
     selectField: 'Sélectionnez une option',
     rating: 'Note : {{rating}} sur 5',
+    dimensionRating: 'Note {{dimension}} : {{rating}} sur 5',
     avatar: 'Photo de profil de {{name}}',
     call: 'Démarrer l’appel',
     endCall: 'Terminer l’appel',
@@ -213,6 +214,12 @@ const fr: TranslationSchema = {
     verificationFailed: 'Échec de la vérification',
     invalidExpired: 'Code invalide ou expiré.',
     goBackReenterEmail: 'Revenez en arrière et saisissez à nouveau votre adresse e-mail.',
+
+    // Login 2FA
+    twoFactorTitle: 'Saisissez votre code',
+    twoFactorBody: 'Nous avons envoyé un code à 6 chiffres à votre e-mail pour terminer la connexion.',
+    twoFactorBackToLogin: 'Se reconnecter',
+    goBackSignInAgain: 'Revenez en arrière et reconnectez-vous pour recevoir un nouveau code.',
 
     // Verify mobile
     mobileVerification: 'Vérification du mobile',
@@ -711,9 +718,13 @@ const fr: TranslationSchema = {
     chooseLanguage: 'Choisissez votre langue',
     languageEnglish: 'English',
     languageFrench: 'Français',
+    currency: 'Devise',
+    currencySub: 'Les frais sont affichés convertis dans cette devise pour la navigation et le paiement — vous payez toujours exactement le montant affiché au moment du paiement.',
     account: 'Compte',
     privacy: 'Confidentialité',
     security: 'Sécurité',
+    twoFactor: 'Authentification à deux facteurs',
+    twoFactorSub: 'Exiger un code envoyé par e-mail à chaque connexion',
     notifications: 'Notifications',
     pushNotifications: 'Notifications push',
     pushNotificationsSub: 'Rappels de rendez-vous et actualités',
@@ -758,6 +769,9 @@ const fr: TranslationSchema = {
     comments: 'Commentaires ({{count}})',
     reviewTitlePlaceholder: 'Titrez votre avis',
     reviewTitle: 'Titre de l’avis',
+    communication: 'Communication',
+    experience: 'Expérience',
+    speedyResponse: 'Rapidité de réponse',
   },
 
   documents: {

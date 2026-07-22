@@ -51,6 +51,7 @@ const en = {
     hidePassword: 'Hide password',
     selectField: 'Select an option',
     rating: 'Rating: {{rating}} out of 5',
+    dimensionRating: '{{dimension}} rating: {{rating}} out of 5',
     avatar: '{{name}} profile photo',
     call: 'Start call',
     endCall: 'End call',
@@ -218,6 +219,12 @@ const en = {
     verificationFailed: 'Verification failed',
     invalidExpired: 'Invalid or expired code.',
     goBackReenterEmail: 'Go back and re-enter your email address.',
+
+    // Login 2FA
+    twoFactorTitle: 'Enter Your Code',
+    twoFactorBody: 'We sent a 6-digit code to your email to finish signing in.',
+    twoFactorBackToLogin: 'Sign in again',
+    goBackSignInAgain: 'Go back and sign in again to get a new code.',
 
     // Verify mobile
     mobileVerification: 'Mobile Verification',
@@ -722,9 +729,13 @@ const en = {
     chooseLanguage: 'Choose your language',
     languageEnglish: 'English',
     languageFrench: 'Français',
+    currency: 'Currency',
+    currencySub: 'Fees are shown converted to this currency for browsing and checkout — you still always pay the exact amount shown at checkout.',
     account: 'Account',
     privacy: 'Privacy',
     security: 'Security',
+    twoFactor: 'Two-Factor Authentication',
+    twoFactorSub: "Require a code emailed to you each time you sign in",
     notifications: 'Notifications',
     pushNotifications: 'Push Notifications',
     pushNotificationsSub: 'Appointment reminders and updates',
@@ -769,6 +780,9 @@ const en = {
     comments: 'Comments ({{count}})',
     reviewTitlePlaceholder: 'Title your review',
     reviewTitle: 'Review title',
+    communication: 'Communication',
+    experience: 'Experience',
+    speedyResponse: 'Speedy Response',
   },
 
   documents: {

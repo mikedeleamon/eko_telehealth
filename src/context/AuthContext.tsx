@@ -1,7 +1,11 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { api } from '../api';
-import type { User, UserRole } from '../api/types';
+import type { LoginResult, TwoFactorChallenge, User, UserRole } from '../api/types';
 import { useAuthStore } from '../store/authStore';
+
+function isTwoFactorChallenge(result: LoginResult): result is TwoFactorChallenge {
+  return (result as TwoFactorChallenge).twoFactorRequired === true;
+}
 
 export type { UserRole };
 
@@ -17,7 +21,10 @@ interface AuthContextType {
   hasOnboarded: boolean;
   /** False until the persisted session has been restored from disk. */
   isRestoring: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  /** Resolves without setting a session when the account has 2FA enabled — see {@link completeTwoFactorLogin}. */
+  login: (email: string, password: string) => Promise<{ twoFactorRequired: boolean; challenge?: string }>;
+  /** Finishes a login that returned `twoFactorRequired`, using the challenge it handed back. */
+  completeTwoFactorLogin: (challenge: string, code: string) => Promise<void>;
   logout: () => void;
   completeOnboarding: () => void;
 }
@@ -28,7 +35,8 @@ const AuthContext = createContext<AuthContextType>({
   isDoctor: false,
   hasOnboarded: false,
   isRestoring: true,
-  login: async () => {},
+  login: async () => ({ twoFactorRequired: false }),
+  completeTwoFactorLogin: async () => {},
   logout: () => {},
   completeOnboarding: () => {},
 });
@@ -44,7 +52,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const hydrated = useAuthStore((s) => s.hydrated);
 
   const login = async (email: string, password: string) => {
-    const newSession = await api.auth.login(email, password);
+    const result = await api.auth.login(email, password);
+    if (isTwoFactorChallenge(result)) {
+      return { twoFactorRequired: true, challenge: result.challenge };
+    }
+    useAuthStore.getState().setSession(result);
+    return { twoFactorRequired: false };
+  };
+
+  const completeTwoFactorLogin = async (challenge: string, code: string) => {
+    const newSession = await api.auth.verifyLogin2FA(challenge, code);
     useAuthStore.getState().setSession(newSession);
   };
 
@@ -65,6 +82,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         hasOnboarded,
         isRestoring: !hydrated,
         login,
+        completeTwoFactorLogin,
         logout,
         completeOnboarding,
       }}

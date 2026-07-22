@@ -10,10 +10,11 @@ import EkoButton from '../../../components/common/EkoButton';
 import EkoTextField from '../../../components/common/EkoTextField';
 import RatingStars from '../../../components/common/RatingStars';
 import { api } from '../../../api';
-import { queryKeys, usePaymentPreview } from '../../../hooks/queries';
+import { useAuth } from '../../../context/AuthContext';
+import { queryKeys, useCurrencies, usePaymentPreview } from '../../../hooks/queries';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from '../../../i18n/useTranslation';
-import { splitFee, formatMoney } from '../../../utils/format';
+import { splitFee, formatMoney, convertFeeDisplay } from '../../../utils/format';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -70,6 +71,13 @@ export default function PaymentScreen({ navigation, route }: Props) {
   const promoError = appliedPromo && preview?.promoStatus && preview.promoStatus !== 'applied'
     ? t(PROMO_ERROR_KEYS[preview.promoStatus] ?? 'payment.promoErrorGeneric')
     : undefined;
+
+  // Display-only preview (task 2.4) — what's actually charged is always
+  // `total` above, in NGN (or its PayPal conversion at checkout); this just
+  // shows the patient roughly what that is in their preferred currency.
+  const { user } = useAuth();
+  const { data: currencies = [] } = useCurrencies();
+  const convertedTotal = convertFeeDisplay(total, user?.preferredCurrency ?? 'NGN', currencies);
 
   const pay = async () => {
     if (!appointment?.id) return Alert.alert('', t('payment.notAvailable'));
@@ -206,7 +214,10 @@ export default function PaymentScreen({ navigation, route }: Props) {
 
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>{t('payment.totalAmount')}</Text>
-          <Text style={styles.totalValue}>{total}</Text>
+          <View style={styles.totalValueCol}>
+            <Text style={styles.totalValue}>{total}</Text>
+            {convertedTotal ? <Text style={styles.totalConverted}>≈ {convertedTotal}</Text> : null}
+          </View>
         </View>
 
         <EkoButton title={t('payment.pay', { amount: total })} variant="accent" onPress={pay} loading={loading} />
@@ -268,5 +279,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     backgroundColor: Colors.bgLight, borderRadius: 12, padding: 16, marginBottom: 20, marginTop: 8,
   },
   totalLabel: { fontSize: 16, fontWeight: '600', color: Colors.textMedium },
+  totalValueCol: { alignItems: 'flex-end' },
   totalValue: { fontSize: 22, fontWeight: '900', color: Colors.primary },
+  totalConverted: { fontSize: 12, color: Colors.textGray, marginTop: 2 },
 });

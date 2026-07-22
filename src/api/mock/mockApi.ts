@@ -25,8 +25,10 @@ import type {
   ChatTokenGrant,
   Complaint,
   ComplaintInput,
+  ContentBlock,
   Conversation,
   CreateAppointmentInput,
+  Currency,
   Doctor,
   AppointmentStatus,
   Dependent,
@@ -34,6 +36,7 @@ import type {
   DoctorEarnings,
   EarningItem,
   Insurance,
+  LoginResult,
   MedicalNote,
   MedicalNoteInput,
   NoteAmendment,
@@ -73,6 +76,33 @@ let mockInsurance: Insurance | null = null;
 let mockPharmacy: Pharmacy | null = null;
 /** The signed-in mock user's own spoken languages (task 2.5), editable via updateProfile. */
 let mockSpokenLanguages: string[] = ['English'];
+/** The signed-in mock user's own display currency (task 2.4), editable via updateProfile. */
+let mockPreferredCurrency = 'NGN';
+/** Login 2FA opt-in, editable via updateProfile — toggle it in Settings, then sign out and back in to see the code step. */
+let mockTwoFactorEnabled = false;
+/** Admin-editable prose (task 2.2), mirroring the backend's seeded content_blocks. */
+const MOCK_CONTENT_BLOCKS: ContentBlock[] = [
+  {
+    key: 'about_mission',
+    title: 'Our Mission',
+    body: 'Eko Telehealth connects patients with licensed, verified doctors for video, clinic, and home visits — bringing quality healthcare within reach, wherever you are.',
+  },
+  {
+    key: 'about_contact',
+    title: 'Contact Us',
+    body: 'Have a question or need help? Reach our support team at support@ekotelehealth.com, or use "Report a Problem" in Settings to file a trackable request.',
+  },
+  {
+    key: 'terms_of_service',
+    title: 'Terms of Service',
+    body: 'By using Eko Telehealth, you agree to receive care from licensed providers subject to their own professional obligations, to provide accurate information during registration and consultations, and to use the platform only for its intended purpose of arranging and conducting telehealth visits. Eko Telehealth is a marketplace connecting patients and providers; it does not itself practice medicine. Full terms are available on request from support@ekotelehealth.com.',
+  },
+  {
+    key: 'privacy_policy',
+    title: 'Privacy Policy',
+    body: 'Eko Telehealth collects the information needed to provide care: your account details, appointment history, and any medical information you or your provider add to your record. This information is shared only with providers you consult and is never sold. You can request a copy or deletion of your data at any time via support@ekotelehealth.com.',
+  },
+];
 /** The signed-in mock user's own filed reports (task 2.1), newest first. */
 let mockComplaints: Complaint[] = [
   {
@@ -182,8 +212,8 @@ let mockSettings: UserSettings = {
 };
 
 const MOCK_REVIEWS: Review[] = [
-  { id: 'r1', author: 'Jane D.', rating: 5, title: 'So many words, so little time', text: 'Excellent doctor! Very thorough and caring. Took the time to answer every one of my questions and never made me feel rushed. The follow-up notes were detailed and easy to understand.', date: 'Apr 16, 2026', verified: true, comments: 100 },
-  { id: 'r2', author: 'Mark S.', rating: 5, title: 'Excellent work', text: 'Great experience overall. Short wait time and the video call was crystal clear. Prescriptions were sent to my pharmacy within the hour — the whole thing was seamless.', date: 'Jan 28, 2026', verified: true, comments: 10 },
+  { id: 'r1', author: 'Jane D.', rating: 5, title: 'So many words, so little time', text: 'Excellent doctor! Very thorough and caring. Took the time to answer every one of my questions and never made me feel rushed. The follow-up notes were detailed and easy to understand.', date: 'Apr 16, 2026', verified: true, comments: 100, communicationRating: 5, experienceRating: 5, speedyResponseRating: 4 },
+  { id: 'r2', author: 'Mark S.', rating: 5, title: 'Excellent work', text: 'Great experience overall. Short wait time and the video call was crystal clear. Prescriptions were sent to my pharmacy within the hour — the whole thing was seamless.', date: 'Jan 28, 2026', verified: true, comments: 10, communicationRating: 5, experienceRating: 4, speedyResponseRating: 5 },
   { id: 'r3', author: 'Sam S.', rating: 5, title: 'So many words', text: 'Highly recommend! Very knowledgeable and professional. Explained my diagnosis clearly and laid out every option before we decided on a plan together.', date: 'Jan 16, 2026', verified: true, comments: 80 },
   { id: 'r4', author: 'Alice M.', rating: 4, title: 'Really helpful', text: 'Solid consultation and genuinely helpful advice. Knocked a star off only because the app kept me waiting a couple of minutes past my slot.', date: 'Dec 30, 2025', verified: true, comments: 4 },
   { id: 'r5', author: 'Tunde A.', rating: 4, title: 'Would book again', text: 'Professional and friendly. Answered my follow-up message the same day.', date: 'Dec 12, 2025', verified: true, comments: 2 },
@@ -242,29 +272,47 @@ const MOCK_ACCOUNTS: Record<string, { id: string; firstName: string; lastName: s
   'dr.johnson@ekotelehealth.com': { id: 'doc-1', firstName: 'Sarah', lastName: 'Johnson', accountType: 'Doctor' },
 };
 
+/** Shared by login() and verifyTwoFactorLogin() — the same session shape either way. */
+function buildMockSession(normalizedEmail: string): AuthSession {
+  const account = MOCK_ACCOUNTS[normalizedEmail] ?? {
+    id: 'pat-1',
+    firstName: 'Martin',
+    lastName: 'Doe',
+    accountType: 'Patient' as UserRole,
+  };
+  return {
+    user: {
+      id: account.id,
+      firstName: account.firstName,
+      lastName: account.lastName,
+      email: normalizedEmail || 'martin@ekotelehealth.com',
+      accountType: account.accountType,
+      spokenLanguages: mockSpokenLanguages,
+      preferredCurrency: mockPreferredCurrency,
+      twoFactorEnabled: mockTwoFactorEnabled,
+    },
+    accessToken: 'mock-access-token',
+    refreshToken: 'mock-refresh-token',
+  };
+}
+
 export const mockApi = {
-  async login(email: string, _password: string): Promise<AuthSession> {
+  async login(email: string, _password: string): Promise<LoginResult> {
     await delay(700);
     const normalized = email.trim().toLowerCase();
-    // Look the account up by email; unknown emails default to a patient account.
-    const account = MOCK_ACCOUNTS[normalized] ?? {
-      id: 'pat-1',
-      firstName: 'Martin',
-      lastName: 'Doe',
-      accountType: 'Patient' as UserRole,
-    };
-    return {
-      user: {
-        id: account.id,
-        firstName: account.firstName,
-        lastName: account.lastName,
-        email: normalized || 'martin@ekotelehealth.com',
-        accountType: account.accountType,
-        spokenLanguages: mockSpokenLanguages,
-      },
-      accessToken: 'mock-access-token',
-      refreshToken: 'mock-refresh-token',
-    };
+    // Mirrors the live flow: with 2FA on, hold the session back and hand out
+    // a challenge instead. Any 6-digit code is accepted below, same as the
+    // rest of this mock's OTP endpoints.
+    if (mockTwoFactorEnabled) {
+      return { twoFactorRequired: true, challenge: `mock-challenge:${normalized}` };
+    }
+    return buildMockSession(normalized);
+  },
+
+  async verifyTwoFactorLogin(challenge: string, _code: string): Promise<AuthSession> {
+    await delay(500);
+    const normalized = challenge.split(':')[1] ?? '';
+    return buildMockSession(normalized);
   },
 
   async signup(_input: {
@@ -746,9 +794,11 @@ export const mockApi = {
     };
   },
 
-  async updateProfile(input: { firstName?: string; lastName?: string; phone?: string; spokenLanguages?: string[] }): Promise<User> {
+  async updateProfile(input: { firstName?: string; lastName?: string; phone?: string; spokenLanguages?: string[]; preferredCurrency?: string; twoFactorEnabled?: boolean }): Promise<User> {
     await delay(500);
     if (input.spokenLanguages !== undefined) mockSpokenLanguages = input.spokenLanguages;
+    if (input.preferredCurrency) mockPreferredCurrency = input.preferredCurrency;
+    if (input.twoFactorEnabled !== undefined) mockTwoFactorEnabled = input.twoFactorEnabled;
     return {
       id: 'pat-1',
       firstName: input.firstName ?? 'Martin',
@@ -756,7 +806,34 @@ export const mockApi = {
       email: 'martin@ekotelehealth.com',
       accountType: 'Patient',
       spokenLanguages: mockSpokenLanguages,
+      preferredCurrency: mockPreferredCurrency,
+      twoFactorEnabled: mockTwoFactorEnabled,
     };
+  },
+
+  /** GET /currencies — active display currencies. */
+  async getCurrencies(): Promise<Currency[]> {
+    await delay(200);
+    return [
+      { code: 'NGN', symbol: '₦', ngnRate: 1 },
+      { code: 'USD', symbol: '$', ngnRate: 1600 },
+      { code: 'GBP', symbol: '£', ngnRate: 2000 },
+      { code: 'EUR', symbol: '€', ngnRate: 1750 },
+    ];
+  },
+
+  /** GET /content — every content block. */
+  async getContentBlocks(): Promise<ContentBlock[]> {
+    await delay(200);
+    return MOCK_CONTENT_BLOCKS;
+  },
+
+  /** GET /content/:key — a single block. */
+  async getContentBlock(key: string): Promise<ContentBlock> {
+    await delay(200);
+    const block = MOCK_CONTENT_BLOCKS.find((c) => c.key === key);
+    if (!block) throw new Error('Content block not found');
+    return block;
   },
 
   async getReviews(): Promise<Review[]> {
@@ -779,9 +856,30 @@ export const mockApi = {
     return { average, total, distribution };
   },
 
-  async submitReview(input: { subject: string; rating: number; text: string; title?: string }): Promise<Review> {
+  async submitReview(input: {
+    subject: string;
+    communicationRating: number;
+    experienceRating: number;
+    speedyResponseRating: number;
+    text: string;
+    title?: string;
+  }): Promise<Review> {
     await delay(600);
-    return { id: `r-${Date.now()}`, author: 'You', rating: input.rating, text: input.text, title: input.title, date: 'Today', verified: true, comments: 0 };
+    // Overall score is derived, not picked separately — mirrors the live backend.
+    const rating = Math.round((input.communicationRating + input.experienceRating + input.speedyResponseRating) / 3);
+    return {
+      id: `r-${Date.now()}`,
+      author: 'You',
+      rating,
+      communicationRating: input.communicationRating,
+      experienceRating: input.experienceRating,
+      speedyResponseRating: input.speedyResponseRating,
+      text: input.text,
+      title: input.title,
+      date: 'Today',
+      verified: true,
+      comments: 0,
+    };
   },
 
   /** GET /complaints — the signed-in mock user's own filed reports. */

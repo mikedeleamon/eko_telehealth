@@ -19,13 +19,16 @@ import type {
   ChatTokenGrant,
   Complaint,
   ComplaintInput,
+  ContentBlock,
   Conversation,
   CreateAppointmentInput,
+  Currency,
   Dependent,
   Doctor,
   DoctorAgendaItem,
   DoctorEarnings,
   Insurance,
+  LoginResult,
   MedicalNote,
   MedicalNoteInput,
   PatientSummary,
@@ -79,9 +82,19 @@ export const api = {
      * (users.account_type), never sent by the client, so a user can't sign in as
      * an account type theirs isn't.
      */
-    login(email: string, password: string): Promise<AuthSession> {
+    login(email: string, password: string): Promise<LoginResult> {
       if (env.useMockApi) return mockApi.login(email, password);
-      return request<AuthSession>('/auth/login', { method: 'POST', body: { email, password }, anonymous: true });
+      return request<LoginResult>('/auth/login', { method: 'POST', body: { email, password }, anonymous: true });
+    },
+
+    /**
+     * POST /auth/login/verify-2fa — completes a login that returned a
+     * TwoFactorChallenge. The challenge already proves the password checked
+     * out; only the emailed code is needed here.
+     */
+    verifyLogin2FA(challenge: string, code: string): Promise<AuthSession> {
+      if (env.useMockApi) return mockApi.verifyTwoFactorLogin(challenge, code);
+      return request<AuthSession>('/auth/login/verify-2fa', { method: 'POST', body: { challenge, code }, anonymous: true });
     },
 
     /**
@@ -129,7 +142,7 @@ export const api = {
     },
 
     /** PATCH /auth/me — update the signed-in user's profile (not email; that's the login id). */
-    updateProfile(input: { firstName?: string; lastName?: string; phone?: string; spokenLanguages?: string[] }): Promise<User> {
+    updateProfile(input: { firstName?: string; lastName?: string; phone?: string; spokenLanguages?: string[]; preferredCurrency?: string; twoFactorEnabled?: boolean }): Promise<User> {
       if (env.useMockApi) return mockApi.updateProfile(input);
       return request<User>('/auth/me', { method: 'PATCH', body: input });
     },
@@ -606,8 +619,19 @@ export const api = {
       return request<ReviewSummary>(`/reviews/summary${suffix}`);
     },
 
-    /** POST /reviews — submit for moderation; goes live once an admin approves. */
-    submit(input: { subject: string; rating: number; text: string; title?: string }): Promise<Review> {
+    /**
+     * POST /reviews — submit for moderation; goes live once an admin approves.
+     * The overall rating isn't picked separately — the backend derives it from
+     * the three dimension scores.
+     */
+    submit(input: {
+      subject: string;
+      communicationRating: number;
+      experienceRating: number;
+      speedyResponseRating: number;
+      text: string;
+      title?: string;
+    }): Promise<Review> {
       if (env.useMockApi) return mockApi.submitReview(input);
       return request<Review>('/reviews', { method: 'POST', body: input });
     },
@@ -624,6 +648,28 @@ export const api = {
     submit(input: ComplaintInput): Promise<Complaint> {
       if (env.useMockApi) return mockApi.submitComplaint(input);
       return request<Complaint>('/complaints', { method: 'POST', body: input });
+    },
+  },
+
+  currencies: {
+    /** GET /currencies — active display currencies, for the preference picker. */
+    list(): Promise<Currency[]> {
+      if (env.useMockApi) return mockApi.getCurrencies();
+      return request<Currency[]>('/currencies');
+    },
+  },
+
+  content: {
+    /** GET /content — every content block (AboutUsScreen renders several at once). */
+    list(): Promise<ContentBlock[]> {
+      if (env.useMockApi) return mockApi.getContentBlocks();
+      return request<ContentBlock[]>('/content');
+    },
+
+    /** GET /content/:key — a single block (TermsOfServiceScreen, PrivacyPolicyScreen). */
+    get(key: string): Promise<ContentBlock> {
+      if (env.useMockApi) return mockApi.getContentBlock(key);
+      return request<ContentBlock>(`/content/${key}`);
     },
   },
 };

@@ -22,7 +22,9 @@ export default function ReviewsScreen({ navigation, route }: Props) {
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
   const { doctor } = route.params ?? {};
-  const [myRating, setMyRating] = useState(0);
+  const [myCommunication, setMyCommunication] = useState(0);
+  const [myExperience, setMyExperience] = useState(0);
+  const [mySpeedyResponse, setMySpeedyResponse] = useState(0);
   const [myTitle, setMyTitle] = useState('');
   const [myReview, setMyReview] = useState('');
 
@@ -33,12 +35,14 @@ export default function ReviewsScreen({ navigation, route }: Props) {
   const submitMutation = useSubmitReview();
 
   const submitReview = async () => {
-    if (myRating === 0) return Alert.alert('', t('reviews.selectRating'));
+    if (!myCommunication || !myExperience || !mySpeedyResponse) return Alert.alert('', t('reviews.selectRating'));
     if (!myReview.trim()) return Alert.alert('', t('reviews.enterReview'));
     try {
       await submitMutation.mutateAsync({
         subject: doctor.name,
-        rating: myRating,
+        communicationRating: myCommunication,
+        experienceRating: myExperience,
+        speedyResponseRating: mySpeedyResponse,
         text: myReview.trim(),
         title: myTitle.trim() || undefined,
       });
@@ -65,13 +69,9 @@ export default function ReviewsScreen({ navigation, route }: Props) {
           !doctor ? null : (
             <View style={styles.writeReview}>
               <Text style={styles.writeTitle}>{t('reviews.writeReview')}</Text>
-              <View style={styles.starRow}>
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <TouchableOpacity key={s} onPress={() => setMyRating(s)} accessibilityRole="button" accessibilityLabel={t('a11y.rating', { rating: s })}>
-                    <FontAwesome name={s <= myRating ? 'star' : 'star-o'} size={32} color="#FFC107" style={styles.starBtn} />
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <DimensionPicker label={t('reviews.communication')} value={myCommunication} onChange={setMyCommunication} />
+              <DimensionPicker label={t('reviews.experience')} value={myExperience} onChange={setMyExperience} />
+              <DimensionPicker label={t('reviews.speedyResponse')} value={mySpeedyResponse} onChange={setMySpeedyResponse} />
               <TextInput
                 style={styles.titleInput}
                 placeholder={t('reviews.reviewTitlePlaceholder')}
@@ -134,6 +134,25 @@ function SummaryHeader({ summary, count }: { summary?: ReviewSummary; count: num
             </View>
           );
         })}
+      </View>
+    </View>
+  );
+}
+
+/** One labeled star-picker row in the write-review form (Communication/Experience/Speedy Response). */
+function DimensionPicker({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  const { t } = useTranslation();
+  return (
+    <View style={styles.dimensionRow}>
+      <Text style={styles.dimensionLabel}>{label}</Text>
+      <View style={styles.starRow}>
+        {[1, 2, 3, 4, 5].map((s) => (
+          <TouchableOpacity key={s} onPress={() => onChange(s)} accessibilityRole="button" accessibilityLabel={t('a11y.dimensionRating', { dimension: label, rating: s })}>
+            <FontAwesome name={s <= value ? 'star' : 'star-o'} size={24} color="#FFC107" style={styles.starBtn} />
+          </TouchableOpacity>
+        ))}
       </View>
     </View>
   );
@@ -229,8 +248,10 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   // Write review
   writeReview: { backgroundColor: Colors.surface, borderRadius: 14, padding: 16, marginTop: 8 },
   writeTitle: { fontSize: 16, fontWeight: '700', color: Colors.textDark, marginBottom: 12, fontFamily: 'Poppins_700Bold' },
-  starRow: { flexDirection: 'row', marginBottom: 14 },
-  starBtn: { marginRight: 6 },
+  dimensionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  dimensionLabel: { fontSize: 14, color: Colors.textDark, fontFamily: 'Poppins_500Medium' },
+  starRow: { flexDirection: 'row' },
+  starBtn: { marginLeft: 4 },
   titleInput: {
     borderWidth: 1.5, borderColor: Colors.borderGray, borderRadius: 12, paddingHorizontal: 12, height: 46,
     fontSize: 14, color: Colors.textDark, marginBottom: 12, fontFamily: 'Poppins_400Regular',

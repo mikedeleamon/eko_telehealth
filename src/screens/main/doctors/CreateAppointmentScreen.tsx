@@ -7,8 +7,10 @@ import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
-import { useCreateAppointment, useDependents } from '../../../hooks/queries';
+import { useAuth } from '../../../context/AuthContext';
+import { useCreateAppointment, useCurrencies, useDependents } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { convertFeeDisplay } from '../../../utils/format';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -53,6 +55,13 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
   );
   const createAppointment = useCreateAppointment();
   const loading = createAppointment.isPending;
+  const { user } = useAuth();
+  const { data: currencies = [] } = useCurrencies();
+  // Display-only conversion (task 2.4) — the request itself is always sent
+  // and priced in the doctor's own NGN fee; this is just a "≈" preview.
+  const convertedFee = doctor?.fee
+    ? convertFeeDisplay(doctor.fee, user?.preferredCurrency ?? 'NGN', currencies)
+    : null;
   const { data: dependents = [] } = useDependents();
   // null = booking for yourself (the default).
   const [dependentId, setDependentId] = useState<string | null>(null);
@@ -149,7 +158,10 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
 
         <View style={styles.feeRow}>
           <Text style={styles.feeLabel}>{t('appointments.consultationFee')}</Text>
-          <Text style={styles.feeValue}>{doctor?.fee ?? '$0'}</Text>
+          <View style={styles.feeValueCol}>
+            <Text style={styles.feeValue}>{doctor?.fee ?? '$0'}</Text>
+            {convertedFee ? <Text style={styles.feeConverted}>≈ {convertedFee}</Text> : null}
+          </View>
         </View>
 
         <EkoButton title={t('appointments.requestAppointment')} variant="accent" onPress={handleConfirm} loading={loading} style={styles.btn} />
@@ -218,6 +230,8 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     backgroundColor: Colors.bgLight, borderRadius: 12, padding: 16, marginBottom: 24,
   },
   feeLabel: { fontSize: 15, color: Colors.textMedium, fontWeight: '500' },
+  feeValueCol: { alignItems: 'flex-end' },
   feeValue: { fontSize: 20, fontWeight: '800', color: Colors.primary },
+  feeConverted: { fontSize: 12, color: Colors.textGray, marginTop: 2 },
   btn: {},
 });

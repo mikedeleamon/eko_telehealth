@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Switch, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
 import { useTheme, useThemeMode, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
-import { useSaveSettings, useSettings } from '../../../hooks/queries';
+import { api } from '../../../api';
+import { useAuth } from '../../../context/AuthContext';
+import { useAuthStore } from '../../../store/authStore';
+import { useCurrencies, useSaveSettings, useSettings } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { SUPPORTED_LOCALES } from '../../../store/localeStore';
 import { THEME_MODES, type ThemeMode } from '../../../store/themeStore';
@@ -32,6 +35,43 @@ export default function SettingsScreen({ navigation }: Props) {
   const { mode: themeMode, setMode: setThemeMode } = useThemeMode();
   const { data: settings, isLoading } = useSettings();
   const saveSettings = useSaveSettings();
+  const { user } = useAuth();
+  const { data: currencies = [] } = useCurrencies();
+  const [savingCurrency, setSavingCurrency] = useState(false);
+  const [savingTwoFactor, setSavingTwoFactor] = useState(false);
+
+  // Display currency (task 2.4) lives on the user profile, not the
+  // userSettings table — save through the same PATCH /auth/me + session
+  // refresh path EditProfileScreen uses, not useSaveSettings.
+  const selectCurrency = async (code: string) => {
+    if (code === user?.preferredCurrency || savingCurrency) return;
+    setSavingCurrency(true);
+    try {
+      const updated = await api.auth.updateProfile({ preferredCurrency: code });
+      const session = useAuthStore.getState().session;
+      if (session) useAuthStore.getState().setSession({ ...session, user: updated });
+    } catch (err) {
+      Alert.alert(t('settings.couldNotSave'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
+    } finally {
+      setSavingCurrency(false);
+    }
+  };
+
+  // 2FA lives on the user profile (like preferredCurrency), not userSettings —
+  // same PATCH /auth/me + session refresh path as selectCurrency above.
+  const toggleTwoFactor = async (value: boolean) => {
+    if (savingTwoFactor) return;
+    setSavingTwoFactor(true);
+    try {
+      const updated = await api.auth.updateProfile({ twoFactorEnabled: value });
+      const session = useAuthStore.getState().session;
+      if (session) useAuthStore.getState().setSession({ ...session, user: updated });
+    } catch (err) {
+      Alert.alert(t('settings.couldNotSave'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
+    } finally {
+      setSavingTwoFactor(false);
+    }
+  };
 
   // Theme lives in a local persisted store so it applies instantly on launch;
   // we also persist the full preference server-side so it follows the user
@@ -108,6 +148,28 @@ export default function SettingsScreen({ navigation }: Props) {
             })}
           </View>
 
+          <Text style={styles.sectionTitle}>{t('settings.currency')}</Text>
+          <View style={styles.card}>
+            {currencies.map((c, i) => {
+              const active = (user?.preferredCurrency ?? 'NGN') === c.code;
+              return (
+                <TouchableOpacity
+                  key={c.code}
+                  style={[styles.langRow, i < currencies.length - 1 && styles.rowDivider]}
+                  onPress={() => selectCurrency(c.code)}
+                  disabled={savingCurrency}
+                  accessibilityRole="radio"
+                  accessibilityLabel={`${c.code} (${c.symbol})`}
+                  accessibilityState={{ selected: active }}
+                >
+                  <Text style={styles.langLabel}>{c.code} ({c.symbol})</Text>
+                  {active ? <FontAwesome name="check" size={16} color={Colors.primary} /> : null}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <Text style={styles.note}>{t('settings.currencySub')}</Text>
+
           <Text style={styles.sectionTitle}>{t('settings.notifications')}</Text>
           <View style={styles.card}>
             <ToggleRow label={t('settings.pushNotifications')} sub={t('settings.pushNotificationsSub')} settingKey="pushNotifications" />
@@ -117,6 +179,24 @@ export default function SettingsScreen({ navigation }: Props) {
           <Text style={styles.note}>
             {t('settings.securityNote')}
           </Text>
+
+          <Text style={styles.sectionTitle}>{t('settings.security')}</Text>
+          <View style={styles.card}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleInfo}>
+                <Text style={styles.toggleLabel}>{t('settings.twoFactor')}</Text>
+                <Text style={styles.toggleSub}>{t('settings.twoFactorSub')}</Text>
+              </View>
+              <Switch
+                value={user?.twoFactorEnabled ?? false}
+                onValueChange={toggleTwoFactor}
+                disabled={savingTwoFactor}
+                trackColor={{ false: Colors.borderGray, true: Colors.primaryLight }}
+                thumbColor={user?.twoFactorEnabled ? Colors.primary : Colors.textGray}
+                accessibilityLabel={t('settings.twoFactor')}
+              />
+            </View>
+          </View>
 
           <Text style={styles.sectionTitle}>{t('settings.appearance')}</Text>
           <View style={styles.segment} accessibilityRole="radiogroup">
@@ -153,6 +233,28 @@ export default function SettingsScreen({ navigation }: Props) {
               accessibilityLabel={t('settings.reportProblem')}
             >
               <Text style={styles.langLabel}>{t('settings.reportProblem')}</Text>
+              <FontAwesome name="chevron-right" size={14} color={Colors.textGray} />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.sectionTitle}>{t('settings.about')}</Text>
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={[styles.langRow, styles.rowDivider]}
+              onPress={() => navigation.navigate('TermsOfService')}
+              accessibilityRole="button"
+              accessibilityLabel={t('settings.termsOfService')}
+            >
+              <Text style={styles.langLabel}>{t('settings.termsOfService')}</Text>
+              <FontAwesome name="chevron-right" size={14} color={Colors.textGray} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.langRow}
+              onPress={() => navigation.navigate('PrivacyPolicy')}
+              accessibilityRole="button"
+              accessibilityLabel={t('settings.privacyPolicy')}
+            >
+              <Text style={styles.langLabel}>{t('settings.privacyPolicy')}</Text>
               <FontAwesome name="chevron-right" size={14} color={Colors.textGray} />
             </TouchableOpacity>
           </View>

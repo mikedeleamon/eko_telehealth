@@ -57,6 +57,8 @@ import PatientOverviewScreen from '../screens/main/account/PatientOverviewScreen
 import PaymentInfoScreen from '../screens/main/account/PaymentInfoScreen';
 import PaymentHistoryScreen from '../screens/main/account/PaymentHistoryScreen';
 import ReportProblemScreen from '../screens/main/account/ReportProblemScreen';
+import TermsOfServiceScreen from '../screens/main/account/TermsOfServiceScreen';
+import PrivacyPolicyScreen from '../screens/main/account/PrivacyPolicyScreen';
 import DocumentsScreen from '../screens/main/account/DocumentsScreen';
 import MyHealthScreen from '../screens/main/health/MyHealthScreen';
 import MyPrescriptionsScreen from '../screens/main/health/MyPrescriptionsScreen';
@@ -331,6 +333,14 @@ function AccountNavigator() {
                 name='ReportProblem'
                 component={ReportProblemScreen}
             />
+            <AccountStack.Screen
+                name='TermsOfService'
+                component={TermsOfServiceScreen}
+            />
+            <AccountStack.Screen
+                name='PrivacyPolicy'
+                component={PrivacyPolicyScreen}
+            />
         </AccountStack.Navigator>
     );
 }
@@ -472,6 +482,14 @@ function SettingsNavigator() {
             <SettingsStack.Screen
                 name='ReportProblem'
                 component={ReportProblemScreen}
+            />
+            <SettingsStack.Screen
+                name='TermsOfService'
+                component={TermsOfServiceScreen}
+            />
+            <SettingsStack.Screen
+                name='PrivacyPolicy'
+                component={PrivacyPolicyScreen}
             />
         </SettingsStack.Navigator>
     );

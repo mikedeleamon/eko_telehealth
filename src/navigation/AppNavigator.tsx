@@ -7,6 +7,7 @@ import { useTheme, useThemeMode } from '../theme';
 
 import TutorialScreen from '../screens/onboarding/TutorialScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
+import LoginTwoFactorScreen from '../screens/auth/LoginTwoFactorScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
 import ForgotPassLandingScreen from '../screens/auth/ForgotPassLandingScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
@@ -72,6 +73,7 @@ export default function AppNavigator() {
         {!isLoggedIn ? (
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="LoginTwoFactor" component={LoginTwoFactorScreen} options={{ animation: 'slide_from_right' }} />
             {/* Reached only after Signup + VerifyEmail — onboarding is a
                 post-signup welcome, not a pre-login gate. */}
             <Stack.Screen name="Tutorial" component={TutorialScreen} options={{ animation: 'slide_from_right' }} />

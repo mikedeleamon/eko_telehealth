@@ -1,6 +1,6 @@
 // Shared input formatting + validation helpers for forms.
 
-import type { PaymentMethod } from '../api/types';
+import type { Currency, PaymentMethod } from '../api/types';
 
 // ---- Phone / fax ----
 
@@ -113,6 +113,25 @@ export function splitFee(fee: string): { symbol: string; amount: number } | null
 /** Formats an amount back into a display string with the given currency prefix. */
 export function formatMoney(symbol: string, amount: number): string {
   return `${symbol}${groupThousands(amount)}`;
+}
+
+/**
+ * Converts an NGN fee display string (e.g. "₦15,000") into a patient's
+ * preferred display currency (task 2.4), for browsing/preview only — never
+ * what's actually charged, which stays canonical NGN throughout the backend.
+ * Returns null when there's nothing to convert (already NGN, no amount, or
+ * the preferred currency isn't in the active list), so callers can fall back
+ * to showing the original NGN string.
+ */
+export function convertFeeDisplay(feeDisplay: string, preferredCurrency: string, currencies: Currency[]): string | null {
+  if (preferredCurrency === 'NGN') return null;
+  const parsed = splitFee(feeDisplay);
+  if (!parsed) return null;
+  const target = currencies.find((c) => c.code === preferredCurrency);
+  if (!target || target.ngnRate <= 0) return null;
+  // 2dp, not groupThousands' whole-number rounding — a whole-NGN fee
+  // converts to a fractional amount in most other currencies.
+  return `${target.symbol}${(parsed.amount / target.ngnRate).toFixed(2)}`;
 }
 
 // ---- Payment methods ----

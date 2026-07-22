@@ -33,7 +33,12 @@ export default function LoginScreen({ navigation }: Props) {
     setLoading(true);
     try {
       // Role is resolved server-side from the account, not chosen at sign-in.
-      await login(email.trim(), password);
+      const result = await login(email.trim(), password);
+      if (result.twoFactorRequired && result.challenge) {
+        navigation.navigate('LoginTwoFactor', { challenge: result.challenge });
+        setLoading(false);
+      }
+      // Otherwise the navigator swaps to Main, so no need to reset loading.
     } catch (err) {
       Toast.show({
         type: 'error',
@@ -42,7 +47,6 @@ export default function LoginScreen({ navigation }: Props) {
       });
       setLoading(false);
     }
-    // On success the navigator swaps to Main, so no need to reset loading.
   };
 
   return (

@@ -28,6 +28,14 @@ export interface User {
    * (store/localeStore.ts) — this is who they can communicate with.
    */
   spokenLanguages: string[];
+  /**
+   * Display currency (task 2.4), e.g. 'NGN'. Converts fees for browsing/
+   * checkout preview only — never changes what's actually charged, which
+   * stays canonical NGN (or its PayPal conversion) throughout the backend.
+   */
+  preferredCurrency: string;
+  /** Login 2FA opt-in — when true, /auth/login returns a TwoFactorChallenge instead of a session. */
+  twoFactorEnabled: boolean;
 }
 
 export interface AuthSession {
@@ -37,6 +45,18 @@ export interface AuthSession {
   /** Used to silently renew the access token when it expires. */
   refreshToken?: string;
 }
+
+/**
+ * POST /auth/login response when the account has 2FA enabled: no session yet,
+ * just proof the password checked out plus a code already on its way to the
+ * account's email. Trade it for a session via POST /auth/login/verify-2fa.
+ */
+export interface TwoFactorChallenge {
+  twoFactorRequired: true;
+  challenge: string;
+}
+
+export type LoginResult = AuthSession | TwoFactorChallenge;
 
 export type VisitType = 'Video Visit' | 'Clinic Visit' | 'Home Visit';
 
@@ -359,6 +379,7 @@ export interface DoctorAgendaItem {
 export interface Review {
   id: string;
   author: string;
+  /** Overall score — the rounded average of the three dimensions below. */
   rating: number;
   text: string;
   /** Display date, e.g. "Jul 16, 2026". */
@@ -369,6 +390,10 @@ export interface Review {
   verified?: boolean;
   /** Number of comments/replies on the review (display-only count). */
   comments?: number;
+  /** Per-dimension scores. Absent on reviews submitted before this shipped. */
+  communicationRating?: number;
+  experienceRating?: number;
+  speedyResponseRating?: number;
 }
 
 /**
@@ -455,6 +480,30 @@ export interface PaymentIntent extends FeeBreakdown {
 export interface PaymentStatus extends PaymentIntent {
   /** The visit is only booked once this reads 'upcoming'. */
   appointmentStatus: AppointmentStatus;
+}
+
+/**
+ * GET /currencies — an active display currency (task 2.4). Used only to
+ * convert a canonical-NGN fee for browsing/preview — `ngnRate` is NGN per 1
+ * unit of this currency (e.g. USD → 1600), matching the backend's PayPal
+ * conversion convention.
+ */
+export interface Currency {
+  code: string;
+  symbol: string;
+  ngnRate: number;
+}
+
+/**
+ * Admin-editable prose (task 2.2) — AboutUsScreen, TermsOfServiceScreen,
+ * PrivacyPolicyScreen. `key` is a fixed slug (see backend
+ * migrations/0009_content_blocks.sql) — the app renders whatever an admin
+ * has set for it, with an i18n fallback while it loads.
+ */
+export interface ContentBlock {
+  key: string;
+  title: string;
+  body: string;
 }
 
 /**

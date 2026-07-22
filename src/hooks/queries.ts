@@ -30,6 +30,9 @@ export const queryKeys = {
   reviews: (subject?: string) => ['reviews', subject ?? 'all'] as const,
   reviewSummary: (subject?: string) => ['review-summary', subject ?? 'all'] as const,
   complaints: ['complaints'] as const,
+  currencies: ['currencies'] as const,
+  contentBlocks: ['content-blocks'] as const,
+  contentBlock: (key: string) => ['content-blocks', key] as const,
   dependents: ['dependents'] as const,
   insurance: ['insurance'] as const,
   pharmacy: ['pharmacy'] as const,
@@ -344,7 +347,14 @@ export function useReviewSummary(subject?: string) {
 export function useSubmitReview() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { subject: string; rating: number; text: string; title?: string }) => api.reviews.submit(input),
+    mutationFn: (input: {
+      subject: string;
+      communicationRating: number;
+      experienceRating: number;
+      speedyResponseRating: number;
+      text: string;
+      title?: string;
+    }) => api.reviews.submit(input),
     // Submissions are 'pending' until moderated, so the published list won't
     // change yet — invalidate anyway for when moderation is instant (mock).
     onSuccess: () => {
@@ -370,4 +380,19 @@ export function useSubmitComplaint() {
     mutationFn: (input: ComplaintInput) => api.complaints.submit(input),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.complaints }),
   });
+}
+
+/** Active display currencies (task 2.4) — rarely changes, fine to cache long. */
+export function useCurrencies() {
+  return useQuery({ queryKey: queryKeys.currencies, queryFn: api.currencies.list, staleTime: 5 * 60 * 1000 });
+}
+
+/** Every admin-editable content block (task 2.2) — AboutUsScreen renders several at once. */
+export function useContentBlocks() {
+  return useQuery({ queryKey: queryKeys.contentBlocks, queryFn: api.content.list, staleTime: 5 * 60 * 1000 });
+}
+
+/** A single content block by key (TermsOfServiceScreen, PrivacyPolicyScreen). */
+export function useContentBlock(key: string) {
+  return useQuery({ queryKey: queryKeys.contentBlock(key), queryFn: () => api.content.get(key), staleTime: 5 * 60 * 1000 });
 }
