@@ -1,11 +1,20 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import * as ExpoCalendar from 'expo-calendar';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
-import { useAppointmentBreakdown, useCancelAppointment, useDoctors } from '../../../hooks/queries';
+import {
+  useAppointmentBreakdown,
+  useAppointments,
+  useCancelAppointment,
+  useCheckInAppointment,
+  useDoctors,
+  useMarkNoShow,
+  usePracticeAppointments,
+} from '../../../hooks/queries';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
 import { useAuth } from '../../../context/AuthContext';
@@ -27,8 +36,10 @@ const STATUS_COLORS: Record<string, string> = {
   pending_approval: Colors.accent,
   pending_payment: Colors.accent,
   upcoming: Colors.primary,
+  checked_in: Colors.green,
   declined: Colors.red,
   cancelled: Colors.red,
+  no_show: Colors.red,
   past: Colors.textGray,
 };
 
@@ -36,8 +47,10 @@ const STATUS_LABEL_KEYS: Record<string, string> = {
   pending_approval: 'appointments.statusAwaitingApproval',
   pending_payment: 'appointments.statusPaymentRequired',
   upcoming: 'appointments.statusConfirmed',
+  checked_in: 'appointments.statusCheckedIn',
   declined: 'appointments.statusDeclined',
   cancelled: 'appointments.statusCancelled',
+  no_show: 'appointments.statusNoShow',
   past: 'appointments.statusPast',
 };
 
@@ -46,10 +59,21 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
   const { isDoctor } = useAuth();
-  const appointment = route.params?.appointment ?? {};
-  const { doctor: doctorName, specialty, date, time, type = 'Video Visit', status = 'upcoming' } = appointment;
+  const paramAppointment = route.params?.appointment ?? {};
+
+  // Live data, not a one-time route-param snapshot — so a check-in/no-show
+  // mutation is reflected here without a manual refetch hack. Mirrors how
+  // `doctor` is already resolved just below.
+  const { data: patientAppointments = [] } = useAppointments(!isDoctor);
+  const { data: practiceAppointments = [] } = usePracticeAppointments(isDoctor);
+  const source = isDoctor ? practiceAppointments : patientAppointments;
+  const appointment = source.find((a) => a.id === paramAppointment.id) ?? paramAppointment;
+
+  const { doctor: doctorName, specialty, date, time, startAt, type = 'Video Visit', status = 'upcoming' } = appointment;
 
   const cancelAppointment = useCancelAppointment();
+  const checkIn = useCheckInAppointment();
+  const markNoShow = useMarkNoShow();
 
   // Resolve the full doctor record so calls / chat / rescheduling have what they need.
   const { data: doctors = [] } = useDoctors();
@@ -57,12 +81,15 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
     doctors.find((d) => d.name === doctorName) ??
     { name: doctorName ?? 'Doctor', specialty: specialty ?? '', fee: '₦15,000', rating: 4.8 };
 
-  // Only a paid, confirmed visit can be joined; a request or an unpaid
-  // acceptance is not a booking yet.
+  // A checked-in visit is still "confirmed" for call/message/breakdown
+  // purposes — only Reschedule stops being offered once checked in (the
+  // patient is already present for the visit).
   const isConfirmed = status === 'upcoming';
+  const isCheckedIn = status === 'checked_in';
+  const isConfirmedOrCheckedIn = isConfirmed || isCheckedIn;
   const awaitingPayment = status === 'pending_payment';
   const awaitingApproval = status === 'pending_approval';
-  const isLive = isConfirmed || awaitingPayment || awaitingApproval;
+  const isLive = isConfirmedOrCheckedIn || awaitingPayment || awaitingApproval;
   const statusColor = STATUS_COLORS[status] ?? Colors.textGray;
   const statusLabel = STATUS_LABEL_KEYS[status] ? t(STATUS_LABEL_KEYS[status]) : status;
   const typeIcon = TYPE_ICONS[type] ?? 'calendar';
@@ -73,8 +100,9 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
   // Visits) — the breakdown comes from the settled payment on the server,
   // never computed locally, since the platform's rates are admin-managed and
   // can change (see backend lib/pricing.ts). Only fetched once a payment
-  // could actually exist to break down.
-  const { data: breakdown } = useAppointmentBreakdown(appointment.id, isDoctor && isConfirmed);
+  // could actually exist to break down — checked_in is still a settled,
+  // paid visit, so it stays eligible too (only the status label changed).
+  const { data: breakdown } = useAppointmentBreakdown(appointment.id, isDoctor && isConfirmedOrCheckedIn);
   const feeSymbol = splitFee(feeDisplay)?.symbol ?? '₦';
   const feeBreakdown =
     breakdown && breakdown.consultationFee > 0
@@ -91,6 +119,69 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
   const joinCall = () => {
     if (type === 'Video Visit') navigation.navigate('VideoCall', { doctor });
     else navigation.navigate('AudioCall', { doctor });
+  };
+
+  /** E-Check-In — patient marks themselves present/ready. "Begin Visit" (below) is Join Call, relabeled, enabled once this succeeds. */
+  const doCheckIn = async () => {
+    try {
+      await checkIn.mutateAsync(appointment.id);
+    } catch (err) {
+      Alert.alert(t('appointments.couldNotCheckIn'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
+    }
+  };
+
+  /** Doctor-only, manual — only reaches the server once the visit's start time has actually passed (enforced there too). */
+  const doMarkNoShow = () => {
+    Alert.alert(
+      t('appointments.markNoShow'),
+      t('appointments.markNoShowConfirm', { doctor: doctor.name ?? t('appointments.theDoctor') }),
+      [
+        { text: t('appointments.keep'), style: 'cancel' },
+        {
+          text: t('appointments.markNoShow'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await markNoShow.mutateAsync(appointment.id);
+            } catch (err) {
+              Alert.alert(t('appointments.couldNotMarkNoShow'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  /** Only offered once there's a real startAt to schedule from — legacy appointments booked before the slot model have no reliable time to add. */
+  const addToCalendar = async () => {
+    if (!startAt) return;
+    try {
+      const { status: permStatus } = await ExpoCalendar.requestCalendarPermissionsAsync();
+      if (permStatus !== 'granted') {
+        Alert.alert(t('appointments.calendarPermissionTitle'), t('appointments.calendarPermissionBody'));
+        return;
+      }
+      const calendars = await ExpoCalendar.getCalendarsAsync(ExpoCalendar.EntityTypes.EVENT);
+      const targetCalendar = calendars.find((c) => c.allowsModifications) ?? calendars[0];
+      if (!targetCalendar) {
+        Alert.alert(t('appointments.couldNotAddToCalendar'), t('common.somethingWentWrong'));
+        return;
+      }
+      const start = new Date(startAt);
+      // Consultation length isn't stored per-appointment (only per availability
+      // block, at booking time) — 30 minutes is a reasonable default for the
+      // calendar entry rather than adding a column just for this.
+      const end = new Date(start.getTime() + 30 * 60 * 1000);
+      await ExpoCalendar.createEventAsync(targetCalendar.id, {
+        title: t('appointments.calendarEventTitle', { doctor: doctor.name }),
+        startDate: start,
+        endDate: end,
+        timeZone: 'Africa/Lagos',
+      });
+      Alert.alert(t('appointments.addedToCalendar'));
+    } catch {
+      Alert.alert(t('appointments.couldNotAddToCalendar'), t('common.somethingWentWrong'));
+    }
   };
 
   const cancel = () => {
@@ -189,12 +280,12 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        {/* Actions. Payment, booking and rescheduling are patient actions — a
-            doctor gets paid, never pays, so their view only offers joining the
-            visit and messaging. */}
+        {/* Actions. Payment, check-in, booking and rescheduling are patient
+            actions — a doctor gets paid, never pays or checks in, so their
+            view only offers joining the visit, messaging, and no-show. */}
         {isDoctor ? (
           <>
-            {isConfirmed && (
+            {isConfirmedOrCheckedIn && (
               <EkoButton
                 title={type === 'Video Visit' ? t('appointments.joinVideoCall') : t('appointments.joinAudioCall')}
                 variant="primary"
@@ -208,6 +299,11 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
               onPress={() => navigation.navigate('Chat', { doctor })}
               style={styles.btn}
             />
+            {isConfirmedOrCheckedIn && (
+              <TouchableOpacity style={styles.cancelLink} onPress={doMarkNoShow}>
+                <Text style={styles.cancelText}>{t('appointments.markNoShow')}</Text>
+              </TouchableOpacity>
+            )}
           </>
         ) : isLive ? (
           <>
@@ -221,11 +317,15 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
             )}
             {isConfirmed && (
               <EkoButton
-                title={type === 'Video Visit' ? t('appointments.joinVideoCall') : t('appointments.joinAudioCall')}
+                title={t('appointments.eCheckIn')}
                 variant="accent"
-                onPress={joinCall}
+                onPress={doCheckIn}
+                loading={checkIn.isPending}
                 style={styles.btn}
               />
+            )}
+            {isCheckedIn && (
+              <EkoButton title={t('appointments.beginVisit')} variant="accent" onPress={joinCall} style={styles.btn} />
             )}
             <EkoButton
               title={t('appointments.sendMessage')}
@@ -233,6 +333,9 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
               onPress={() => navigation.navigate('Chat', { doctor })}
               style={styles.btn}
             />
+            {isConfirmedOrCheckedIn && startAt && (
+              <EkoButton title={t('appointments.addToCalendar')} variant="outline" onPress={addToCalendar} style={styles.btn} />
+            )}
             {isConfirmed && (
               <EkoButton
                 title={t('appointments.reschedule')}

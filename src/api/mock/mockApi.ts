@@ -20,6 +20,8 @@ import type {
   Appointment,
   AppNotification,
   AuthSession,
+  AvailabilityBlock,
+  AvailabilitySlot,
   CallTokenGrant,
   ChatMessage,
   ChatTokenGrant,
@@ -39,6 +41,7 @@ import type {
   LoginResult,
   MedicalNote,
   MedicalNoteInput,
+  NextAvailableMatch,
   NoteAmendment,
   PatientSummary,
   PaymentMethod,
@@ -80,6 +83,14 @@ let mockSpokenLanguages: string[] = ['English'];
 let mockPreferredCurrency = 'NGN';
 /** Login 2FA opt-in, editable via updateProfile — toggle it in Settings, then sign out and back in to see the code step. */
 let mockTwoFactorEnabled = false;
+/** The mock doctor's recurring weekly working hours (scheduling foundation), editable via the Availability screen. Mon-Fri 9-5, matching the real backend's day-one backfill default. */
+let mockDoctorAvailability: AvailabilityBlock[] = [1, 2, 3, 4, 5].map((weekday) => ({
+  id: `avail-${weekday}`,
+  weekday,
+  startMinute: 9 * 60,
+  endMinute: 17 * 60,
+  slotMinutes: 60,
+}));
 /** Admin-editable prose (task 2.2), mirroring the backend's seeded content_blocks. */
 const MOCK_CONTENT_BLOCKS: ContentBlock[] = [
   {
@@ -357,15 +368,75 @@ export const mockApi = {
     if (input.type === 'Home Visit' && !doctor?.canProvideInHome) {
       throw new Error(`${doctor?.name ?? 'This doctor'} is not certified for home visits.`);
     }
+    const startAt = new Date(input.startAt);
     return {
       id: String(++appointmentSeq),
       doctor: doctor?.name ?? 'Doctor',
       specialty: doctor?.category ?? 'Consultation',
-      date: input.date,
-      time: input.time,
+      date: startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+      time: formatClock(startAt),
       type: input.type,
       status: 'upcoming',
     };
+  },
+
+  /**
+   * GET /doctors/:id/availability?date= — mirrors the real backend's shape
+   * (working hours minus already-past times), simplified: every mock doctor
+   * shows the same 9-5 hourly slots, no collision checking against
+   * MOCK_APPOINTMENTS since those store display strings, not real instants.
+   */
+  async getDoctorAvailabilitySlots(_doctorId: string, date: string): Promise<AvailabilitySlot[]> {
+    await delay(300);
+    const [year, month, day] = date.split('-').map(Number);
+    const now = new Date();
+    const slots: AvailabilitySlot[] = [];
+    for (let hour = 9; hour < 17; hour++) {
+      const startAt = new Date(year, month - 1, day, hour, 0, 0, 0);
+      if (startAt <= now) continue;
+      slots.push({ startAt: startAt.toISOString(), label: formatClock(startAt) });
+    }
+    return slots;
+  },
+
+  /**
+   * GET /doctors/match?category=&type= — mock: matches the first doctor in
+   * the category (Home Visit also requires canProvideInHome, mirroring the
+   * real backend's eligibility filter). The slot is always "tomorrow, 9 AM"
+   * — mock mode doesn't model real per-doctor schedules across multiple
+   * doctors, so it isn't trying to reproduce the real earliest-across-N
+   * search, just the shape of a match.
+   */
+  async matchNextAvailable(category: string, type: VisitType): Promise<NextAvailableMatch> {
+    await delay(500);
+    const doctor = (MOCK_DOCTORS as Doctor[]).find(
+      (d) => d.category === category && (type !== 'Home Visit' || d.canProvideInHome),
+    );
+    if (!doctor) return { doctor: null, slot: null };
+    const tomorrow9am = new Date();
+    tomorrow9am.setDate(tomorrow9am.getDate() + 1);
+    tomorrow9am.setHours(9, 0, 0, 0);
+    return { doctor, slot: { startAt: tomorrow9am.toISOString(), label: formatClock(tomorrow9am) } };
+  },
+
+  /** POST /appointments/:id/check-in */
+  async checkInAppointment(id: string): Promise<Appointment> {
+    await delay(400);
+    const found = (MOCK_APPOINTMENTS as Appointment[]).find((a) => a.id === id) ?? (MOCK_APPOINTMENTS[0] as Appointment);
+    return { ...found, id, status: 'checked_in' };
+  },
+
+  /** GET /practice/availability */
+  async getDoctorWorkingHours(): Promise<AvailabilityBlock[]> {
+    await delay(300);
+    return mockDoctorAvailability;
+  },
+
+  /** PUT /practice/availability — full replace. */
+  async saveDoctorWorkingHours(blocks: AvailabilityBlock[]): Promise<AvailabilityBlock[]> {
+    await delay(500);
+    mockDoctorAvailability = blocks.map((b, i) => ({ ...b, id: b.id ?? `avail-new-${i}-${Date.now()}` }));
+    return mockDoctorAvailability;
   },
 
   async getConversations(): Promise<Conversation[]> {

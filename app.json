@@ -38,7 +38,14 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "@stream-io/video-react-native-sdk"
+      "@stream-io/video-react-native-sdk",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Eko Telehealth uses your calendar to add your upcoming visits.",
+          "remindersPermission": "Eko Telehealth uses your calendar to add your upcoming visits."
+        }
+      ]
     ]
   }
 }

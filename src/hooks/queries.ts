@@ -5,11 +5,13 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
-import type { CashoutInput, ComplaintInput, CreateAppointmentInput, DocumentCategory, LabInput, MedicalNoteInput, PaymentMethod, PickedFile, PrescriptionInput } from '../api/types';
+import type { AvailabilityBlock, CashoutInput, ComplaintInput, CreateAppointmentInput, DocumentCategory, LabInput, MedicalNoteInput, PaymentMethod, PickedFile, PrescriptionInput, VisitType } from '../api/types';
 
 export const queryKeys = {
   doctors: (params?: { category?: string; query?: string }) => ['doctors', params ?? {}] as const,
   doctor: (id: string) => ['doctors', id] as const,
+  doctorAvailabilitySlots: (doctorId: string, date: string) => ['doctor-availability-slots', doctorId, date] as const,
+  practiceAvailability: ['practice-availability'] as const,
   appointments: ['appointments'] as const,
   conversations: ['conversations'] as const,
   messages: (conversationId: string) => ['messages', conversationId] as const,
@@ -49,8 +51,8 @@ export function useDoctor(id: string) {
   return useQuery({ queryKey: queryKeys.doctor(id), queryFn: () => api.doctors.get(id), enabled: !!id });
 }
 
-export function useAppointments() {
-  return useQuery({ queryKey: queryKeys.appointments, queryFn: api.appointments.list });
+export function useAppointments(enabled = true) {
+  return useQuery({ queryKey: queryKeys.appointments, queryFn: api.appointments.list, enabled });
 }
 
 export function useCreateAppointment() {
@@ -66,6 +68,31 @@ export function useCancelAppointment() {
   return useMutation({
     mutationFn: (id: string) => api.appointments.cancel(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.appointments }),
+  });
+}
+
+/** Patient E-Check-In — only valid once an appointment is 'upcoming'. */
+export function useCheckInAppointment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.appointments.checkIn(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.appointments }),
+  });
+}
+
+/** Real open slots for a doctor on a given Lagos calendar date ('YYYY-MM-DD'), replacing the old hardcoded slot list. */
+export function useDoctorAvailabilitySlots(doctorId: string, date: string) {
+  return useQuery({
+    queryKey: queryKeys.doctorAvailabilitySlots(doctorId, date),
+    queryFn: () => api.doctors.availability(doctorId, date),
+    enabled: !!doctorId && !!date,
+  });
+}
+
+/** "Book Next Available" — user-triggered on button press, not auto-fetched, so this is a mutation not a query. */
+export function useNextAvailableMatch() {
+  return useMutation({
+    mutationFn: ({ category, type }: { category: string; type: VisitType }) => api.doctors.match(category, type),
   });
 }
 
@@ -186,6 +213,31 @@ export function useAppointmentBreakdown(id: string, enabled = true) {
     queryFn: () => api.practice.appointmentBreakdown(id),
     enabled: enabled && !!id,
     retry: false, // 404 until the visit is paid — not worth retrying
+  });
+}
+
+/** Doctor marks a patient as not attending — manual only, once the visit's start time has passed. */
+export function useMarkNoShow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.practice.markNoShow(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.practiceAppointments });
+      qc.invalidateQueries({ queryKey: queryKeys.agenda });
+    },
+  });
+}
+
+/** The signed-in doctor's recurring weekly working hours ("set my hours"). */
+export function useDoctorAvailability() {
+  return useQuery({ queryKey: queryKeys.practiceAvailability, queryFn: api.practice.availability });
+}
+
+export function useSaveDoctorAvailability() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (blocks: AvailabilityBlock[]) => api.practice.saveAvailability(blocks),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.practiceAvailability }),
   });
 }
 

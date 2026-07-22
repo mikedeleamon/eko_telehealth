@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  ScrollView, StatusBar, Platform,
+  ScrollView, StatusBar, Platform, Alert, ActivityIndicator,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,13 +11,16 @@ import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import { SPECIALTY_CHIPS } from '../../../constants';
-import { useAppointments, useConversations, useDoctors } from '../../../hooks/queries';
+import { useAppointments, useConversations, useDoctors, useNextAvailableMatch } from '../../../hooks/queries';
 import DoctorCard from '../../../components/doctors/DoctorCard';
 import AppointmentCard from '../../../components/appointments/AppointmentCard';
 import Cross from '../../../components/common/Cross';
 import { useAuth } from '../../../context/AuthContext';
 import { EMPTY_FILTERS, type DoctorFilters } from './FilterScreen';
 import { useTranslation } from '../../../i18n/useTranslation';
+import type { VisitType } from '../../../api/types';
+
+const MATCH_VISIT_TYPES: VisitType[] = ['Video Visit', 'Clinic Visit', 'Home Visit'];
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -42,6 +45,31 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
   const { data: appointments = [] } = useAppointments();
   const { data: conversationList = [] } = useConversations();
 
+  // "Book Next Available" — flexible provider selection. Needs a specific
+  // specialty to search within; matching across "All" doesn't make clinical
+  // sense, so the button is disabled until a real chip is picked.
+  const [matchType, setMatchType] = useState<VisitType>('Video Visit');
+  const nextAvailableMatch = useNextAvailableMatch();
+
+  const bookNextAvailable = async () => {
+    if (activeChip === 'All') return;
+    try {
+      const result = await nextAvailableMatch.mutateAsync({ category: activeChip, type: matchType });
+      if (!result.doctor || !result.slot) {
+        Alert.alert('', t('doctors.noNextAvailable', { specialty: activeChip }));
+        return;
+      }
+      navigation.navigate('CreateAppointment', {
+        doctor: result.doctor,
+        startAt: result.slot.startAt,
+        type: matchType,
+        isAutoMatch: true,
+      });
+    } catch (err) {
+      Alert.alert(t('doctors.couldNotMatch'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
+    }
+  };
+
   const filtered = doctors.filter(d => {
     const matchSearch = !search ||
       d.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -57,7 +85,7 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
     return matchSearch && matchChip && matchSpecialty && matchRating && matchAvailable && matchLanguage;
   });
 
-  const todayAppts = appointments.filter(a => a.status === 'upcoming').slice(0, 2);
+  const todayAppts = appointments.filter(a => a.status === 'upcoming' || a.status === 'checked_in').slice(0, 2);
   const unreadCount = conversationList.reduce((n, c) => n + c.unread, 0);
 
   return (
@@ -175,6 +203,53 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
           </ScrollView>
         </View>
 
+        {/* Book Next Available — flexible provider selection */}
+        <View style={styles.section}>
+          <View style={styles.matchCard}>
+            <View style={styles.matchHeader}>
+              <FontAwesome name="bolt" size={16} color={Colors.primary} />
+              <Text style={styles.matchTitle}>
+                {activeChip === 'All' ? t('doctors.bookNextAvailablePrompt') : t('doctors.bookNextAvailableIn', { specialty: activeChip })}
+              </Text>
+            </View>
+            {activeChip !== 'All' && (
+              <>
+                <View style={styles.matchTypeRow}>
+                  {MATCH_VISIT_TYPES.map((v) => {
+                    const active = matchType === v;
+                    return (
+                      <TouchableOpacity
+                        key={v}
+                        style={[styles.matchTypeChip, active && styles.matchTypeChipActive]}
+                        onPress={() => setMatchType(v)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: active }}
+                      >
+                        <Text style={[styles.matchTypeText, active && styles.matchTypeTextActive]}>
+                          {t(`options.appointmentType.${v}`)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <TouchableOpacity
+                  style={styles.matchBtn}
+                  onPress={bookNextAvailable}
+                  disabled={nextAvailableMatch.isPending}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('doctors.bookNextAvailableIn', { specialty: activeChip })}
+                >
+                  {nextAvailableMatch.isPending ? (
+                    <ActivityIndicator color={Colors.white} size="small" />
+                  ) : (
+                    <Text style={styles.matchBtnText}>{t('doctors.bookNextAvailableCta')}</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+
         {/* Today's Appointments */}
         {todayAppts.length > 0 && (
           <View style={styles.section}>
@@ -284,4 +359,24 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
 
   empty: { alignItems: 'center', paddingTop: 40 },
   emptyText: { fontSize: 15, color: Colors.textGray, marginTop: 10, fontFamily: 'Poppins_400Regular' },
+
+  matchCard: {
+    backgroundColor: Colors.surface, borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: Colors.borderGray,
+  },
+  matchHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  matchTitle: { flex: 1, fontSize: 14, fontWeight: '600', color: Colors.textDark, fontFamily: 'Poppins_600SemiBold' },
+  matchTypeRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  matchTypeChip: {
+    flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 12,
+    borderWidth: 1.5, borderColor: Colors.borderGray, backgroundColor: Colors.bgLight,
+  },
+  matchTypeChipActive: { backgroundColor: Colors.primaryFaded, borderColor: Colors.primary },
+  matchTypeText: { fontSize: 12, fontWeight: '600', color: Colors.textMedium, fontFamily: 'Poppins_600SemiBold' },
+  matchTypeTextActive: { color: Colors.primary },
+  matchBtn: {
+    marginTop: 12, height: 44, borderRadius: 22, backgroundColor: Colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  matchBtnText: { fontSize: 14, fontWeight: '700', color: Colors.white, fontFamily: 'Poppins_700Bold' },
 });

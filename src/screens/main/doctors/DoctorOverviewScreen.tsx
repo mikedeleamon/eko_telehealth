@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Platform, StatusBar,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Platform, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,7 +9,9 @@ import { RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
+import { useDoctorAvailabilitySlots } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
+import type { AvailabilitySlot } from '../../../api/types';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -18,15 +20,15 @@ interface Props {
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
-const today = new Date();
-const CALENDAR = Array.from({ length: 14 }, (_, i) => {
-  const d = new Date(today);
-  d.setDate(today.getDate() + i);
-  return { day: DAYS[d.getDay()], date: d.getDate(), month: d.getMonth(), year: d.getFullYear() };
-});
+
+function toISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 const VISIT_TYPES = ['Home Visit', 'Clinic Visit', 'Video Visit'];
-const SLOTS = ['09-10:00', '10-11:00', '11-12:00', '01-02:00', '02-03:00', '03-04:00'];
 
 export default function DoctorOverviewScreen({ navigation, route }: Props) {
   const Colors = useTheme();
@@ -40,12 +42,25 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
   const [activeTab, setActiveTab] = useState<'overview' | 'schedule'>(
     route.params?.initialTab === 'schedule' ? 'schedule' : 'overview'
   );
+  // Captured once at mount, not module load — a long-lived session no longer
+  // shows a "today" chip that's silently drifted stale past midnight.
+  const [today] = useState(() => new Date());
+  const CALENDAR = useMemo(
+    () =>
+      Array.from({ length: 14 }, (_, i) => {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        return { day: DAYS[d.getDay()], date: d.getDate(), month: d.getMonth(), year: d.getFullYear(), iso: toISODate(d) };
+      }),
+    [today],
+  );
   const [selectedDay, setSelectedDay] = useState(0);
   const [visitType, setVisitType] = useState('Home Visit');
-  const [selectedSlot, setSelectedSlot] = useState<string | null>('01-02:00');
+  const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
 
   const specialty = String(doctor.specialty ?? '').split(',')[0].trim();
   const month = CALENDAR[selectedDay];
+  const { data: slots = [], isLoading: slotsLoading } = useDoctorAvailabilitySlots(doctor.id, month.iso);
 
   return (
     <View style={styles.container}>
@@ -167,7 +182,10 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
                   <TouchableOpacity
                     key={i}
                     style={[styles.dayChip, selectedDay === i && styles.dayChipActive]}
-                    onPress={() => setSelectedDay(i)}
+                    onPress={() => {
+                      setSelectedDay(i);
+                      setSelectedSlot(null); // slots are date-specific — a prior pick from another day is no longer valid
+                    }}
                   >
                     <Text style={[styles.dayName, selectedDay === i && styles.dayActiveText]}>{item.day}</Text>
                     <Text style={[styles.dayNum, selectedDay === i && styles.dayActiveText]}>{item.date}</Text>
@@ -195,28 +213,38 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
               })}
             </View>
 
-            {/* Time slots */}
-            <View style={styles.slotsGrid}>
-              {SLOTS.map((slot) => {
-                const active = selectedSlot === slot;
-                return (
-                  <TouchableOpacity
-                    key={slot}
-                    style={[styles.slot, active && styles.slotActive]}
-                    onPress={() => setSelectedSlot(slot)}
-                    activeOpacity={0.85}
-                  >
-                    <FontAwesome name="clock-o" size={13} color={active ? Colors.white : Colors.textGray} />
-                    <Text style={[styles.slotText, active && styles.slotTextActive]}>  {slot}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            {/* Time slots — real availability, not a hardcoded list */}
+            {slotsLoading ? (
+              <ActivityIndicator style={styles.slotsLoader} color={Colors.primary} />
+            ) : slots.length === 0 ? (
+              <Text style={styles.noSlotsText}>{t('doctors.noSlots')}</Text>
+            ) : (
+              <View style={styles.slotsGrid}>
+                {slots.map((slot) => {
+                  const active = selectedSlot?.startAt === slot.startAt;
+                  return (
+                    <TouchableOpacity
+                      key={slot.startAt}
+                      style={[styles.slot, active && styles.slotActive]}
+                      onPress={() => setSelectedSlot(slot)}
+                      activeOpacity={0.85}
+                    >
+                      <FontAwesome name="clock-o" size={13} color={active ? Colors.white : Colors.textGray} />
+                      <Text style={[styles.slotText, active && styles.slotTextActive]}>  {slot.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
 
             <TouchableOpacity
-              style={styles.bookBtn}
+              style={[styles.bookBtn, !selectedSlot && styles.bookBtnDisabled]}
               activeOpacity={0.9}
-              onPress={() => navigation.navigate('CreateAppointment', { doctor, slot: selectedSlot, date: month, type: visitType })}
+              disabled={!selectedSlot}
+              onPress={() =>
+                selectedSlot &&
+                navigation.navigate('CreateAppointment', { doctor, startAt: selectedSlot.startAt, type: visitType })
+              }
             >
               <Text style={styles.bookBtnText}>{t('doctors.makeAppointment')}</Text>
             </TouchableOpacity>
@@ -324,6 +352,8 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   visitText: { fontSize: 14, fontWeight: '600', color: Colors.textGray, textAlign: 'center', lineHeight: 18, fontFamily: 'Poppins_600SemiBold' },
   visitTextActive: { color: Colors.white },
 
+  slotsLoader: { marginBottom: 28 },
+  noSlotsText: { fontSize: 13, color: Colors.textGray, marginBottom: 28, fontFamily: 'Poppins_400Regular' },
   slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 },
   slot: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
@@ -346,5 +376,6 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
       android: { elevation: 6 },
     }),
   },
+  bookBtnDisabled: { opacity: 0.5 },
   bookBtnText: { fontSize: 16, fontWeight: '700', color: Colors.white, letterSpacing: 0.5, fontFamily: 'Poppins_700Bold' },
 });

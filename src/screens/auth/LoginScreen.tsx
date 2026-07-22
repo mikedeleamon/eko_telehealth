@@ -56,7 +56,7 @@ export default function LoginScreen({ navigation }: Props) {
     >
       <StatusBar barStyle="dark-content" />
       <ScrollView
-        contentContainerStyle={[styles.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 32 }]}
+        contentContainerStyle={[styles.container, { paddingTop: insets.top + 96, paddingBottom: insets.bottom + 32 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -132,17 +132,11 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
 
   logoArea: { alignItems: 'center', marginBottom: 44 },
   logoCircle: {
-    width: 76, height: 76, borderRadius: 38,
-    backgroundColor: Colors.primary,
+    width: 120, height: 120,
     alignItems: 'center', justifyContent: 'center',
-    marginBottom: 16,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 8,
+    marginBottom: 4,
   },
-  logoIcon: { width: 52, height: 52 },
+  logoIcon: { width: 100, height: 100 },
   brandName: {
     fontSize: 34, fontWeight: '700', color: '#1A1A3E',
     fontFamily: 'Poppins_700Bold',

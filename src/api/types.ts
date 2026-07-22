@@ -82,19 +82,22 @@ export interface Doctor {
 /**
  * Booking lifecycle. A visit is only real once it reads 'upcoming', which
  * only a verified payment webhook can set:
- *   pending_approval → pending_payment → upcoming
- * with declined / cancelled / past as terminal states.
+ *   pending_approval → pending_payment → upcoming → checked_in
+ * with declined / cancelled / no_show / past as terminal states. checked_in
+ * is patient-triggered (E-Check-In); no_show is doctor-triggered, manual only.
  */
 export type AppointmentStatus =
   | 'pending_approval'
   | 'pending_payment'
   | 'upcoming'
+  | 'checked_in'
   | 'declined'
   | 'cancelled'
+  | 'no_show'
   | 'past';
 
 /** Statuses that belong in the "Upcoming" tab; everything else is history. */
-export const ACTIVE_STATUSES: AppointmentStatus[] = ['pending_approval', 'pending_payment', 'upcoming'];
+export const ACTIVE_STATUSES: AppointmentStatus[] = ['pending_approval', 'pending_payment', 'upcoming', 'checked_in'];
 
 export interface Appointment {
   id: string;
@@ -103,6 +106,8 @@ export interface Appointment {
   specialty: string;
   date: string;
   time: string;
+  /** ISO instant — real structured start time. Absent on legacy appointments booked before the slot model shipped. */
+  startAt?: string;
   type: VisitType;
   status: AppointmentStatus;
   /** Display fee, e.g. "₦15,000" — needed to prompt for payment. */
@@ -119,12 +124,43 @@ export interface Appointment {
 
 export interface CreateAppointmentInput {
   doctorId: string;
-  date: string;
-  time: string;
+  /** ISO instant — a slot returned by GET /doctors/:id/availability. */
+  startAt: string;
   type: VisitType;
   reason?: string;
   /** Booking on behalf of a dependent (proxy access). */
   dependentId?: string;
+}
+
+/** GET /doctors/:id/availability?date= — one open slot. */
+export interface AvailabilitySlot {
+  /** ISO instant. */
+  startAt: string;
+  /** "9:00 AM", Lagos local. */
+  label: string;
+}
+
+/**
+ * GET /doctors/match?category=&type= — the earliest open slot across every
+ * eligible doctor in a category ("Book Next Available" / flexible provider
+ * selection). Both fields are null together when nobody has an opening in
+ * the search window — a normal empty outcome, not an error.
+ */
+export interface NextAvailableMatch {
+  doctor: Doctor | null;
+  slot: AvailabilitySlot | null;
+}
+
+/** A doctor's recurring weekly working-hours block (GET/PUT /practice/availability). */
+export interface AvailabilityBlock {
+  /** Absent for a new block not yet saved. */
+  id?: string;
+  /** 0 = Sunday. */
+  weekday: number;
+  /** Minutes since midnight, Lagos local. */
+  startMinute: number;
+  endMinute: number;
+  slotMinutes: number;
 }
 
 export interface Conversation {

@@ -49,8 +49,14 @@ const TEXT_SECTIONS = {
 
 type TextKey = keyof typeof TEXT_SECTIONS;
 
-/** Notes can only document real visits — booked or completed, not pending. */
-const LINKABLE_STATUSES = ['past', 'upcoming'];
+/** Notes can only document real visits — booked, checked in, or completed, not pending. */
+const LINKABLE_STATUSES = ['past', 'upcoming', 'checked_in'];
+
+/** Falls back to 'clock-o' (still upcoming) for any status not listed here. */
+const LINKABLE_STATUS_ICONS: Record<string, string> = {
+  past: 'check',
+  checked_in: 'check-square-o',
+};
 
 /**
  * SOAP-format visit note form. Mode is derived: no note → create; a 'draft'
@@ -458,7 +464,7 @@ export default function MedicalNotes({ patient, note, onSave, saving = false, on
                     >
                       <View style={[styles.aptIcon, noted && { backgroundColor: Colors.bgGray }]}>
                         <FontAwesome
-                          name={a.status === 'past' ? 'check' : 'clock-o'}
+                          name={(LINKABLE_STATUS_ICONS[a.status] ?? 'clock-o') as any}
                           size={14}
                           color={noted ? Colors.textLight : Colors.primary}
                         />

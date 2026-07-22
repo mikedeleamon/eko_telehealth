@@ -34,8 +34,10 @@ const STATUS_COLORS: Record<string, string> = {
   pending_approval: Colors.accent,
   pending_payment: Colors.accent,
   upcoming: Colors.primary,
+  checked_in: Colors.green,
   declined: Colors.red,
   cancelled: Colors.red,
+  no_show: Colors.red,
   past: Colors.textGray,
 };
 
@@ -44,8 +46,10 @@ const STATUS_LABEL_KEYS: Record<string, string> = {
   pending_approval: 'appointments.statusPendingApproval',
   pending_payment: 'appointments.statusPendingPayment',
   upcoming: 'appointments.statusUpcoming',
+  checked_in: 'appointments.statusCheckedIn',
   declined: 'appointments.statusCancelled',
   cancelled: 'appointments.statusCancelled',
+  no_show: 'appointments.statusNoShow',
   past: 'appointments.statusPast',
 };
 

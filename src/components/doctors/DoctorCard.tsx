@@ -65,13 +65,6 @@ export default function DoctorCard({ doctor, onPress, onChat, cardColor = Colors
             <Text style={styles.reviewCount}>  {doctor.rating} ({doctor.reviews})</Text>
           </View>
 
-          {doctor.nextAvailable ? (
-            <Text style={styles.meta}>
-              <FontAwesome name="calendar" size={11} color={Colors.textGray} />
-              {'  '}{t('doctors.nextAvailable', { date: doctor.nextAvailable })}
-            </Text>
-          ) : null}
-
           <Text style={styles.meta} numberOfLines={1}>
             <FontAwesome name="map-marker" size={11} color={Colors.textGray} />
             {'  '}{doctor.location}

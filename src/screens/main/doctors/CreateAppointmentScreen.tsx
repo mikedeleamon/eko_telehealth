@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -7,8 +7,9 @@ import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
+import { ApiError } from '../../../api/client';
 import { useAuth } from '../../../context/AuthContext';
-import { useCreateAppointment, useCurrencies, useDependents } from '../../../hooks/queries';
+import { useCreateAppointment, useCurrencies, useDependents, useNextAvailableMatch } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { convertFeeDisplay } from '../../../utils/format';
 
@@ -23,29 +24,19 @@ const TYPES = [
   { label: 'Home Visit', icon: 'home' },
 ];
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/**
- * DoctorOverview's calendar passes the selected day as {day, date, month,
- * year}; the appointments contract wants a display string ("Mon, Jun 29,
- * 2026" — the shape the backend seeds).
- */
-function toDateLabel(date: unknown): string {
-  if (typeof date === 'string') return date;
-  if (date && typeof date === 'object' && 'date' in date && 'month' in date && 'year' in date) {
-    const d = date as { date: number; month: number; year: number };
-    const day = new Date(d.year, d.month, d.date);
-    return `${WEEKDAYS[day.getDay()]}, ${MONTHS[day.getMonth()]} ${day.getDate()}, ${day.getFullYear()}`;
-  }
-  return '';
+/** Device-local formatting of the real startAt instant — the same convention every other screen already uses for display strings. */
+function formatDateLabel(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+function formatTimeLabel(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
 export default function CreateAppointmentScreen({ navigation, route }: Props) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
-  const { doctor, slot, date, type } = route.params ?? {};
+  const { doctor, startAt, type } = route.params ?? {};
   // Home Visit is an admin-granted privilege (task 2.3) — only offered for
   // doctors certified for it. The backend enforces this too (routes/
   // appointments.ts), so this is UX, not the actual gate.
@@ -54,7 +45,11 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
     availableTypes.some((t) => t.label === type) ? type : 'Video Visit'
   );
   const createAppointment = useCreateAppointment();
-  const loading = createAppointment.isPending;
+  const nextAvailableMatch = useNextAvailableMatch();
+  // "Book Next Available" (MyDoctorsScreen) sets this — there's no slot
+  // picker to send this patient back to if their matched slot gets taken.
+  const isAutoMatch = route.params?.isAutoMatch === true;
+  const loading = createAppointment.isPending || nextAvailableMatch.isPending;
   const { user } = useAuth();
   const { data: currencies = [] } = useCurrencies();
   // Display-only conversion (task 2.4) — the request itself is always sent
@@ -65,6 +60,7 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
   const { data: dependents = [] } = useDependents();
   // null = booking for yourself (the default).
   const [dependentId, setDependentId] = useState<string | null>(null);
+  const [reason, setReason] = useState('');
 
   /**
    * Sends a REQUEST — the doctor has to accept before any payment is taken,
@@ -72,17 +68,44 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
    */
   const handleConfirm = async () => {
     if (!doctor?.id) return Alert.alert('', t('appointments.pickDoctor'));
-    if (!slot) return Alert.alert('', t('appointments.pickSlot'));
+    if (!startAt) return Alert.alert('', t('appointments.pickSlot'));
+    await submitBooking(doctor.id, startAt, doctor);
+  };
+
+  /**
+   * Separated from handleConfirm so a "Book Next Available" retry (below)
+   * can call it again with a freshly matched doctor+slot without duplicating
+   * the request payload or the navigation-on-success step.
+   */
+  const submitBooking = async (doctorId: string, slotStartAt: string, bookingDoctor: typeof doctor) => {
     try {
       const appointment = await createAppointment.mutateAsync({
-        doctorId: doctor.id,
-        date: toDateLabel(date),
-        time: slot,
+        doctorId,
+        startAt: slotStartAt,
         type: selectedType,
+        ...(reason.trim() ? { reason: reason.trim() } : {}),
         ...(dependentId ? { dependentId } : {}),
       });
-      navigation.navigate('AppointmentConfirmed', { doctor, appointment });
+      navigation.navigate('AppointmentConfirmed', { doctor: bookingDoctor, appointment });
     } catch (err) {
+      // The slot this patient was auto-matched to just got taken (409) — they
+      // never saw a slot picker, so "pick another slot" would dead-end them.
+      // Re-match once with the same specialty/type instead of surfacing it.
+      if (isAutoMatch && err instanceof ApiError && err.status === 409) {
+        try {
+          const rematch = await nextAvailableMatch.mutateAsync({ category: bookingDoctor.category, type: selectedType });
+          if (rematch.doctor && rematch.slot) {
+            return submitBooking(rematch.doctor.id, rematch.slot.startAt, rematch.doctor);
+          }
+          // Rematch succeeded but nobody's free anymore — a real, specific
+          // outcome, not the generic "couldNotSendRequest" the original 409
+          // text would misleadingly imply.
+          Alert.alert('', t('doctors.noNextAvailable', { specialty: bookingDoctor.category }));
+          return;
+        } catch {
+          // Rematch itself failed — fall through to the generic error below.
+        }
+      }
       Alert.alert(t('appointments.couldNotSendRequest'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
     }
   };
@@ -103,8 +126,8 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.summaryCard}>
-          <Row icon="calendar" label={t('confirmed.date')} value={date ? `${date.day}, ${date.date}` : t('appointments.selectedDatePlaceholder')} />
-          <Row icon="clock-o" label={t('confirmed.time')} value={slot ?? t('appointments.selectedSlotPlaceholder')} />
+          <Row icon="calendar" label={t('confirmed.date')} value={startAt ? formatDateLabel(startAt) : t('appointments.selectedDatePlaceholder')} />
+          <Row icon="clock-o" label={t('confirmed.time')} value={startAt ? formatTimeLabel(startAt) : t('appointments.selectedSlotPlaceholder')} />
         </View>
 
         {/* Only shown when the account actually has dependents — this is what
@@ -155,6 +178,18 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           ))}
         </View>
+
+        <Text style={styles.sectionLabel}>{t('appointments.reasonForVisit')}</Text>
+        <TextInput
+          style={styles.reasonInput}
+          placeholder={t('appointments.reasonPlaceholder')}
+          placeholderTextColor={Colors.textGray}
+          value={reason}
+          onChangeText={setReason}
+          multiline
+          numberOfLines={3}
+          accessibilityLabel={t('appointments.reasonForVisit')}
+        />
 
         <View style={styles.feeRow}>
           <Text style={styles.feeLabel}>{t('appointments.consultationFee')}</Text>
@@ -225,6 +260,11 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   typeBtnActive: { backgroundColor: Colors.primary },
   typeText: { fontSize: 11, fontWeight: '600', color: Colors.primary, marginTop: 6, textAlign: 'center' },
   typeTextActive: { color: Colors.white },
+  reasonInput: {
+    borderWidth: 1.5, borderColor: Colors.borderGray, borderRadius: 12, padding: 12,
+    fontSize: 14, color: Colors.textDark, minHeight: 80, textAlignVertical: 'top', marginBottom: 24,
+    fontFamily: 'Poppins_400Regular',
+  },
   feeRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     backgroundColor: Colors.bgLight, borderRadius: 12, padding: 16, marginBottom: 24,

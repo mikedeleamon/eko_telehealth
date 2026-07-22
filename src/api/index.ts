@@ -13,6 +13,8 @@ import type {
   Appointment,
   AppNotification,
   AuthSession,
+  AvailabilityBlock,
+  AvailabilitySlot,
   CallTokenGrant,
   CashoutInput,
   ChatMessage,
@@ -50,9 +52,11 @@ import type {
   PresignResult,
   LabResult,
   LabInput,
+  NextAvailableMatch,
   User,
   UserRole,
   UserSettings,
+  VisitType,
 } from './types';
 
 /**
@@ -192,6 +196,27 @@ export const api = {
       if (env.useMockApi) return mockApi.getDoctor(id);
       return request<Doctor>(`/doctors/${id}`);
     },
+
+    /**
+     * GET /doctors/:id/availability?date=YYYY-MM-DD — real open slots for
+     * that Lagos calendar date, replacing the old hardcoded slot list.
+     */
+    availability(doctorId: string, date: string): Promise<AvailabilitySlot[]> {
+      if (env.useMockApi) return mockApi.getDoctorAvailabilitySlots(doctorId, date);
+      return request<{ date: string; slots: AvailabilitySlot[] }>(`/doctors/${doctorId}/availability?date=${date}`).then(
+        (r) => r.slots,
+      );
+    },
+
+    /**
+     * GET /doctors/match?category=&type= — the earliest open slot across
+     * every eligible doctor in a category ("Book Next Available"). A null
+     * `doctor`/`slot` pair means nobody has an opening in the window.
+     */
+    match(category: string, type: VisitType): Promise<NextAvailableMatch> {
+      if (env.useMockApi) return mockApi.matchNextAvailable(category, type);
+      return request<NextAvailableMatch>(`/doctors/match?category=${encodeURIComponent(category)}&type=${encodeURIComponent(type)}`);
+    },
   },
 
   appointments: {
@@ -211,6 +236,12 @@ export const api = {
     cancel(id: string): Promise<void> {
       if (env.useMockApi) return Promise.resolve();
       return request<void>(`/appointments/${id}/cancel`, { method: 'POST' });
+    },
+
+    /** POST /appointments/:id/check-in — patient E-Check-In, only once 'upcoming'. */
+    checkIn(id: string): Promise<Appointment> {
+      if (env.useMockApi) return mockApi.checkInAppointment(id);
+      return request<Appointment>(`/appointments/${id}/check-in`, { method: 'POST' });
     },
   },
 
@@ -276,6 +307,24 @@ export const api = {
     decline(id: string, reason?: string): Promise<Appointment> {
       if (env.useMockApi) return mockApi.decideAppointment(id, 'declined');
       return request<Appointment>(`/practice/appointments/${id}/decline`, { method: 'POST', body: { reason } });
+    },
+
+    /** POST /practice/appointments/:id/no-show — manual only; only once the visit's start time has passed. */
+    markNoShow(id: string): Promise<Appointment> {
+      if (env.useMockApi) return mockApi.decideAppointment(id, 'no_show');
+      return request<Appointment>(`/practice/appointments/${id}/no-show`, { method: 'POST' });
+    },
+
+    /** GET /practice/availability — the signed-in doctor's recurring weekly working hours. */
+    availability(): Promise<AvailabilityBlock[]> {
+      if (env.useMockApi) return mockApi.getDoctorWorkingHours();
+      return request<AvailabilityBlock[]>('/practice/availability');
+    },
+
+    /** PUT /practice/availability — replace the whole weekly schedule in one call. */
+    saveAvailability(blocks: AvailabilityBlock[]): Promise<AvailabilityBlock[]> {
+      if (env.useMockApi) return mockApi.saveDoctorWorkingHours(blocks);
+      return request<AvailabilityBlock[]>('/practice/availability', { method: 'PUT', body: { blocks } });
     },
 
     /**

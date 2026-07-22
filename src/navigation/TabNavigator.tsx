@@ -60,6 +60,7 @@ import ReportProblemScreen from '../screens/main/account/ReportProblemScreen';
 import TermsOfServiceScreen from '../screens/main/account/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '../screens/main/account/PrivacyPolicyScreen';
 import DocumentsScreen from '../screens/main/account/DocumentsScreen';
+import DoctorAvailabilityScreen from '../screens/main/doctors/DoctorAvailabilityScreen';
 import MyHealthScreen from '../screens/main/health/MyHealthScreen';
 import MyPrescriptionsScreen from '../screens/main/health/MyPrescriptionsScreen';
 import LabsScreen from '../screens/main/health/LabsScreen';
@@ -466,6 +467,10 @@ function SettingsNavigator() {
             <SettingsStack.Screen
                 name='Documents'
                 component={DocumentsScreen}
+            />
+            <SettingsStack.Screen
+                name='Availability'
+                component={DoctorAvailabilityScreen}
             />
             <SettingsStack.Screen
                 name='ChangePassword'
