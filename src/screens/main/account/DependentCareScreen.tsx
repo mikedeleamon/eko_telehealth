@@ -6,7 +6,13 @@ import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
-import { useAppointments, useDoctors } from '../../../hooks/queries';
+import {
+  useAppointments,
+  useDependentLabs,
+  useDependentPrescriptions,
+  useDependentVisitNotes,
+  useDoctors,
+} from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import type { Dependent, Doctor } from '../../../api/types';
 
@@ -27,13 +33,13 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 /**
- * A proxy's view of a dependent's care (BRD 1.2 "Proxies") — the visit
- * history for appointments booked on their behalf, plus the ability to
- * schedule a paid case conference with any doctor who's treated them.
- * There's no separate structured medical record for a dependent (visits
- * booked for them are recorded under the account holder's own record —
- * see schema.ts's dependentId doc comment) so this surfaces what's real and
- * available today: what's been booked, with whom, and when.
+ * A proxy's view of a dependent's care (BRD 1.2 "Proxies") — visit history,
+ * medications, lab results and visit-note summaries for appointments booked on
+ * their behalf, plus the ability to schedule a paid case conference with any
+ * doctor who's treated them. Clinical reads are dependent-scoped server-side
+ * (GET /me/dependents/:id/...) — a doctor's visit note for this dependent is
+ * tagged with their dependentId, not the account holder's, so it surfaces
+ * here and nowhere else.
  */
 export default function DependentCareScreen({ navigation, route }: Props) {
   const Colors = useTheme();
@@ -42,6 +48,9 @@ export default function DependentCareScreen({ navigation, route }: Props) {
   const dependent = route.params?.dependent as Dependent | undefined;
   const { data: appointments, isLoading } = useAppointments();
   const { data: doctors } = useDoctors();
+  const { data: prescriptions } = useDependentPrescriptions(dependent?.id);
+  const { data: labs } = useDependentLabs(dependent?.id);
+  const { data: notes } = useDependentVisitNotes(dependent?.id);
 
   const visits = (appointments ?? [])
     .filter((a) => a.dependentId === dependent?.id)
@@ -99,6 +108,45 @@ export default function DependentCareScreen({ navigation, route }: Props) {
             </>
           )}
 
+          {!!prescriptions?.length && (
+            <>
+              <Text style={styles.sectionTitle}>{t('account.dependentMedications')}</Text>
+              {prescriptions.map((rx) => (
+                <View key={rx.id} style={styles.recordRow}>
+                  <Text style={styles.recordTitle}>{rx.drug} {rx.strength}</Text>
+                  <Text style={styles.recordMeta}>{rx.frequency} · {rx.doctorName} · {rx.datePrescribed}</Text>
+                </View>
+              ))}
+            </>
+          )}
+
+          {!!labs?.length && (
+            <>
+              <Text style={styles.sectionTitle}>{t('account.dependentLabs')}</Text>
+              {labs.map((lab) => (
+                <View key={lab.id} style={styles.recordRow}>
+                  <Text style={styles.recordTitle}>{lab.testName}</Text>
+                  <Text style={styles.recordMeta}>
+                    {lab.value}{lab.unit ? ` ${lab.unit}` : ''} · {lab.collectedDate}
+                  </Text>
+                </View>
+              ))}
+            </>
+          )}
+
+          {!!notes?.length && (
+            <>
+              <Text style={styles.sectionTitle}>{t('account.dependentVisitNotes')}</Text>
+              {notes.map((note) => (
+                <View key={note.id} style={styles.recordRow}>
+                  <Text style={styles.recordTitle}>{note.reason}</Text>
+                  <Text style={styles.recordMeta}>{note.doctorName} · {note.date}</Text>
+                  {!!note.plan && <Text style={styles.recordPlan}>{note.plan}</Text>}
+                </View>
+              ))}
+            </>
+          )}
+
           <Text style={styles.sectionTitle}>{t('account.visitHistory')}</Text>
           {visits.length === 0 ? (
             <View style={styles.empty}>
@@ -151,6 +199,14 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   visitInfo: { flex: 1 },
   visitDoctor: { fontSize: 14, fontWeight: '600', color: Colors.textDark },
   visitMeta: { fontSize: 12, color: Colors.textGray, marginTop: 2 },
+
+  recordRow: {
+    backgroundColor: Colors.surface, borderRadius: 12,
+    padding: 14, marginBottom: 8, shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 1, shadowRadius: 4, elevation: 1,
+  },
+  recordTitle: { fontSize: 14, fontWeight: '600', color: Colors.textDark },
+  recordMeta: { fontSize: 12, color: Colors.textGray, marginTop: 2 },
+  recordPlan: { fontSize: 12.5, color: Colors.textMedium, marginTop: 6, lineHeight: 18 },
 
   empty: { alignItems: 'center', marginTop: 24, paddingHorizontal: 24 },
   emptyText: { fontSize: 13, color: Colors.textGray, textAlign: 'center', marginTop: 10, lineHeight: 19 },

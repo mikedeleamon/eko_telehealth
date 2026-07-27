@@ -48,6 +48,7 @@ import type {
   PayoutMethod,
   PayoutMethodInput,
   Bank,
+  PatientVisitNote,
   Prescription,
   PrescriptionInput,
   FeeBreakdown,
@@ -157,6 +158,29 @@ const mockDocuments: StoredDocument[] = [
   { id: 'doc-seed-2', name: 'Board Certification — Internal Medicine', category: 'certification', fileName: 'board-cert.pdf', mimeType: 'application/pdf', sizeBytes: 1_204_000, url: null, uploadedAt: 'Nov 3, 2025', createdAt: '2025-11-03T09:00:00.000Z' },
 ];
 const mockMedicalNotes: MedicalNote[] = [...(MOCK_MEDICAL_NOTES as MedicalNote[])];
+
+/**
+ * Project full mock notes down to the patient-facing summary shape and sort
+ * newest first — mirrors the server's toPatientVisitNote, so the mock can't
+ * accidentally show a field the real API withholds (subjective/objective/
+ * assessment/amendments never leave this function).
+ */
+function toPatientVisitNotes(notes: MedicalNote[]): PatientVisitNote[] {
+  return notes
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map((n) => ({
+      id: n.id,
+      date: n.date,
+      visitType: n.visitType,
+      doctorName: n.doctorName,
+      doctorSpecialty: n.doctorSpecialty,
+      reason: n.reason,
+      primaryDiagnosis: n.primaryDiagnosis,
+      secondaryDiagnoses: n.secondaryDiagnoses ?? [],
+      plan: n.plan,
+      createdAt: n.createdAt,
+    }));
+}
 // Lab results, seeded for the signed-in patient (pat-1) and a doctor's roster
 // patient (p4 / Augustine) so both surfaces show data in mock mode.
 const mockLabs: LabResult[] = [
@@ -164,6 +188,10 @@ const mockLabs: LabResult[] = [
   { id: 'lab-2', patientId: 'pat-1', testName: 'Total Cholesterol', loincCode: '2093-3', specimen: 'Serum', value: '6.1', unit: 'mmol/L', referenceRange: '< 5.2', flag: 'high', status: 'resulted', orderedBy: 'Dr. Amara Okafor', performingLab: 'Lagoon Clinical Labs', collectedDate: 'Jul 8, 2026', resultedDate: 'Jul 9, 2026', notes: 'Borderline high — advise dietary review.', attachmentUrl: null, createdAt: '2026-07-09T09:05:00Z' },
   { id: 'lab-3', patientId: 'pat-1', testName: 'Haemoglobin (CBC)', loincCode: '718-7', specimen: 'Whole blood', value: '13.8', unit: 'g/dL', referenceRange: '13.0–17.0', flag: 'normal', status: 'resulted', orderedBy: 'Dr. Amara Okafor', performingLab: 'Lagoon Clinical Labs', collectedDate: 'Mar 2, 2026', resultedDate: 'Mar 3, 2026', attachmentUrl: null, createdAt: '2026-03-03T09:00:00Z' },
   { id: 'lab-4', patientId: 'p4', testName: 'Thyroid Stimulating Hormone', loincCode: '3016-3', specimen: 'Serum', value: '0.2', unit: 'mIU/L', referenceRange: '0.4–4.0', flag: 'low', status: 'resulted', orderedBy: 'Dr. Sarah Johnson', performingLab: 'St. Nicholas Lab', collectedDate: 'Jun 4, 2026', resultedDate: 'Jun 5, 2026', notes: 'Suppressed TSH — check free T4.', attachmentUrl: null, createdAt: '2026-06-05T10:00:00Z' },
+  // Chidi (dep-1) — Martin's dependent (proxy access). See the matching
+  // prescription in MOCK_PRESCRIPTIONS for why dependentId, not patientId, is
+  // what makes this Chidi's result.
+  { id: 'lab-5', patientId: 'pat-1', dependentId: 'dep-1', testName: 'Rapid Strep Test', specimen: 'Throat swab', value: 'Positive', flag: 'abnormal', status: 'resulted', orderedBy: 'Dr. Amara Okafor', performingLab: 'Lagoon Clinical Labs', collectedDate: 'Jul 22, 2026', resultedDate: 'Jul 22, 2026', notes: 'Started on amoxicillin.', attachmentUrl: null, createdAt: '2026-07-22T11:15:00Z' },
 ];
 const mockPrescriptions: Prescription[] = [...(MOCK_PRESCRIPTIONS as Prescription[])];
 const mockEarnings: EarningItem[] = [...(MOCK_EARNINGS as EarningItem[])];
@@ -609,10 +637,53 @@ export const mockApi = {
   },
 
   /** The signed-in mock patient (pat-1)'s own medication record. */
+  /**
+   * GET /me/notes — the patient's own visit notes, summary fields only.
+   * Mirrors the server's projection: the SOAP body is dropped here too, so the
+   * mock can't accidentally show a field the real API withholds.
+   */
+  async getMyVisitNotes(): Promise<PatientVisitNote[]> {
+    await delay();
+    return toPatientVisitNotes(
+      mockMedicalNotes.filter((n) => n.patientId === 'pat-1' && !n.dependentId && (n.status ?? 'final') === 'final'),
+    );
+  },
+
+  /**
+   * GET /me/dependents/:id/prescriptions — a proxy's view of one of THEIR
+   * dependent's medications (BRD 1.2 "Proxies"). Mirrors the real backend's
+   * ownership check: only 'dep-1' exists for the mock signed-in patient, so
+   * anything else returns empty rather than another patient's records.
+   */
+  async getDependentPrescriptions(dependentId: string): Promise<Prescription[]> {
+    await delay();
+    return mockPrescriptions
+      .filter((p) => p.patientId === 'pat-1' && p.dependentId === dependentId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+
+  /** GET /me/dependents/:id/labs — a proxy's view of a dependent's lab results. */
+  async getDependentLabs(dependentId: string): Promise<LabResult[]> {
+    await delay();
+    return mockLabs
+      .filter((l) => l.patientId === 'pat-1' && l.dependentId === dependentId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+
+  /** GET /me/dependents/:id/notes — a proxy's view of a dependent's visit notes. */
+  async getDependentVisitNotes(dependentId: string): Promise<PatientVisitNote[]> {
+    await delay();
+    return toPatientVisitNotes(
+      mockMedicalNotes.filter(
+        (n) => n.patientId === 'pat-1' && n.dependentId === dependentId && (n.status ?? 'final') === 'final',
+      ),
+    );
+  },
+
   async getMyPrescriptions(): Promise<Prescription[]> {
     await delay();
     return mockPrescriptions
-      .filter((p) => p.patientId === 'pat-1')
+      .filter((p) => p.patientId === 'pat-1' && !p.dependentId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
@@ -680,8 +751,12 @@ export const mockApi = {
   async getLabs(patientId?: string): Promise<LabResult[]> {
     await delay();
     const pid = patientId ?? 'pat-1';
+    // Self-view (no patientId) excludes dependent-tagged rows — those are a
+    // DEPENDENT's results, not the account holder's own; see
+    // getDependentLabs. A doctor viewing a specific patient's chart still
+    // sees everything tied to that patient, dependent-tagged or not.
     return mockLabs
-      .filter((l) => l.patientId === pid)
+      .filter((l) => l.patientId === pid && (patientId ? true : !l.dependentId))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 

@@ -42,6 +42,7 @@ import type {
   PharmacyInput,
   PharmacyDirectoryEntry,
   GovIdStatus,
+  PatientVisitNote,
   Prescription,
   PrescriptionInput,
   FeeBreakdown,
@@ -561,6 +562,41 @@ export const api = {
     prescriptions(): Promise<Prescription[]> {
       if (env.useMockApi) return mockApi.getMyPrescriptions();
       return request<Prescription[]>('/me/prescriptions');
+    },
+
+    /**
+     * GET /me/notes — the patient's own visit notes, summary fields only.
+     * The provider's raw SOAP body is intentionally not part of this payload;
+     * see PatientVisitNote.
+     */
+    notes(): Promise<PatientVisitNote[]> {
+      if (env.useMockApi) return mockApi.getMyVisitNotes();
+      return request<PatientVisitNote[]>('/me/notes');
+    },
+
+    /**
+     * GET /me/dependents/:id/prescriptions — a proxy's view of one of THEIR
+     * dependent's medications (BRD 1.2 "Proxies"). Same shape as prescriptions()
+     * above, scoped to the dependent instead of the account holder.
+     */
+    dependentPrescriptions(dependentId: string): Promise<Prescription[]> {
+      if (env.useMockApi) return mockApi.getDependentPrescriptions(dependentId);
+      return request<Prescription[]>(`/me/dependents/${dependentId}/prescriptions`);
+    },
+
+    /** GET /me/dependents/:id/labs — a proxy's view of a dependent's lab results. */
+    dependentLabs(dependentId: string): Promise<LabResult[]> {
+      if (env.useMockApi) return mockApi.getDependentLabs(dependentId);
+      return request<LabResult[]>(`/me/dependents/${dependentId}/labs`);
+    },
+
+    /**
+     * GET /me/dependents/:id/notes — a proxy's view of a dependent's visit
+     * notes. Same summary-only projection as notes() above — see PatientVisitNote.
+     */
+    dependentNotes(dependentId: string): Promise<PatientVisitNote[]> {
+      if (env.useMockApi) return mockApi.getDependentVisitNotes(dependentId);
+      return request<PatientVisitNote[]>(`/me/dependents/${dependentId}/notes`);
     },
 
     /** GET /me/settings — returns defaults before the first save. */

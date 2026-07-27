@@ -11,7 +11,7 @@ import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
-import { useAddLab, useLabs, useProviderState, useRemoveLab } from '../../../hooks/queries';
+import { useAddLab, useDependents, useLabs, useProviderState, useRemoveLab } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { MONTH_NAMES } from '../../../utils/format';
 import { canOrderLabs as canOrderLabsCapability } from '../../../utils/providerCapabilities';
@@ -69,12 +69,20 @@ export default function LabsScreen({ navigation, route }: Props) {
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<LabInput>(EMPTY_FORM);
   const [file, setFile] = useState<PickedFile | null>(null);
+  // "Who is this for" — BRD 1.2 "Proxies". In doctor context, options come
+  // from the roster patient's linked dependents; in self context (patient
+  // logging their own outside result), from the signed-in account's own
+  // dependents. undefined = the patient/account holder themselves.
+  const { data: ownDependents } = useDependents();
+  const dependentOptions = patient ? (patient.dependents ?? []) : (ownDependents ?? []);
+  const [dependentId, setDependentId] = useState<string | undefined>(undefined);
 
   const set = (key: keyof LabInput) => (val: string) => setForm((f) => ({ ...f, [key]: val }));
 
   const openForm = () => {
     setForm({ ...EMPTY_FORM, collectedDate: todayLabel(), orderedBy: patient ? '' : '' });
     setFile(null);
+    setDependentId(undefined);
     setFormOpen(true);
   };
 
@@ -111,6 +119,7 @@ export default function LabsScreen({ navigation, route }: Props) {
       collectedDate: form.collectedDate.trim(),
       resultedDate: form.resultedDate?.trim() || undefined,
       notes: form.notes?.trim() || undefined,
+      dependentId,
     };
     try {
       await addLab.mutateAsync({ data, file: file ?? undefined });
@@ -175,6 +184,40 @@ export default function LabsScreen({ navigation, route }: Props) {
               <View style={styles.grabber} />
               <Text style={styles.sheetTitle}>{t('labs.newLab')}</Text>
               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                {dependentOptions.length > 0 && (
+                  <>
+                    <Text style={styles.fieldLabel}>{t('prescriptions.whoIsThisFor')}</Text>
+                    <View style={styles.chipRow}>
+                      <TouchableOpacity
+                        style={[styles.chip, !dependentId && styles.chipActive]}
+                        onPress={() => setDependentId(undefined)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: !dependentId }}
+                      >
+                        <Text style={[styles.chipText, !dependentId && styles.chipTextActive]}>
+                          {patient ? patient.name : t('labs.myself')}
+                        </Text>
+                      </TouchableOpacity>
+                      {dependentOptions.map((dep) => {
+                        const selected = dependentId === dep.id;
+                        return (
+                          <TouchableOpacity
+                            key={dep.id}
+                            style={[styles.chip, selected && styles.chipActive]}
+                            onPress={() => setDependentId(dep.id)}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected }}
+                          >
+                            <Text style={[styles.chipText, selected && styles.chipTextActive]}>
+                              {dep.firstName} {dep.lastName}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </>
+                )}
+
                 <Field label={t('labs.testName')}>
                   <TextInput style={styles.input} placeholder={t('labs.testNamePlaceholder')} placeholderTextColor={Colors.textGray} value={form.testName} onChangeText={set('testName')} />
                 </Field>

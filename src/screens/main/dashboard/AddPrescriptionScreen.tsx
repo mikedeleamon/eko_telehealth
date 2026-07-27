@@ -36,6 +36,12 @@ export default function AddPrescriptionScreen({ navigation, route }: Props) {
   const patient = route.params?.patient as PatientSummary | undefined;
   const addPrescription = useAddPrescription(patient?.id ?? '');
 
+  // "Who is this for" — only shown when the patient's real account (if linked)
+  // has dependents registered, per BRD 1.2 "Proxies". undefined = the patient
+  // themselves; otherwise a dependent's id, tagging the record as theirs
+  // instead of the account holder's.
+  const [dependentId, setDependentId] = useState<string | undefined>(undefined);
+
   const [drug, setDrug] = useState('');
   const [strength, setStrength] = useState('');
   const [form, setForm] = useState('');
@@ -66,6 +72,7 @@ export default function AddPrescriptionScreen({ navigation, route }: Props) {
       quantity: quantity.trim() || '—',
       refills: refills.trim() || '0',
       instructions: instructions.trim() || undefined,
+      dependentId,
     };
     try {
       await addPrescription.mutateAsync(input);
@@ -95,6 +102,38 @@ export default function AddPrescriptionScreen({ navigation, route }: Props) {
             <FontAwesome name="user" size={13} color={Colors.primary} />
             <Text style={styles.patientChipText}>{t('prescriptions.prescribingFor', { name: patient.name })}</Text>
           </View>
+
+          {!!patient.dependents?.length && (
+            <View style={styles.field}>
+              <Text style={styles.label}>{t('prescriptions.whoIsThisFor')}</Text>
+              <View style={styles.chipRow}>
+                <TouchableOpacity
+                  style={[styles.chip, !dependentId && styles.chipActive]}
+                  onPress={() => setDependentId(undefined)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: !dependentId }}
+                >
+                  <Text style={[styles.chipText, !dependentId && styles.chipTextActive]}>{patient.name}</Text>
+                </TouchableOpacity>
+                {patient.dependents.map((dep) => {
+                  const selected = dependentId === dep.id;
+                  return (
+                    <TouchableOpacity
+                      key={dep.id}
+                      style={[styles.chip, selected && styles.chipActive]}
+                      onPress={() => setDependentId(dep.id)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                    >
+                      <Text style={[styles.chipText, selected && styles.chipTextActive]}>
+                        {dep.firstName} {dep.lastName}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
 
           <Field label={t('prescriptions.drugName')} required value={drug} onChangeText={setDrug} placeholder={t('prescriptions.drugPlaceholder')} />
 

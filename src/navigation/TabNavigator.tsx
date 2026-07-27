@@ -66,6 +66,7 @@ import DoctorAvailabilityScreen from '../screens/main/doctors/DoctorAvailability
 import MyHealthScreen from '../screens/main/health/MyHealthScreen';
 import MyPrescriptionsScreen from '../screens/main/health/MyPrescriptionsScreen';
 import LabsScreen from '../screens/main/health/LabsScreen';
+import VisitNotesScreen from '../screens/main/health/VisitNotesScreen';
 import ChangePasswordScreen from '../screens/auth/ChangePasswordScreen';
 
 // Doctor earnings
@@ -295,6 +296,10 @@ function AccountNavigator() {
             <AccountStack.Screen
                 name='Labs'
                 component={LabsScreen}
+            />
+            <AccountStack.Screen
+                name='VisitNotes'
+                component={VisitNotesScreen}
             />
             <AccountStack.Screen
                 name='Insurance'

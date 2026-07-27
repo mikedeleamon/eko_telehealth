@@ -157,6 +157,8 @@ export const MOCK_APPOINTMENTS = [
     startAt: '2026-06-29T09:00:00.000Z',
     type: 'Video Visit',
     status: 'upcoming',
+    patientName: 'Martin Doe',
+    reason: 'Persistent headaches for the past two weeks, worse in the mornings.',
   },
   {
     id: '1b',
@@ -176,6 +178,8 @@ export const MOCK_APPOINTMENTS = [
     time: '2:30 PM',
     type: 'Clinic Visit',
     status: 'upcoming',
+    patientName: 'Martin Doe',
+    reason: 'Blurred vision when reading; due for a prescription check.',
   },
   {
     id: '3',
@@ -226,11 +230,11 @@ export const MOCK_DOCTOR_APPOINTMENTS = [
 // but `doctor` holds the patient's name and `specialty` the visit reason.
 // Includes pending requests so the Accept/Decline actions have real targets.
 export const MOCK_DOCTOR_SCHEDULE = [
-  { id: 's1', doctor: 'Emeka Obi', patientId: 'p1', specialty: 'Consultation', date: 'Fri, Jul 24, 2026', time: '12:30 PM', type: 'Video Visit', status: 'pending_approval', fee: '₦15,000' },
+  { id: 's1', doctor: 'Emeka Obi', patientId: 'p1', patientName: 'Emeka Obi', reason: 'Chest tightness after climbing stairs, started three days ago.', specialty: 'Consultation', date: 'Fri, Jul 24, 2026', time: '12:30 PM', type: 'Video Visit', status: 'pending_approval', fee: '₦15,000' },
   { id: 's2', doctor: 'Yusuf Ibrahim', patientId: 'p2', specialty: 'First Visit', date: 'Fri, Jul 24, 2026', time: '11:30 AM', type: 'Clinic Visit', status: 'pending_approval', fee: '₦15,000' },
   // Bisi has no MOCK_PATIENTS record, so her entry stays unmatched (no patientId).
   { id: 's3', doctor: 'Bisi Alade', specialty: 'Consultation', date: 'Thu, Jul 23, 2026', time: '12:30 PM', type: 'Video Visit', status: 'pending_payment', fee: '₦15,000' },
-  { id: 's4', doctor: 'Ngozi Nwosu', patientId: 'p5', specialty: 'Follow-up', date: 'Tue, Jun 30, 2026', time: '3:00 PM', type: 'Video Visit', status: 'upcoming', fee: '₦15,000' },
+  { id: 's4', doctor: 'Ngozi Nwosu', patientId: 'p5', patientName: 'Ngozi Nwosu', reason: 'Follow-up on blood pressure medication started last month.', specialty: 'Follow-up', date: 'Tue, Jun 30, 2026', time: '3:00 PM', type: 'Video Visit', status: 'upcoming', fee: '₦15,000' },
   { id: 's5', doctor: 'Augustine Watts', patientId: 'p4', specialty: 'Consultation', date: 'Jun 10, 2026', time: '10:30 AM', type: 'Clinic Visit', status: 'past', fee: '₦15,000' },
   // Past visits (dates align with each patient's lastVisit) so every patient
   // has at least one appointment a SOAP note can link to.
@@ -294,6 +298,32 @@ export const MOCK_MEDICAL_NOTES = [
     assessment: 'Uncomplicated pregnancy at 20 weeks.',
     plan: 'Continue folic acid and iron. Routine bloods at 28 weeks. Next visit in 4 weeks.',
     createdAt: '2026-05-29T12:20:00Z',
+  },
+  // Martin (pat-1) — the signed-in mock patient's own record, shown in the
+  // patient-facing Visit Notes screen.
+  {
+    id: 'note-6', patientId: 'pat-1', appointmentId: 'appt-pat1-1', date: 'Jul 4, 2026', visitType: 'Video Visit',
+    doctorId: '1', doctorName: 'Dr. Amara Okafor MD', doctorSpecialty: 'Therapist, Primary care doctor',
+    reason: 'Seasonal allergy follow-up',
+    subjective: 'Sneezing and itchy eyes worse in the mornings. Cetirizine helps but wears off by evening.',
+    objective: 'Nasal mucosa mildly boggy. Lungs clear. No wheeze.',
+    assessment: 'Allergic rhinitis, seasonal, partially controlled.',
+    plan: 'Continue cetirizine 10mg daily. Add saline nasal rinse. Review in 3 months if symptoms persist.',
+    createdAt: '2026-07-04T10:05:00Z',
+  },
+  // Chidi (dep-1) — Martin's dependent (proxy access). dependentId is what
+  // makes this Chidi's note, not Martin's own; matches the strep test + liquid
+  // amoxicillin seeded above.
+  {
+    id: 'note-7', patientId: 'pat-1', dependentId: 'dep-1', appointmentId: 'appt-dep1-1', date: 'Jul 22, 2026', visitType: 'Clinic Visit',
+    doctorId: '1', doctorName: 'Dr. Amara Okafor MD', doctorSpecialty: 'Therapist, Primary care doctor',
+    reason: 'Sore throat and fever',
+    subjective: "Two days of sore throat, fever to 38.6°C, and difficulty swallowing. No cough. Appetite reduced.",
+    objective: 'Temp 38.4°C. Tonsils erythematous with exudate. Tender anterior cervical nodes. Rapid strep positive.',
+    assessment: 'Streptococcal pharyngitis.',
+    primaryDiagnosis: 'Streptococcal pharyngitis',
+    plan: 'Started amoxicillin liquid 250mg three times daily for 5 days. Rest, fluids, and paracetamol for fever. Return if not improving in 48 hours.',
+    createdAt: '2026-07-22T11:25:00Z',
   },
 ];
 
@@ -384,6 +414,16 @@ export const MOCK_PRESCRIPTIONS = [
     instructions: 'Completed course for chest infection.',
     status: 'completed', doctorId: 'doc-1', doctorName: 'Dr. Amara Okafor',
     datePrescribed: 'Mar 12, 2026', createdAt: '2026-03-12T16:30:00Z',
+  },
+  // Chidi (dep-1) — Martin's dependent (proxy access). patientId stays the
+  // account holder; dependentId is what makes this Chidi's medication and not
+  // Martin's own — see schema.ts's dependentId doc comment on prescriptions.
+  {
+    id: 'rx-12', patientId: 'pat-1', dependentId: 'dep-1', drug: 'Amoxicillin', strength: '250 mg', form: 'Liquid', route: 'Oral',
+    frequency: 'Three times daily', duration: '5 days', quantity: '1 bottle', refills: '0',
+    instructions: 'Shake well. Take with food.',
+    status: 'active', doctorId: 'doc-1', doctorName: 'Dr. Amara Okafor',
+    datePrescribed: 'Jul 22, 2026', createdAt: '2026-07-22T11:20:00Z',
   },
 ];
 

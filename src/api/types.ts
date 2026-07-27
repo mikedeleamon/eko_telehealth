@@ -146,6 +146,13 @@ export interface Appointment {
   isPeerReview?: boolean;
   /** A proxy's paid case-conference request (BRD 1.2 "Proxies") about a dependent's care. */
   isCaseConference?: boolean;
+  /**
+   * Who the visit is for — the dependent's name on a proxy booking, the account
+   * holder's otherwise. Distinct from `doctor`, which is the counterparty.
+   */
+  patientName?: string;
+  /** Free text the patient gave at booking, shown on Appointment Details. */
+  reason?: string;
 }
 
 export interface CreateAppointmentInput {
@@ -242,6 +249,13 @@ export interface PatientSummary {
   allergies?: string;
   phone?: string;
   email?: string;
+  /**
+   * The real account's dependents (proxy access), when this patient is linked
+   * to one — lets the prescribe/lab-add screens offer "who is this for"
+   * instead of always attributing the record to the account holder. Empty for
+   * a patient not yet linked to a real account.
+   */
+  dependents?: { id: string; firstName: string; lastName: string }[];
 }
 
 /**
@@ -266,9 +280,40 @@ export interface NoteAmendment {
  * appends {@link NoteAmendment}s to the locked record instead (enforced
  * server-side, mirrored here).
  */
+/**
+ * A visit note as the PATIENT sees it (GET /me/notes) — deliberately not the
+ * full SOAP record. Subjective, objective, assessment and the amendment trail
+ * are provider-only and never sent here, so this is a separate type rather than
+ * a Partial<MedicalNote>: a screen written against it can't reach for a field
+ * the server was never going to send.
+ */
+export interface PatientVisitNote {
+  id: string;
+  /** Display date inherited from the linked appointment, e.g. "Jun 10, 2026". */
+  date: string;
+  visitType?: string;
+  doctorName: string;
+  doctorSpecialty: string;
+  /** Why the patient came, as recorded by the provider. */
+  reason: string;
+  primaryDiagnosis?: string;
+  secondaryDiagnoses?: string[];
+  /** What to do next — the part written to be acted on. */
+  plan: string;
+  /** ISO timestamp; lists sort on this, not the display date. */
+  createdAt: string;
+}
+
 export interface MedicalNote {
   id: string;
   patientId: string;
+  /**
+   * Set when this note documents the account holder's DEPENDENT's visit, not
+   * their own — derived server-side from the linked appointment, never asked
+   * for on the authoring form.
+   */
+  dependentId?: string;
+  dependentName?: string;
   /** The visit this record documents — records are always tied to a real appointment. */
   appointmentId: string;
   /** Display date inherited from the linked appointment, e.g. "Jun 10, 2026". */
@@ -334,6 +379,9 @@ export type FulfillmentStatus = 'none' | 'sent' | 'accepted' | 'ready' | 'collec
 export interface Prescription {
   id: string;
   patientId: string;
+  /** Set when this is the account holder's DEPENDENT's medication, not their own. */
+  dependentId?: string;
+  dependentName?: string;
   /** Medication name, e.g. "Amlodipine". */
   drug: string;
   /** Strength per unit, e.g. "10 mg". */
@@ -382,6 +430,8 @@ export interface PrescriptionInput {
   instructions?: string;
   /** Refer straight to a directory pharmacy at prescribe time. */
   pharmacyId?: string;
+  /** This prescription is for the patient's dependent, not the patient themselves. */
+  dependentId?: string;
 }
 
 /**
@@ -399,6 +449,9 @@ export type LabFlag = 'normal' | 'low' | 'high' | 'critical' | 'abnormal';
 export interface LabResult {
   id: string;
   patientId: string;
+  /** Set when this result is the account holder's DEPENDENT's, not their own. */
+  dependentId?: string;
+  dependentName?: string;
   /** Test or panel name, e.g. "Complete Blood Count", "Fasting Glucose". */
   testName: string;
   /** LOINC code, when known — the standard identifier for the observation. */
@@ -448,6 +501,8 @@ export interface LabInput {
   /** R2 object key from a prior presign, when a report was attached. */
   attachmentKey?: string;
   attachmentName?: string;
+  /** This result is for the patient's dependent, not the patient themselves. */
+  dependentId?: string;
 }
 
 export interface DoctorAgendaItem {

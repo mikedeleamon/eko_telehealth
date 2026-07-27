@@ -21,6 +21,7 @@ const MENU_ITEMS = [
   { icon: 'heartbeat', labelKey: 'account.patientOverview', screen: 'PatientOverview', color: '#F97653' },
   { icon: 'medkit', labelKey: 'account.myHealth', screen: 'MyHealth', color: '#3FBE6E' },
   { icon: 'flask', labelKey: 'labs.title', screen: 'Labs', color: '#8E44AD' },
+  { icon: 'file-text-o', labelKey: 'visitNotes.title', screen: 'VisitNotes', color: '#5C6BC0' },
   { icon: 'shield', labelKey: 'account.insurance', screen: 'Insurance', color: '#00CAAE' },
   { icon: 'id-card', labelKey: 'account.verifyIdentity', screen: 'VerifyIdentity', color: '#009688' },
   { icon: 'medkit', labelKey: 'account.preferredPharmacy', screen: 'PreferredPharmacy', color: '#FF7043' },

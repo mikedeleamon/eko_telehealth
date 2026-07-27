@@ -47,6 +47,10 @@ export const queryKeys = {
   settings: ['settings'] as const,
   documents: ['documents'] as const,
   labs: (patientId?: string) => ['labs', patientId ?? 'me'] as const,
+  myVisitNotes: ['my-visit-notes'] as const,
+  dependentPrescriptions: (dependentId: string) => ['dependent-prescriptions', dependentId] as const,
+  dependentLabs: (dependentId: string) => ['dependent-labs', dependentId] as const,
+  dependentNotes: (dependentId: string) => ['dependent-notes', dependentId] as const,
 };
 
 export function useDoctors(params?: { category?: string; query?: string }) {
@@ -402,6 +406,36 @@ export function useMyPrescriptions() {
   return useQuery({ queryKey: queryKeys.myPrescriptions, queryFn: api.me.prescriptions });
 }
 
+/**
+ * A proxy's read-only view of one of THEIR dependent's clinical records (BRD
+ * 1.2 "Proxies") — prescriptions, labs and visit notes, scoped server-side to
+ * a dependent the caller actually owns. `enabled` gates on dependentId being
+ * present, matching how DependentCareScreen already guards on `dependent`.
+ */
+export function useDependentPrescriptions(dependentId?: string) {
+  return useQuery({
+    queryKey: queryKeys.dependentPrescriptions(dependentId ?? ''),
+    queryFn: () => api.me.dependentPrescriptions(dependentId!),
+    enabled: !!dependentId,
+  });
+}
+
+export function useDependentLabs(dependentId?: string) {
+  return useQuery({
+    queryKey: queryKeys.dependentLabs(dependentId ?? ''),
+    queryFn: () => api.me.dependentLabs(dependentId!),
+    enabled: !!dependentId,
+  });
+}
+
+export function useDependentVisitNotes(dependentId?: string) {
+  return useQuery({
+    queryKey: queryKeys.dependentNotes(dependentId ?? ''),
+    queryFn: () => api.me.dependentNotes(dependentId!),
+    enabled: !!dependentId,
+  });
+}
+
 /** The signed-in patient's settled payment history (PaymentHistoryScreen). */
 export function useMyPayments() {
   return useQuery({ queryKey: queryKeys.myPayments, queryFn: api.me.payments });
@@ -441,6 +475,15 @@ export function useRemoveDocument() {
 // ── Labs ────────────────────────────────────────────────────────────────────
 
 /** Labs for a roster patient (pass patientId) or the signed-in patient (omit it). */
+/**
+ * The patient's own visit notes (GET /me/notes) — summary fields only, never
+ * the provider's raw SOAP body. Distinct from useMedicalNotes, which is the
+ * provider-side view of the full record.
+ */
+export function useVisitNotes() {
+  return useQuery({ queryKey: queryKeys.myVisitNotes, queryFn: api.me.notes });
+}
+
 export function useLabs(patientId?: string) {
   return useQuery({ queryKey: queryKeys.labs(patientId), queryFn: () => api.labs.list(patientId) });
 }

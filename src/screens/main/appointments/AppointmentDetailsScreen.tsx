@@ -227,6 +227,12 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
 
         {/* Details */}
         <View style={styles.detailCard}>
+          {/* Who the visit is for. Worth showing even on the patient's own
+              view: on a proxy booking this is the dependent, not the account
+              holder, and that distinction is invisible everywhere else. */}
+          {appointment.patientName && (
+            <DetailRow icon="user" label={t('appointments.patientName')} value={appointment.patientName} />
+          )}
           <DetailRow icon="calendar" label={t('confirmed.date')} value={date ?? '—'} />
           <DetailRow icon="clock-o" label={t('confirmed.time')} value={time ?? '—'} />
           <DetailRow icon={typeIcon} label={t('confirmed.type')} value={t(`options.appointmentType.${type}`, { defaultValue: type })} />
@@ -258,6 +264,16 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
             </>
           )}
         </View>
+
+        {/* Reason for visit. Its own block rather than a DetailRow: it's free
+            text the patient typed and can run to several lines, which the
+            single-line right-aligned row shape can't hold. */}
+        {appointment.reason ? (
+          <View style={styles.reasonCard}>
+            <Text style={styles.reasonLabel}>{t('appointments.reasonForVisit')}</Text>
+            <Text style={styles.reasonText}>{appointment.reason}</Text>
+          </View>
+        ) : null}
 
         {/* What the patient is waiting on, in plain words. Patient-facing only —
             the doctor is the one who approves, so it doesn't apply to them. */}
@@ -411,6 +427,13 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   rowLabel: { flex: 1, fontSize: 14, color: Colors.textMedium, fontFamily: 'Poppins_400Regular' },
   rowValue: { fontSize: 14, fontWeight: '700', color: Colors.textDark, fontFamily: 'Poppins_600SemiBold' },
   rowValueEmphasis: { fontSize: 15, fontFamily: 'Poppins_700Bold' },
+
+  reasonCard: {
+    backgroundColor: Colors.surface, borderRadius: 16, padding: 16, marginBottom: 24, marginTop: -8,
+    borderWidth: 1, borderColor: Colors.borderGray,
+  },
+  reasonLabel: { fontSize: 12, color: Colors.textMedium, marginBottom: 6, fontFamily: 'Poppins_600SemiBold' },
+  reasonText: { fontSize: 14, color: Colors.textDark, lineHeight: 21, fontFamily: 'Poppins_400Regular' },
 
   btn: { width: '100%', marginBottom: 12 },
   notice: {
