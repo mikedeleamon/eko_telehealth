@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     StatusBar,
     Platform,
+    Alert,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,7 +17,9 @@ import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import Cross from '../../../components/common/Cross';
-import type { PatientSummary } from '../../../api/types';
+import { usePatientBiometrics, useSavePatientBiometrics } from '../../../hooks/queries';
+import VitalsEditModal from '../../../components/health/VitalsEditModal';
+import type { PatientBiometrics, PatientSummary } from '../../../api/types';
 import { useTranslation } from '../../../i18n/useTranslation';
 
 interface Props {
@@ -38,6 +41,13 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
     const insets = useSafeAreaInsets();
     const patient = route.params?.patient as PatientSummary | undefined;
 
+    // Hooks must run unconditionally (before the `!patient` early return
+    // below), so this is keyed on an empty-string fallback — usePatientBiometrics
+    // is itself gated on a truthy id and won't fire until a real patient exists.
+    const { data: liveBiometrics } = usePatientBiometrics(patient?.id ?? '');
+    const saveBiometrics = useSavePatientBiometrics(patient?.id ?? '');
+    const [editingVitals, setEditingVitals] = useState(false);
+
     if (!patient) {
         return (
             <View style={styles.missing}>
@@ -49,7 +59,16 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
         );
     }
 
-    const b = patient.biometrics ?? {};
+    const saveVitals = async (input: PatientBiometrics) => {
+        try {
+            await saveBiometrics.mutateAsync(input);
+            setEditingVitals(false);
+        } catch (err) {
+            Alert.alert(t('patients.couldNotSaveVitals'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
+        }
+    };
+
+    const b = liveBiometrics ?? {};
     const vitals: Vital[] = [
         {
             icon: 'heartbeat',
@@ -190,40 +209,45 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                     </View>
 
                     {/* Biometrics */}
-                    {vitals.length > 0 && (
-                        <>
-                            <Text style={styles.sectionTitle}>{t('patients.biometrics')}</Text>
-                            <View style={styles.vitalsGrid}>
-                                {vitals.map((v) => (
+                    <View style={styles.vitalsHeaderRow}>
+                        <Text style={styles.sectionTitle}>{t('patients.biometrics')}</Text>
+                        <TouchableOpacity onPress={() => setEditingVitals(true)} accessibilityRole="button" accessibilityLabel={t('patients.recordVitals')}>
+                            <Text style={styles.editVitalsLink}>{t('patients.recordVitals')}</Text>
+                        </TouchableOpacity>
+                    </View>
+                    {vitals.length > 0 ? (
+                        <View style={styles.vitalsGrid}>
+                            {vitals.map((v) => (
+                                <View
+                                    key={v.label}
+                                    style={styles.vitalCard}
+                                >
                                     <View
-                                        key={v.label}
-                                        style={styles.vitalCard}
+                                        style={[
+                                            styles.vitalIcon,
+                                            {
+                                                backgroundColor:
+                                                    v.color + '1A',
+                                            },
+                                        ]}
                                     >
-                                        <View
-                                            style={[
-                                                styles.vitalIcon,
-                                                {
-                                                    backgroundColor:
-                                                        v.color + '1A',
-                                                },
-                                            ]}
-                                        >
-                                            <FontAwesome
-                                                name={v.icon as any}
-                                                size={16}
-                                                color={v.color}
-                                            />
-                                        </View>
-                                        <Text style={styles.vitalValue}>
-                                            {v.value}
-                                        </Text>
-                                        <Text style={styles.vitalLabel}>
-                                            {v.label}
-                                        </Text>
+                                        <FontAwesome
+                                            name={v.icon as any}
+                                            size={16}
+                                            color={v.color}
+                                        />
                                     </View>
-                                ))}
-                            </View>
-                        </>
+                                    <Text style={styles.vitalValue}>
+                                        {v.value}
+                                    </Text>
+                                    <Text style={styles.vitalLabel}>
+                                        {v.label}
+                                    </Text>
+                                </View>
+                            ))}
+                        </View>
+                    ) : (
+                        <Text style={styles.noVitalsText}>{t('patients.noVitalsRecorded')}</Text>
                     )}
 
                     {/* Medical info */}
@@ -409,6 +433,14 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                     </View>
                 </View>
             </ScrollView>
+
+            <VitalsEditModal
+                visible={editingVitals}
+                initial={liveBiometrics}
+                saving={saveBiometrics.isPending}
+                onSave={saveVitals}
+                onClose={() => setEditingVitals(false)}
+            />
         </View>
     );
 }
@@ -531,6 +563,9 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
         letterSpacing: 0.6,
         fontFamily: 'Poppins_600SemiBold',
     },
+    vitalsHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    editVitalsLink: { fontSize: 12, fontWeight: '600', color: Colors.primary, marginTop: 14 },
+    noVitalsText: { fontSize: 13, color: Colors.textGray, marginBottom: 8 },
     card: {
         backgroundColor: Colors.surface,
         borderRadius: 16,

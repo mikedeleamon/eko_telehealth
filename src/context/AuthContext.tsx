@@ -16,6 +16,13 @@ interface AuthContextType {
   user: User | null;
   isLoggedIn: boolean;
   isDoctor: boolean;
+  /**
+   * True for any provider account — Doctor (legacy) or the generic Provider
+   * bucket (Therapist, Nurse, ...). Use this for anything that should apply
+   * to every provider type (e.g. which tab set to show); keep using
+   * `isDoctor` for behavior/copy that's genuinely specific to doctors.
+   */
+  isProvider: boolean;
   // True once the user has gotten past onboarding (logged in at least once).
   // Lets sign-out return to Login instead of replaying the tutorial.
   hasOnboarded: boolean;
@@ -33,6 +40,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoggedIn: false,
   isDoctor: false,
+  isProvider: false,
   hasOnboarded: false,
   isRestoring: true,
   login: async () => ({ twoFactorRequired: false }),
@@ -79,6 +87,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user: session?.user ?? null,
         isLoggedIn: !!session,
         isDoctor: session?.user.accountType === 'Doctor',
+        isProvider: session?.user.accountType === 'Doctor' || session?.user.accountType === 'Provider',
         hasOnboarded,
         isRestoring: !hydrated,
         login,

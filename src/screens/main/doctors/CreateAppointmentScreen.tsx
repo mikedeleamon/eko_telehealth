@@ -37,12 +37,23 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
   const { doctor, startAt, type } = route.params ?? {};
+  // Set by PeerReviewScreen — a paid 2nd-opinion request (BRD 1.4), same
+  // booking pipeline as an ordinary visit, just framed differently.
+  const isPeerReview = route.params?.isPeerReview === true;
+  // Set by DependentCareScreen — a proxy's paid case-conference request
+  // (BRD 1.2) about a dependent already known ahead of time, so the
+  // dependent picker below is pre-selected rather than left to "myself."
+  const isCaseConference = route.params?.isCaseConference === true;
   // Home Visit is an admin-granted privilege (task 2.3) — only offered for
   // doctors certified for it. The backend enforces this too (routes/
   // appointments.ts), so this is UX, not the actual gate.
   const availableTypes = doctor?.canProvideInHome ? TYPES : TYPES.filter((opt) => opt.label !== 'Home Visit');
+  // A Nurse's primary modality is Home Visit (Batch 3 Phase 2) — default to
+  // it when they're certified for it, instead of every provider defaulting
+  // to Video Visit regardless of type.
+  const defaultType = doctor?.providerType === 'Nurse' && doctor?.canProvideInHome ? 'Home Visit' : 'Video Visit';
   const [selectedType, setSelectedType] = useState(
-    availableTypes.some((t) => t.label === type) ? type : 'Video Visit'
+    availableTypes.some((t) => t.label === type) ? type : defaultType
   );
   const createAppointment = useCreateAppointment();
   const nextAvailableMatch = useNextAvailableMatch();
@@ -58,8 +69,9 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
     ? convertFeeDisplay(doctor.fee, user?.preferredCurrency ?? 'NGN', currencies)
     : null;
   const { data: dependents = [] } = useDependents();
-  // null = booking for yourself (the default).
-  const [dependentId, setDependentId] = useState<string | null>(null);
+  // null = booking for yourself (the default); a case-conference request
+  // already knows which dependent it's about.
+  const [dependentId, setDependentId] = useState<string | null>(route.params?.dependentId ?? null);
   const [reason, setReason] = useState('');
 
   /**
@@ -69,6 +81,10 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
   const handleConfirm = async () => {
     if (!doctor?.id) return Alert.alert('', t('appointments.pickDoctor'));
     if (!startAt) return Alert.alert('', t('appointments.pickSlot'));
+    // A 2nd-opinion or case-conference request only makes sense with
+    // something to discuss — an ordinary visit's reason stays optional.
+    if (isPeerReview && !reason.trim()) return Alert.alert('', t('peerReview.reasonRequired'));
+    if (isCaseConference && !reason.trim()) return Alert.alert('', t('account.caseConferenceReasonRequired'));
     await submitBooking(doctor.id, startAt, doctor);
   };
 
@@ -85,6 +101,8 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
         type: selectedType,
         ...(reason.trim() ? { reason: reason.trim() } : {}),
         ...(dependentId ? { dependentId } : {}),
+        ...(isPeerReview ? { isPeerReview: true } : {}),
+        ...(isCaseConference ? { isCaseConference: true } : {}),
       });
       navigation.navigate('AppointmentConfirmed', { doctor: bookingDoctor, appointment });
     } catch (err) {
@@ -112,7 +130,10 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
-      <EkoHeader title={t('appointments.createAppointmentTitle')} onBack={() => navigation.goBack()} />
+      <EkoHeader
+        title={isPeerReview ? t('peerReview.requestTitle') : isCaseConference ? t('account.caseConferenceTitle') : t('appointments.createAppointmentTitle')}
+        onBack={() => navigation.goBack()}
+      />
       <ScrollView style={styles.body} contentContainerStyle={styles.content}>
         <View style={styles.doctorCard}>
           <View style={styles.avatar}>
@@ -179,10 +200,12 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
           ))}
         </View>
 
-        <Text style={styles.sectionLabel}>{t('appointments.reasonForVisit')}</Text>
+        <Text style={styles.sectionLabel}>
+          {isPeerReview ? t('peerReview.reasonLabel') : isCaseConference ? t('account.caseConferenceReasonLabel') : t('appointments.reasonForVisit')}
+        </Text>
         <TextInput
           style={styles.reasonInput}
-          placeholder={t('appointments.reasonPlaceholder')}
+          placeholder={isPeerReview ? t('peerReview.reasonPlaceholder') : isCaseConference ? t('account.caseConferenceReasonPlaceholder') : t('appointments.reasonPlaceholder')}
           placeholderTextColor={Colors.textGray}
           value={reason}
           onChangeText={setReason}

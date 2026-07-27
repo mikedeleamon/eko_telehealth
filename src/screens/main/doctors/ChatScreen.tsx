@@ -10,6 +10,7 @@ import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import { chatService } from '../../../services/messaging';
+import { REDACTION_PLACEHOLDER } from '../../../services/messaging/types';
 import { api } from '../../../api';
 import type { ChatMessage } from '../../../api/types';
 import { useTranslation } from '../../../i18n/useTranslation';
@@ -28,6 +29,9 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState('');
   const listRef = useRef<FlatList>(null);
+  // Message ids we've already warned the sender about, so a second edit to the
+  // same message doesn't re-alert.
+  const warnedRef = useRef<Set<string>>(new Set());
 
   // Start (or fetch) the thread so chat runs on the backend-owned Stream
   // channel. POST /conversations is idempotent and ensures both members;
@@ -56,9 +60,25 @@ export default function ChatScreen({ navigation, route }: Props) {
     const unsubscribe = chatService.onMessage(conversationId, (incoming) => {
       setMessages((prev) => [...prev, incoming]);
     });
+
+    // The server masks contact details after the fact and rewrites the message
+    // in place, so a sent message can change under us. Swap in the edited text
+    // and, if it was our own message that got masked, say so once — otherwise
+    // the sender just sees their number silently vanish.
+    const unsubscribeUpdates = chatService.onMessageUpdated(conversationId, (updated) => {
+      // Warn outside the state updater — that has to stay pure, or StrictMode's
+      // double-invoke shows the alert twice. Once per message id.
+      if (updated.fromMe && updated.text.includes(REDACTION_PLACEHOLDER) && !warnedRef.current.has(updated.id)) {
+        warnedRef.current.add(updated.id);
+        Alert.alert(t('messages.contactRemovedTitle'), t('messages.contactRemovedBody'));
+      }
+      setMessages((prev) => prev.map((m) => (m.id === updated.id ? { ...m, text: updated.text } : m)));
+    });
+
     return () => {
       cancelled = true;
       unsubscribe();
+      unsubscribeUpdates();
     };
   }, [conversationId]);
 

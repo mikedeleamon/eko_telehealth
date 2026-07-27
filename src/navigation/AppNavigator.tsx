@@ -13,6 +13,7 @@ import ForgotPassLandingScreen from '../screens/auth/ForgotPassLandingScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import VerifyEmailScreen from '../screens/auth/VerifyEmailScreen';
 import VerifyMobileScreen from '../screens/auth/VerifyMobileScreen';
+import VerifyPhoneSignupScreen from '../screens/auth/VerifyPhoneSignupScreen';
 import ChangePasswordScreen from '../screens/auth/ChangePasswordScreen';
 import TabNavigator from './TabNavigator';
 
@@ -82,6 +83,7 @@ export default function AppNavigator() {
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="VerifyMobile" component={VerifyMobileScreen} options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="VerifyPhoneSignup" component={VerifyPhoneSignupScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ animation: 'slide_from_right' }} />
           </>
         ) : (

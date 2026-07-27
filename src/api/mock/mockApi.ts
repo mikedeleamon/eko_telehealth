@@ -44,7 +44,10 @@ import type {
   NextAvailableMatch,
   NoteAmendment,
   PatientSummary,
-  PaymentMethod,
+  PatientBiometrics,
+  PayoutMethod,
+  PayoutMethodInput,
+  Bank,
   Prescription,
   PrescriptionInput,
   FeeBreakdown,
@@ -54,6 +57,10 @@ import type {
   PaymentStatus,
   PromoStatus,
   Pharmacy,
+  PharmacyInput,
+  PharmacyDirectoryEntry,
+  GovIdStatus,
+  PickedFile,
   ProviderState,
   Review,
   ReviewSummary,
@@ -77,6 +84,17 @@ const mockDependents: Dependent[] = [
 ];
 let mockInsurance: Insurance | null = null;
 let mockPharmacy: Pharmacy | null = null;
+let mockBiometrics: PatientBiometrics | null = null;
+/** "Jul 23, 2026" — matches the real backend's recordedAt format. */
+function todayLabel(): string {
+  return new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+let mockGovId: GovIdStatus = { status: 'none', url: null };
+/** The admin-curated pharmacy directory (Batch 3 Phase 3) — mirrors an approved Pharmacy provider application. */
+const MOCK_PHARMACY_DIRECTORY: PharmacyDirectoryEntry[] = [
+  { id: 'pharmacy-1', name: 'GreenCross Pharmacy', address: 'Surulere, Lagos', fax: '+2348012345678' },
+  { id: 'pharmacy-2', name: 'MedPlus Pharmacy', address: 'Ikeja, Lagos', fax: '+2348023456789' },
+];
 /** The signed-in mock user's own spoken languages (task 2.5), editable via updateProfile. */
 let mockSpokenLanguages: string[] = ['English'];
 /** The signed-in mock user's own display currency (task 2.4), editable via updateProfile. */
@@ -211,7 +229,17 @@ function mockFeeBreakdown(feeDisplay: string | undefined, type: VisitType | unde
 }
 
 /** Single saved payment/payout method per session (upsert), like insurance/pharmacy. */
-let mockPaymentMethod: PaymentMethod | null = null;
+let mockPayoutMethod: PayoutMethod | null = null;
+const MOCK_BANKS: Bank[] = [
+  { code: '058', name: 'Guaranty Trust Bank' },
+  { code: '057', name: 'Zenith Bank' },
+  { code: '044', name: 'Access Bank' },
+  { code: '033', name: 'United Bank for Africa' },
+  { code: '011', name: 'First Bank of Nigeria' },
+  { code: '221', name: 'Stanbic IBTC Bank' },
+  { code: '232', name: 'Sterling Bank' },
+  { code: '070', name: 'Fidelity Bank' },
+];
 /** Minimum a doctor can withdraw at once. */
 const MIN_CASHOUT = 1000;
 let mockSettings: UserSettings = {
@@ -372,11 +400,15 @@ export const mockApi = {
     return {
       id: String(++appointmentSeq),
       doctor: doctor?.name ?? 'Doctor',
+      doctorId: doctor?.id,
       specialty: doctor?.category ?? 'Consultation',
       date: startAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
       time: formatClock(startAt),
       type: input.type,
       status: 'upcoming',
+      dependentId: input.dependentId,
+      isPeerReview: input.isPeerReview ?? false,
+      isCaseConference: input.isCaseConference ?? false,
     };
   },
 
@@ -567,6 +599,9 @@ export const mockApi = {
       doctorId: 'doc-1',
       doctorName: 'Dr. Sarah Johnson',
       datePrescribed: `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`,
+      // Mirrors the backend: referring at prescribe time starts the lifecycle.
+      pharmacyName: input.pharmacyId ? MOCK_PHARMACY_DIRECTORY.find((p) => p.id === input.pharmacyId)?.name : undefined,
+      fulfillmentStatus: input.pharmacyId ? 'sent' : 'none',
       createdAt: now.toISOString(),
     };
     mockPrescriptions.push(prescription);
@@ -698,15 +733,32 @@ export const mockApi = {
     return summarizeEarnings();
   },
 
-  async getPaymentMethod(): Promise<PaymentMethod | null> {
+  async getPayoutMethod(): Promise<PayoutMethod | null> {
     await delay(300);
-    return mockPaymentMethod;
+    return mockPayoutMethod;
   },
 
-  async savePaymentMethod(input: PaymentMethod): Promise<PaymentMethod> {
-    await delay(500);
-    mockPaymentMethod = input;
-    return input;
+  async savePayoutMethod(input: PayoutMethodInput): Promise<PayoutMethod> {
+    await delay(600);
+    if (input.rail === 'paypal') {
+      mockPayoutMethod = { rail: 'paypal', accountName: input.paypalEmail, paypalEmail: input.paypalEmail };
+    } else {
+      // Stands in for the real Flutterwave account-resolve step, which is what
+      // supplies accountName on the live path — never the client.
+      mockPayoutMethod = {
+        rail: 'flutterwave_bank',
+        accountName: 'VERIFIED ACCOUNT NAME',
+        bankCode: input.bankCode,
+        bankName: input.bankName,
+        accountNumberMasked: `••••${input.accountNumber.slice(-4)}`,
+      };
+    }
+    return mockPayoutMethod;
+  },
+
+  async getBanks(): Promise<Bank[]> {
+    await delay(300);
+    return MOCK_BANKS;
   },
 
   async getDependents(): Promise<Dependent[]> {
@@ -737,10 +789,77 @@ export const mockApi = {
     return mockPharmacy;
   },
 
-  async savePharmacy(input: Pharmacy): Promise<Pharmacy> {
+  async savePharmacy(input: PharmacyInput): Promise<Pharmacy> {
     await delay(500);
-    mockPharmacy = input;
-    return input;
+    if ('pharmacyId' in input) {
+      const directoryEntry = MOCK_PHARMACY_DIRECTORY.find((p) => p.id === input.pharmacyId);
+      if (!directoryEntry) throw new Error('Pharmacy not found.');
+      mockPharmacy = { pharmacyId: directoryEntry.id, name: directoryEntry.name, address: directoryEntry.address, fax: directoryEntry.fax };
+    } else {
+      mockPharmacy = { pharmacyId: null, ...input };
+    }
+    return mockPharmacy;
+  },
+
+  async getBiometrics(): Promise<PatientBiometrics | null> {
+    await delay(300);
+    return mockBiometrics;
+  },
+
+  async saveBiometrics(input: PatientBiometrics): Promise<PatientBiometrics> {
+    await delay(400);
+    mockBiometrics = { ...input, recordedAt: todayLabel() };
+    return mockBiometrics;
+  },
+
+  async getPatientBiometrics(patientId: string): Promise<PatientBiometrics | null> {
+    await delay(300);
+    const patient = MOCK_PATIENTS.find((p) => p.id === patientId) as { biometrics?: PatientBiometrics } | undefined;
+    return patient?.biometrics ?? null;
+  },
+
+  async savePatientBiometrics(patientId: string, input: PatientBiometrics): Promise<PatientBiometrics> {
+    await delay(400);
+    const saved = { ...input, recordedAt: todayLabel() };
+    const patient = MOCK_PATIENTS.find((p) => p.id === patientId) as { biometrics?: PatientBiometrics } | undefined;
+    if (patient) patient.biometrics = saved;
+    return saved;
+  },
+
+  async getPreferredPharmacyFor(_patientId: string): Promise<PharmacyDirectoryEntry | null> {
+    await delay(300);
+    // Mirrors the live rule: only a directory pick is referable, free text isn't.
+    return mockPharmacy?.pharmacyId
+      ? MOCK_PHARMACY_DIRECTORY.find((p) => p.id === mockPharmacy!.pharmacyId) ?? null
+      : null;
+  },
+
+  async referPrescription(prescriptionId: string, pharmacyId: string): Promise<Prescription> {
+    await delay(500);
+    const pharmacy = MOCK_PHARMACY_DIRECTORY.find((p) => p.id === pharmacyId);
+    const rx = mockPrescriptions.find((p) => p.id === prescriptionId);
+    if (!rx) throw new Error('Prescription not found');
+    rx.pharmacyId = pharmacyId;
+    rx.pharmacyName = pharmacy?.name;
+    rx.fulfillmentStatus = 'sent';
+    rx.fulfillmentNote = undefined;
+    return rx;
+  },
+
+  async getPharmacyDirectory(): Promise<PharmacyDirectoryEntry[]> {
+    await delay();
+    return MOCK_PHARMACY_DIRECTORY;
+  },
+
+  async getGovIdStatus(): Promise<GovIdStatus> {
+    await delay(300);
+    return mockGovId;
+  },
+
+  async submitGovId(file: PickedFile): Promise<GovIdStatus> {
+    await delay(500);
+    mockGovId = { status: 'pending', fileName: file.name, url: file.uri };
+    return mockGovId;
   },
 
   async getDocuments(): Promise<StoredDocument[]> {
@@ -788,7 +907,7 @@ export const mockApi = {
   async getProviderState(): Promise<ProviderState> {
     await delay(300);
     // Mock doctors are always live, so the dashboard shows the real practice UI.
-    return { state: 'live', doctorId: 'doc-1', application: null };
+    return { state: 'live', doctorId: 'doc-1', providerType: 'Doctor', application: null };
   },
 
   async getPaymentStatus(id: string): Promise<PaymentStatus> {

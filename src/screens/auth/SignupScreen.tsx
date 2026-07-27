@@ -28,10 +28,13 @@ const criteria = (pw: string, t: (k: string) => string) => [
 export default function SignupScreen({ navigation }: Props) {
   const base = useTheme();
   const { isDark } = useThemeMode();
-  const [userType, setUserType] = useState<'Patient' | 'Doctor'>('Patient');
-  // Preview the role's brand: picking Doctor turns the accent orange so the
+  // 'Provider' is the generic bucket for every provider type (Doctor, Nurse,
+  // Therapist, ...) — the specific type is picked later on the apply screen,
+  // not at signup (see backend db/schema.ts's users.accountType doc comment).
+  const [userType, setUserType] = useState<'Patient' | 'Provider'>('Patient');
+  // Preview the role's brand: picking Provider turns the accent orange so the
   // sign-up flow already reflects the theme the account will get.
-  const Colors = userType === 'Doctor' ? makeDoctorColors(base, isDark) : base;
+  const Colors = userType === 'Provider' ? makeDoctorColors(base, isDark) : base;
   const styles = makeStyles(Colors);
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
@@ -88,7 +91,7 @@ export default function SignupScreen({ navigation }: Props) {
         accountType: userType,
         phone: phone.trim(),
       });
-      navigation.navigate('VerifyEmail', { email: email.trim() });
+      navigation.navigate('VerifyEmail', { email: email.trim(), phone: phone.trim() });
     } catch (err) {
       Alert.alert(t('auth.couldNotCreate'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
     } finally {
@@ -121,7 +124,7 @@ export default function SignupScreen({ navigation }: Props) {
       >
         {/* Toggle */}
         <View style={styles.toggle}>
-          {(['Patient', 'Doctor'] as const).map(role => (
+          {(['Patient', 'Provider'] as const).map(role => (
             <TouchableOpacity
               key={role}
               style={[styles.toggleBtn, userType === role && styles.toggleBtnActive]}
@@ -130,7 +133,7 @@ export default function SignupScreen({ navigation }: Props) {
               accessibilityRole="radio"
               accessibilityState={{ selected: userType === role }}
             >
-              <Text style={[styles.toggleText, userType === role && styles.toggleTextActive]}>{role === 'Patient' ? t('auth.loginAsPatient') : t('auth.loginAsDoctor')}</Text>
+              <Text style={[styles.toggleText, userType === role && styles.toggleTextActive]}>{role === 'Patient' ? t('auth.loginAsPatient') : t('auth.loginAsProvider')}</Text>
             </TouchableOpacity>
           ))}
         </View>

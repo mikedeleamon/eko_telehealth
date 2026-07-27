@@ -18,6 +18,7 @@ import Cross from '../../../components/common/Cross';
 import { useAuth } from '../../../context/AuthContext';
 import { EMPTY_FILTERS, type DoctorFilters } from './FilterScreen';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { matchesConditionSynonym } from '../../../utils/conditionSearch';
 import type { VisitType } from '../../../api/types';
 
 const MATCH_VISIT_TYPES: VisitType[] = ['Video Visit', 'Clinic Visit', 'Home Visit'];
@@ -73,7 +74,9 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
   const filtered = doctors.filter(d => {
     const matchSearch = !search ||
       d.name.toLowerCase().includes(search.toLowerCase()) ||
-      d.specialty.toLowerCase().includes(search.toLowerCase());
+      d.specialty.toLowerCase().includes(search.toLowerCase()) ||
+      d.category.toLowerCase().includes(search.toLowerCase()) ||
+      matchesConditionSynonym(search, d.category);
     const matchChip = activeChip === 'All' || d.specialty.toLowerCase().includes(activeChip.toLowerCase()) || d.category === activeChip;
     const matchSpecialty = !filters.specialties.length || filters.specialties.includes(d.category);
     const matchRating = d.rating >= filters.minRating;

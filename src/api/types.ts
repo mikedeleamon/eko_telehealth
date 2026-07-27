@@ -9,11 +9,16 @@
  * `users.account_type`). Resolved server-side at login — the client never asks
  * the user to pick it. 'Admin' accounts sign in through the separate admin
  * console, not the mobile app, but are part of the same enum.
+ *
+ * 'Provider' is the generic bucket for every non-Doctor provider type
+ * (Therapist, Nurse, Pharmacy, ...) — the specific domain type is never on
+ * this field, see backend db/schema.ts's users.accountType doc comment.
+ * 'Doctor' is kept as a legacy alias, not something new signups pick.
  */
-export type AccountType = 'Patient' | 'Doctor' | 'Admin';
+export type AccountType = 'Patient' | 'Doctor' | 'Provider' | 'Admin';
 
 /** The account types the mobile surfaces ever see (Admins use the web console). */
-export type UserRole = 'Patient' | 'Doctor';
+export type UserRole = 'Patient' | 'Doctor' | 'Provider';
 
 export interface User {
   id: string;
@@ -60,6 +65,13 @@ export type LoginResult = AuthSession | TwoFactorChallenge;
 
 export type VisitType = 'Video Visit' | 'Clinic Visit' | 'Home Visit';
 
+/**
+ * The appointment-based provider types (Batch 3 Phase 2) — the only ones the
+ * mobile self-signup apply flow can submit. Pharmacy/Lab/Clinic are
+ * admin-created only, never self-applied from the app.
+ */
+export type AppointmentProviderType = 'Doctor' | 'Nurse' | 'Therapist';
+
 export interface Doctor {
   id: string;
   name: string;
@@ -77,6 +89,12 @@ export interface Doctor {
   canProvideInHome: boolean;
   /** Languages this provider consults in — what the language filter searches. */
   spokenLanguages: string[];
+  /**
+   * Which appointment-based provider this is (Batch 3 Phase 2). Absent on
+   * legacy-shaped mock data — treat missing as 'Doctor', same as the
+   * backend's column default.
+   */
+  providerType?: AppointmentProviderType;
 }
 
 /**
@@ -120,6 +138,14 @@ export interface Appointment {
    * entries can only be matched to patients by display name.
    */
   patientId?: string;
+  /** The provider's id, on patient-scoped views — lets a proxy cross-reference which doctor to request a case conference with. */
+  doctorId?: string;
+  /** Set when this visit was booked for a dependent (proxy access) — the dependent's id. */
+  dependentId?: string;
+  /** A paid 2nd-opinion request (BRD 1.4 "Peer Reviews") rather than an ordinary visit. */
+  isPeerReview?: boolean;
+  /** A proxy's paid case-conference request (BRD 1.2 "Proxies") about a dependent's care. */
+  isCaseConference?: boolean;
 }
 
 export interface CreateAppointmentInput {
@@ -130,6 +156,10 @@ export interface CreateAppointmentInput {
   reason?: string;
   /** Booking on behalf of a dependent (proxy access). */
   dependentId?: string;
+  /** A paid 2nd-opinion request (BRD 1.4 "Peer Reviews") rather than an ordinary visit. */
+  isPeerReview?: boolean;
+  /** A proxy's paid case-conference request (BRD 1.2 "Proxies") about a dependent's care. */
+  isCaseConference?: boolean;
 }
 
 /** GET /doctors/:id/availability?date= — one open slot. */
@@ -194,6 +224,8 @@ export interface PatientBiometrics {
   height?: string;
   bmi?: string;
   bloodType?: string;
+  /** Display date the vitals were last recorded, e.g. "Jul 23, 2026". Absent until first save. */
+  recordedAt?: string;
 }
 
 export interface PatientSummary {
@@ -210,7 +242,6 @@ export interface PatientSummary {
   allergies?: string;
   phone?: string;
   email?: string;
-  biometrics?: PatientBiometrics;
 }
 
 /**
@@ -293,6 +324,13 @@ export interface MedicalNoteInput {
  */
 export type PrescriptionStatus = 'active' | 'completed' | 'discontinued';
 
+/**
+ * Pharmacy referral lifecycle (Batch 4 / SOW 1.7). 'none' means the script
+ * was never referred — the patient takes it wherever they like, which stays
+ * a perfectly normal outcome.
+ */
+export type FulfillmentStatus = 'none' | 'sent' | 'accepted' | 'ready' | 'collected' | 'rejected';
+
 export interface Prescription {
   id: string;
   patientId: string;
@@ -320,6 +358,12 @@ export interface Prescription {
   doctorName: string;
   /** Display date prescribed, e.g. "Jun 20, 2026". */
   datePrescribed: string;
+  /** The directory pharmacy this was referred to, if any. */
+  pharmacyId?: string;
+  pharmacyName?: string;
+  fulfillmentStatus: FulfillmentStatus;
+  /** Why the pharmacy rejected it — shown to both the patient and prescriber. */
+  fulfillmentNote?: string;
   /** ISO timestamp — lists sort on this. */
   createdAt: string;
 }
@@ -336,6 +380,8 @@ export interface PrescriptionInput {
   quantity: string;
   refills: string;
   instructions?: string;
+  /** Refer straight to a directory pharmacy at prescribe time. */
+  pharmacyId?: string;
 }
 
 /**
@@ -579,20 +625,34 @@ export interface PaymentReceipt {
  * Flutterwave/PayPal and keep only a provider token + the masked last-4 fields
  * below. The UI only ever renders the masked form (see paymentMethodLabel).
  */
-export type PaymentMethodType = 'bank' | 'card' | 'paypal';
+/**
+ * Where a provider gets paid. Strictly money-OUT — patients pay through
+ * hosted gateway checkout, so no card is stored: accepting one would drag
+ * the platform into PCI scope for a field nothing reads.
+ */
+export type PayoutRail = 'flutterwave_bank' | 'paypal';
 
-export interface PaymentMethod {
-  type: PaymentMethodType;
-  /** Account/card holder name. */
+/** GET /me/payout-method — the account number comes back masked, never in full. */
+export interface PayoutMethod {
+  rail: PayoutRail;
+  /** Resolved at the bank and stored server-side; never client-supplied for a bank rail. */
   accountName: string;
-  // Bank transfer
+  bankCode?: string;
   bankName?: string;
-  accountNumber?: string;
-  // Card
-  cardLast4?: string;
-  cardExpiry?: string;
-  // PayPal
+  /** e.g. "••••4321". The full number is write-only. */
+  accountNumberMasked?: string;
   paypalEmail?: string;
+}
+
+/** PUT /me/payout-method — one shape per rail. */
+export type PayoutMethodInput =
+  | { rail: 'flutterwave_bank'; bankCode: string; bankName: string; accountNumber: string }
+  | { rail: 'paypal'; paypalEmail: string };
+
+/** GET /banks — Nigerian banks with the codes Flutterwave transfers expect. */
+export interface Bank {
+  code: string;
+  name: string;
 }
 
 /** One row on the doctor's earnings ledger — a payment in, or a withdrawal out. */
@@ -644,10 +704,39 @@ export interface Insurance {
   groupNumber?: string;
 }
 
+/**
+ * A patient's saved pharmacy preference (GET/PUT /me/pharmacy). Batch 3
+ * Phase 3: may reference a directory pharmacy (in-network, `pharmacyId`
+ * set) or be free text for one that isn't in the directory yet
+ * (out-of-network fallback).
+ */
 export interface Pharmacy {
+  pharmacyId?: string | null;
   name?: string;
   address: string;
   fax: string;
+}
+
+/** PUT /me/pharmacy input — pick a directory pharmacy, or enter one free text. */
+export type PharmacyInput = { pharmacyId: string } | { name?: string; address: string; fax: string };
+
+/** GET /pharmacies — the admin-curated directory a patient can pick from. */
+export interface PharmacyDirectoryEntry {
+  id: string;
+  name: string;
+  address: string;
+  fax: string;
+}
+
+/**
+ * GET/PUT /me/gov-id — government-ID verification status. Not a booking
+ * gate, purely a trust signal: admin reviews the submitted document and
+ * marks it verified or rejected.
+ */
+export interface GovIdStatus {
+  status: 'none' | 'pending' | 'verified' | 'rejected';
+  fileName?: string;
+  url: string | null;
 }
 
 /**
@@ -706,11 +795,26 @@ export interface UserSettings {
   locationAccess: boolean;
 }
 
-/** GET /providers/me — a Doctor account's onboarding state. */
+/**
+ * A verification document attached to a provider application (Batch 3 Phase
+ * 1 — vetting). Uploaded to R2 ahead of submit via POST /uploads/presign
+ * (kind:'provider-doc'); `uploadedAt` is server-stamped on submit, never sent.
+ */
+export interface ProviderApplicationDocument {
+  key: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedAt?: string;
+}
+
+/** GET /providers/me — a provider account's onboarding state. */
 export interface ProviderState {
   /** 'live' = bookable profile exists; 'pending' = awaiting admin review. */
   state: 'live' | 'pending' | 'rejected' | 'none';
   doctorId: string | null;
+  /** Only set once live — drives capability-aware UX (e.g. hiding "Add prescription" for a Nurse). */
+  providerType: AppointmentProviderType | null;
   application: { id: string; status: string; submittedAt: string } | null;
 }
 

@@ -5,7 +5,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
-import type { AvailabilityBlock, CashoutInput, ComplaintInput, CreateAppointmentInput, DocumentCategory, LabInput, MedicalNoteInput, PaymentMethod, PickedFile, PrescriptionInput, VisitType } from '../api/types';
+import type { AvailabilityBlock, CashoutInput, ComplaintInput, CreateAppointmentInput, DocumentCategory, LabInput, MedicalNoteInput, PatientBiometrics, PickedFile, PrescriptionInput, VisitType } from '../api/types';
 
 export const queryKeys = {
   doctors: (params?: { category?: string; query?: string }) => ['doctors', params ?? {}] as const,
@@ -24,7 +24,9 @@ export const queryKeys = {
   myPrescriptions: ['my-prescriptions'] as const,
   myPayments: ['my-payments'] as const,
   earnings: ['earnings'] as const,
-  paymentMethod: ['payment-method'] as const,
+  payoutMethod: ['payout-method'] as const,
+  banks: ['banks'] as const,
+  paymentMethodLegacy: ['payment-method'] as const,
   providerState: ['provider-state'] as const,
   payment: (id: string) => ['payments', id] as const,
   paymentPreview: (appointmentId: string, code?: string) => ['payment-preview', appointmentId, code ?? ''] as const,
@@ -33,6 +35,10 @@ export const queryKeys = {
   reviewSummary: (subject?: string) => ['review-summary', subject ?? 'all'] as const,
   complaints: ['complaints'] as const,
   currencies: ['currencies'] as const,
+  pharmacyDirectory: ['pharmacy-directory'] as const,
+  govId: ['gov-id'] as const,
+  biometrics: ['biometrics'] as const,
+  patientBiometrics: (patientId: string) => ['patient-biometrics', patientId] as const,
   contentBlocks: ['content-blocks'] as const,
   contentBlock: (key: string) => ['content-blocks', key] as const,
   dependents: ['dependents'] as const,
@@ -302,17 +308,89 @@ export function useSavePharmacy() {
   });
 }
 
-/** The account's saved payment/payout method (both roles). */
-export function usePaymentMethod() {
-  return useQuery({ queryKey: queryKeys.paymentMethod, queryFn: api.me.paymentMethod });
+/** The patient's own preferred pharmacy, seen from the doctor's side — defaults the referral picker. */
+export function usePreferredPharmacyFor(patientId: string) {
+  return useQuery({
+    queryKey: ['preferred-pharmacy-for', patientId] as const,
+    queryFn: () => api.practice.preferredPharmacyFor(patientId),
+    enabled: !!patientId,
+  });
 }
 
-export function useSavePaymentMethod() {
+/** Route a prescription to a directory pharmacy (Batch 4 / SOW 1.7). */
+export function useReferPrescription(patientId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: PaymentMethod) => api.me.savePaymentMethod(input),
-    onSuccess: (data) => qc.setQueryData(queryKeys.paymentMethod, data),
+    mutationFn: ({ prescriptionId, pharmacyId }: { prescriptionId: string; pharmacyId: string }) =>
+      api.practice.referPrescription(prescriptionId, pharmacyId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.prescriptions(patientId) }),
   });
+}
+
+/** The admin-curated pharmacy directory (Batch 3 Phase 3) — rarely changes, fine to cache long. */
+export function usePharmacyDirectory() {
+  return useQuery({ queryKey: queryKeys.pharmacyDirectory, queryFn: api.pharmacies.list, staleTime: 5 * 60 * 1000 });
+}
+
+/** The signed-in user's government-ID verification status. */
+export function useGovId() {
+  return useQuery({ queryKey: queryKeys.govId, queryFn: api.govId.status });
+}
+
+export function useSubmitGovId() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.govId.submit,
+    onSuccess: (data) => qc.setQueryData(queryKeys.govId, data),
+  });
+}
+
+/** The signed-in patient's own current vitals. */
+export function useBiometrics() {
+  return useQuery({ queryKey: queryKeys.biometrics, queryFn: api.me.biometrics });
+}
+
+export function useSaveBiometrics() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.me.saveBiometrics,
+    onSuccess: (data) => qc.setQueryData(queryKeys.biometrics, data),
+  });
+}
+
+/** A roster patient's current vitals, from the doctor's side. */
+export function usePatientBiometrics(patientId: string) {
+  return useQuery({
+    queryKey: queryKeys.patientBiometrics(patientId),
+    queryFn: () => api.practice.biometrics(patientId),
+    enabled: !!patientId,
+  });
+}
+
+export function useSavePatientBiometrics(patientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PatientBiometrics) => api.practice.saveBiometrics(patientId, input),
+    onSuccess: (data) => qc.setQueryData(queryKeys.patientBiometrics(patientId), data),
+  });
+}
+
+/** Where this provider gets paid. */
+export function usePayoutMethod() {
+  return useQuery({ queryKey: queryKeys.payoutMethod, queryFn: api.me.payoutMethod });
+}
+
+export function useSavePayoutMethod() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.me.savePayoutMethod,
+    onSuccess: (data) => qc.setQueryData(queryKeys.payoutMethod, data),
+  });
+}
+
+/** Nigerian bank list for the payout picker — static, cache it hard. */
+export function useBanks() {
+  return useQuery({ queryKey: queryKeys.banks, queryFn: api.banks.list, staleTime: 60 * 60 * 1000 });
 }
 
 export function useSettings() {

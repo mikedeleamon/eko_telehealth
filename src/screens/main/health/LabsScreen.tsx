@@ -11,9 +11,10 @@ import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
-import { useAddLab, useLabs, useRemoveLab } from '../../../hooks/queries';
+import { useAddLab, useLabs, useProviderState, useRemoveLab } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { MONTH_NAMES } from '../../../utils/format';
+import { canOrderLabs as canOrderLabsCapability } from '../../../utils/providerCapabilities';
 import type { LabFlag, LabInput, LabResult, LabStatus, PatientSummary, PickedFile } from '../../../api/types';
 
 interface Props {
@@ -60,6 +61,10 @@ export default function LabsScreen({ navigation, route }: Props) {
   const { data: labs = [], isLoading } = useLabs(patientId);
   const addLab = useAddLab(patientId);
   const removeLab = useRemoveLab(patientId);
+  // Only relevant in doctor context (patient present) — a patient logging
+  // their own results isn't gated by provider capability.
+  const { data: providerState } = useProviderState(!!patient);
+  const canAddLab = !patient || canOrderLabsCapability(providerState?.providerType);
 
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<LabInput>(EMPTY_FORM);
@@ -156,9 +161,11 @@ export default function LabsScreen({ navigation, route }: Props) {
         />
       )}
 
-      <View style={styles.footer}>
-        <EkoButton title={t('labs.addLab')} variant="primary" onPress={openForm} />
-      </View>
+      {canAddLab && (
+        <View style={styles.footer}>
+          <EkoButton title={t('labs.addLab')} variant="primary" onPress={openForm} />
+        </View>
+      )}
 
       {/* Add-lab sheet */}
       <Modal visible={formOpen} transparent animationType="slide" onRequestClose={() => setFormOpen(false)}>

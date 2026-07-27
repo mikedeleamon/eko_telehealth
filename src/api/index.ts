@@ -34,8 +34,14 @@ import type {
   MedicalNote,
   MedicalNoteInput,
   PatientSummary,
-  PaymentMethod,
+  PatientBiometrics,
+  PayoutMethod,
+  PayoutMethodInput,
+  Bank,
   Pharmacy,
+  PharmacyInput,
+  PharmacyDirectoryEntry,
+  GovIdStatus,
   Prescription,
   PrescriptionInput,
   FeeBreakdown,
@@ -53,6 +59,8 @@ import type {
   LabResult,
   LabInput,
   NextAvailableMatch,
+  ProviderApplicationDocument,
+  AppointmentProviderType,
   User,
   UserRole,
   UserSettings,
@@ -64,7 +72,7 @@ import type {
  * and return the object key to record with the metadata. Live mode only — the
  * backend never receives the bytes. Callers in mock mode skip this entirely.
  */
-async function uploadToR2(kind: 'document' | 'lab', file: PickedFile): Promise<string> {
+async function uploadToR2(kind: 'document' | 'lab' | 'provider-doc' | 'gov-id', file: PickedFile): Promise<string> {
   const presign = await request<PresignResult>('/uploads/presign', {
     method: 'POST',
     body: { kind, contentType: file.mimeType },
@@ -282,6 +290,33 @@ export const api = {
       return request<PatientSummary[]>('/practice/patients');
     },
 
+    /** GET /practice/patients/:patientId/biometrics — a roster patient's current vitals, or null. */
+    biometrics(patientId: string): Promise<PatientBiometrics | null> {
+      if (env.useMockApi) return mockApi.getPatientBiometrics(patientId);
+      return request<PatientBiometrics | null>(`/practice/patients/${patientId}/biometrics`);
+    },
+
+    /** PUT /practice/patients/:patientId/biometrics — record/update a roster patient's vitals. */
+    saveBiometrics(patientId: string, input: PatientBiometrics): Promise<PatientBiometrics> {
+      if (env.useMockApi) return mockApi.savePatientBiometrics(patientId, input);
+      return request<PatientBiometrics>(`/practice/patients/${patientId}/biometrics`, { method: 'PUT', body: input });
+    },
+
+    /** GET /practice/patients/:patientId/preferred-pharmacy — defaults the referral picker. */
+    preferredPharmacyFor(patientId: string): Promise<PharmacyDirectoryEntry | null> {
+      if (env.useMockApi) return mockApi.getPreferredPharmacyFor(patientId);
+      return request<PharmacyDirectoryEntry | null>(`/practice/patients/${patientId}/preferred-pharmacy`);
+    },
+
+    /** POST /practice/prescriptions/:id/refer — route a prescription to a pharmacy. */
+    referPrescription(prescriptionId: string, pharmacyId: string): Promise<Prescription> {
+      if (env.useMockApi) return mockApi.referPrescription(prescriptionId, pharmacyId);
+      return request<Prescription>(`/practice/prescriptions/${prescriptionId}/refer`, {
+        method: 'POST',
+        body: { pharmacyId },
+      });
+    },
+
     /** GET /practice/agenda */
     agenda(): Promise<DoctorAgendaItem[]> {
       if (env.useMockApi) return mockApi.getDoctorAgenda();
@@ -484,26 +519,38 @@ export const api = {
       return request<Pharmacy | null>('/me/pharmacy');
     },
 
-    /** PUT /me/pharmacy — upsert. */
-    savePharmacy(input: Pharmacy): Promise<Pharmacy> {
+    /** PUT /me/pharmacy — upsert; pick a directory pharmacy or enter one free text. */
+    savePharmacy(input: PharmacyInput): Promise<Pharmacy> {
       if (env.useMockApi) return mockApi.savePharmacy(input);
       return request<Pharmacy>('/me/pharmacy', { method: 'PUT', body: input });
     },
 
-    /**
-     * GET /me/payment-method — the account's saved payment/payout method, or
-     * null. Doctors withdraw to it; patients pay from it. See the production
-     * note on PaymentMethod: a live backend returns only masked/tokenized data.
-     */
-    paymentMethod(): Promise<PaymentMethod | null> {
-      if (env.useMockApi) return mockApi.getPaymentMethod();
-      return request<PaymentMethod | null>('/me/payment-method');
+    /** GET /me/biometrics — the signed-in patient's own current vitals, or null. */
+    biometrics(): Promise<PatientBiometrics | null> {
+      if (env.useMockApi) return mockApi.getBiometrics();
+      return request<PatientBiometrics | null>('/me/biometrics');
     },
 
-    /** PUT /me/payment-method — upsert. */
-    savePaymentMethod(input: PaymentMethod): Promise<PaymentMethod> {
-      if (env.useMockApi) return mockApi.savePaymentMethod(input);
-      return request<PaymentMethod>('/me/payment-method', { method: 'PUT', body: input });
+    /** PUT /me/biometrics — self-report vitals (e.g. from a home cuff/scale). */
+    saveBiometrics(input: PatientBiometrics): Promise<PatientBiometrics> {
+      if (env.useMockApi) return mockApi.saveBiometrics(input);
+      return request<PatientBiometrics>('/me/biometrics', { method: 'PUT', body: input });
+    },
+
+    /** GET /me/payout-method — where this provider gets paid, or null. */
+    payoutMethod(): Promise<PayoutMethod | null> {
+      if (env.useMockApi) return mockApi.getPayoutMethod();
+      return request<PayoutMethod | null>('/me/payout-method');
+    },
+
+    /**
+     * PUT /me/payout-method — upsert. For a bank rail the server resolves the
+     * account at Flutterwave and stores the RESOLVED name, so a mistyped
+     * NUBAN is rejected here rather than paying a stranger later.
+     */
+    savePayoutMethod(input: PayoutMethodInput): Promise<PayoutMethod> {
+      if (env.useMockApi) return mockApi.savePayoutMethod(input);
+      return request<PayoutMethod>('/me/payout-method', { method: 'PUT', body: input });
     },
 
     /**
@@ -543,9 +590,31 @@ export const api = {
     },
 
     /** POST /providers/apply — submit for admin review; approval creates the profile. */
-    apply(input: { specialty: string; category: string; location: string; fee: string; spokenLanguages: string[] }): Promise<{ id: string; status: string; submittedAt: string }> {
+    apply(input: {
+      /** Defaults server-side to 'Doctor' if omitted. */
+      type?: AppointmentProviderType;
+      specialty: string;
+      category: string;
+      location: string;
+      fee: string;
+      spokenLanguages: string[];
+      documents?: ProviderApplicationDocument[];
+    }): Promise<{ id: string; status: string; submittedAt: string }> {
       if (env.useMockApi) return Promise.resolve({ id: 'mock-app', status: 'pending', submittedAt: 'Today' });
       return request('/providers/apply', { method: 'POST', body: input });
+    },
+
+    /**
+     * Upload one verification document ahead of a provider application
+     * submit. Distinct from api.documents.upload — this doesn't create a
+     * StoredDocument row, just presigns+uploads and hands back the metadata
+     * to collect client-side until the application itself is submitted. In
+     * mock mode there's no backend to presign against, so the local file uri
+     * stands in for the key.
+     */
+    async uploadDocument(file: PickedFile): Promise<ProviderApplicationDocument> {
+      const key = env.useMockApi ? file.uri : await uploadToR2('provider-doc', file);
+      return { key, fileName: file.name, mimeType: file.mimeType, sizeBytes: file.size };
     },
   },
 
@@ -705,6 +774,39 @@ export const api = {
     list(): Promise<Currency[]> {
       if (env.useMockApi) return mockApi.getCurrencies();
       return request<Currency[]>('/currencies');
+    },
+  },
+
+  /** Nigerian bank list for the payout-destination picker. */
+  banks: {
+    /** GET /banks */
+    list(): Promise<Bank[]> {
+      if (env.useMockApi) return mockApi.getBanks();
+      return request<Bank[]>('/banks');
+    },
+  },
+
+  pharmacies: {
+    /** GET /pharmacies — active directory pharmacies, for the preferred-pharmacy picker (Batch 3 Phase 3). */
+    list(): Promise<PharmacyDirectoryEntry[]> {
+      if (env.useMockApi) return mockApi.getPharmacyDirectory();
+      return request<PharmacyDirectoryEntry[]>('/pharmacies');
+    },
+  },
+
+  /** Government-ID verification — self-service submit, admin-reviewed. Not a booking gate. */
+  govId: {
+    /** GET /me/gov-id */
+    status(): Promise<GovIdStatus> {
+      if (env.useMockApi) return mockApi.getGovIdStatus();
+      return request<GovIdStatus>('/me/gov-id');
+    },
+
+    /** Uploads the picked file to R2 then records it via PUT /me/gov-id. */
+    async submit(file: PickedFile): Promise<GovIdStatus> {
+      if (env.useMockApi) return mockApi.submitGovId(file);
+      const key = await uploadToR2('gov-id', file);
+      return request<GovIdStatus>('/me/gov-id', { method: 'PUT', body: { key, fileName: file.name } });
     },
   },
 

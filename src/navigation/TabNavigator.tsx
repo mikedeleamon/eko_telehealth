@@ -49,8 +49,10 @@ import EditProfileScreen from '../screens/main/account/EditProfileScreen';
 import NotificationsScreen from '../screens/main/account/NotificationsScreen';
 import SettingsScreen from '../screens/main/account/SettingsScreen';
 import InsuranceScreen from '../screens/main/account/InsuranceScreen';
+import VerifyIdentityScreen from '../screens/main/account/VerifyIdentityScreen';
 import PreferredPharmacyScreen from '../screens/main/account/PreferredPharmacyScreen';
 import AddDependentScreen from '../screens/main/account/AddDependentScreen';
+import DependentCareScreen from '../screens/main/account/DependentCareScreen';
 import AboutUsScreen from '../screens/main/account/AboutUsScreen';
 import PeerReviewScreen from '../screens/main/account/PeerReviewScreen';
 import PatientOverviewScreen from '../screens/main/account/PatientOverviewScreen';
@@ -299,12 +301,20 @@ function AccountNavigator() {
                 component={InsuranceScreen}
             />
             <AccountStack.Screen
+                name='VerifyIdentity'
+                component={VerifyIdentityScreen}
+            />
+            <AccountStack.Screen
                 name='PreferredPharmacy'
                 component={PreferredPharmacyScreen}
             />
             <AccountStack.Screen
                 name='AddDependent'
                 component={AddDependentScreen}
+            />
+            <AccountStack.Screen
+                name='DependentCare'
+                component={DependentCareScreen}
             />
             <AccountStack.Screen
                 name='Notifications'
@@ -775,12 +785,15 @@ const makeTabStyles = (Colors: ThemeColors) =>
     });
 
 export default function TabNavigator() {
-    const { isDoctor } = useAuth();
-    const items = isDoctor ? DOCTOR_TABS : PATIENT_TABS;
+    // Every provider type (Doctor + the generic Provider bucket) gets the
+    // same tab set for now — a specific Therapist/Nurse variant is a later
+    // phase's concern, not this fork's.
+    const { isProvider } = useAuth();
+    const items = isProvider ? DOCTOR_TABS : PATIENT_TABS;
 
     return (
         <Tab.Navigator
-            initialRouteName={isDoctor ? 'DashboardTab' : 'HomeTab'}
+            initialRouteName={isProvider ? 'DashboardTab' : 'HomeTab'}
             tabBar={(props) => (
                 <CustomTabBar
                     {...props}
@@ -789,7 +802,7 @@ export default function TabNavigator() {
             )}
             screenOptions={{ headerShown: false }}
         >
-            {isDoctor ? (
+            {isProvider ? (
                 <>
                     <Tab.Screen
                         name='EarningsTab'

@@ -102,4 +102,22 @@ export class StreamChatService implements ChatService {
       .catch(() => {});
     return () => unsubscribe();
   }
+
+  onMessageUpdated(conversationId: string, handler: (message: ChatMessage) => void): () => void {
+    let unsubscribe = () => {};
+    this.connect()
+      .then((client) => {
+        const channel = this.channelFor(client, conversationId);
+        // Unlike message.new, our OWN messages are the interesting case here:
+        // the server rewrites them in place when the contact filter fires.
+        const sub = channel.on('message.updated', (event) => {
+          const msg = event.message as unknown as StreamMessageLike | undefined;
+          if (!msg) return;
+          handler(this.toMessage(conversationId, msg, client.userID ?? undefined));
+        });
+        unsubscribe = () => sub.unsubscribe();
+      })
+      .catch(() => {});
+    return () => unsubscribe();
+  }
 }

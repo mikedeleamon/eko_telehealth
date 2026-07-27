@@ -93,6 +93,15 @@ export default function AddDependentScreen({ navigation }: Props) {
                   </Text>
                 </View>
                 <TouchableOpacity
+                  onPress={() => navigation.navigate('DependentCare', { dependent: d })}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={styles.viewCareBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('account.viewCare')}
+                >
+                  <FontAwesome name="heartbeat" size={16} color={Colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity
                   onPress={() => confirmRemove(d.id, `${d.firstName} ${d.lastName}`)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   accessibilityRole="button"
@@ -146,6 +155,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   depInfo: { flex: 1 },
   depName: { fontSize: 14, fontWeight: '600', color: Colors.textDark, fontFamily: 'Poppins_600SemiBold' },
   depMeta: { fontSize: 12, color: Colors.textGray, marginTop: 2, fontFamily: 'Poppins_400Regular' },
+  viewCareBtn: { marginRight: 16 },
 
   formTitle: { fontSize: 13, fontWeight: '700', color: Colors.textGray, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.6 },
   btn: { marginTop: 8 },

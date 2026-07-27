@@ -16,29 +16,30 @@ interface Props {
   route: RouteProp<any>;
 }
 
-export default function VerifyEmailScreen({ navigation, route }: Props) {
+/**
+ * Second, mandatory verification step in the signup chain (after
+ * VerifyEmailScreen) — mirrors its shape exactly, just on the sms channel.
+ * The phone was already typed and validated on the signup form, so this
+ * only confirms the account holder actually controls it, same reasoning as
+ * email verification.
+ */
+export default function VerifyPhoneSignupScreen({ navigation, route }: Props) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  // When verifying as part of a password reset, continue to set a new password.
-  const isReset = route.params?.reset === true;
-  const email: string | undefined = route.params?.email;
-  // Signup only — carried through so we can chain into phone verification next.
   const phone: string | undefined = route.params?.phone;
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const inputs = useRef<(TextInput | null)[]>([]);
 
-  // Signup flow: nothing has issued a code yet, so send one on arrival.
-  // Reset flow: /auth/forgot-password already sent it — don't double-send.
   useEffect(() => {
-    if (!isReset && email) {
-      api.auth.requestCode('email', email).catch(() => {
+    if (phone) {
+      api.auth.requestCode('sms', phone).catch(() => {
         // Non-fatal: the user can tap Resend.
       });
     }
-  }, [isReset, email]);
+  }, [phone]);
 
   const handleChange = (val: string, index: number) => {
     const next = [...otp];
@@ -48,10 +49,10 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
   };
 
   const handleResend = async () => {
-    if (!email) return Alert.alert('', t('auth.goBackReenterEmailCode'));
+    if (!phone) return;
     try {
-      await api.auth.requestCode('email', email);
-      Alert.alert('', t('auth.newCodeEmail'));
+      await api.auth.requestCode('sms', phone);
+      Alert.alert('', t('auth.newCodePhone'));
     } catch (err) {
       Alert.alert(t('auth.couldNotResend'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
     }
@@ -60,23 +61,11 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
   const handleVerify = async () => {
     const code = otp.join('');
     if (code.length < otp.length) return Alert.alert('', t('auth.valEnterNDigit', { count: otp.length }));
+    if (!phone) return navigation.navigate('Tutorial');
     setLoading(true);
     try {
-      if (!email) return Alert.alert('', t('auth.goBackReenterEmail'));
-      await api.auth.verifyCode('email', email, code);
-      // Fresh signup: verify the phone next (mandatory, mirrors email), then
-      // show the onboarding tutorial once and land on Login. No phone on the
-      // signup form (shouldn't happen — it's required there) skips straight
-      // to Tutorial rather than getting stuck.
-      // Password reset: carry the code forward — /auth/reset-password needs it
-      // (and the destination it was issued to) to authorise the change.
-      if (isReset) {
-        navigation.navigate('ChangePassword', { channel: 'email', destination: email, code });
-      } else if (phone) {
-        navigation.navigate('VerifyPhoneSignup', { phone });
-      } else {
-        navigation.navigate('Tutorial');
-      }
+      await api.auth.verifyCode('sms', phone, code);
+      navigation.navigate('Tutorial');
     } catch (err) {
       Alert.alert(t('auth.verificationFailed'), err instanceof Error ? err.message : t('auth.invalidExpired'));
     } finally {
@@ -96,11 +85,11 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
 
       <View style={styles.body}>
         <View style={styles.iconCircle}>
-          <FontAwesome name="envelope" size={30} color={Colors.primary} />
+          <FontAwesome name="mobile" size={36} color={Colors.primary} />
         </View>
 
-        <Text style={styles.title}>{t('auth.verifyEmailShort')}</Text>
-        <Text style={styles.sub}>{t('auth.verifyEmailBodyShort')}</Text>
+        <Text style={styles.title}>{t('auth.verifyPhoneShort')}</Text>
+        <Text style={styles.sub}>{t('auth.verifyPhoneBodyShort')}</Text>
 
         <View style={styles.otpRow}>
           {otp.map((val, i) => (

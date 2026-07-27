@@ -7,9 +7,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import EkoButton from '../../../components/common/EkoButton';
-import { useCashOut, useDoctorEarnings, usePaymentMethod } from '../../../hooks/queries';
+import { useCashOut, useDoctorEarnings, usePayoutMethod } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
-import { formatMoney, groupThousands, paymentMethodLabel } from '../../../utils/format';
+import { formatMoney, groupThousands, payoutMethodLabel } from '../../../utils/format';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -24,7 +24,7 @@ export default function CashOutScreen({ navigation }: Props) {
   const { t } = useTranslation();
 
   const { data: earnings } = useDoctorEarnings();
-  const { data: method } = usePaymentMethod();
+  const { data: method } = usePayoutMethod();
   const cashOut = useCashOut();
   const balance = earnings?.balance ?? 0;
 
@@ -84,10 +84,10 @@ export default function CashOutScreen({ navigation }: Props) {
           {hasMethod ? (
             <TouchableOpacity style={styles.destRow} onPress={() => navigation.navigate('PaymentInfo')} activeOpacity={0.8}>
               <View style={styles.destIcon}>
-                <FontAwesome name={method!.type === 'paypal' ? 'paypal' : method!.type === 'card' ? 'credit-card' : 'bank'} size={15} color={Colors.primary} />
+                <FontAwesome name={method!.rail === 'paypal' ? 'paypal' : 'bank'} size={15} color={Colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.destLabel}>{paymentMethodLabel(method)}</Text>
+                <Text style={styles.destLabel}>{payoutMethodLabel(method)}</Text>
                 <Text style={styles.destName}>{method!.accountName}</Text>
               </View>
               <Text style={styles.change}>{t('cashout.change')}</Text>

@@ -1,6 +1,6 @@
 // Shared input formatting + validation helpers for forms.
 
-import type { Currency, PaymentMethod } from '../api/types';
+import type { Currency, PayoutMethod } from '../api/types';
 
 // ---- Phone / fax ----
 
@@ -143,24 +143,12 @@ function last4(value?: string): string {
 }
 
 /**
- * One-line, masked label for a saved payment method — never exposes the full
- * account/card number. e.g. "Bank · GTBank ••••1234", "Card ••••4242",
- * "PayPal · a@b.com".
+ * One-line, masked label for a saved payout destination — never exposes the
+ * full account number (the server only ever returns it masked anyway).
+ * e.g. "Bank · GTBank ••••1234", "PayPal · a@b.com".
  */
-export function paymentMethodLabel(pm: PaymentMethod | null | undefined): string {
+export function payoutMethodLabel(pm: PayoutMethod | null | undefined): string {
   if (!pm) return '';
-  switch (pm.type) {
-    case 'bank': {
-      const tail = last4(pm.accountNumber);
-      return `Bank · ${pm.bankName ?? ''}${tail ? ` ••••${tail}` : ''}`.trim();
-    }
-    case 'card': {
-      const tail = pm.cardLast4 || last4(pm.accountNumber);
-      return `Card ••••${tail}`;
-    }
-    case 'paypal':
-      return `PayPal · ${pm.paypalEmail ?? ''}`.trim();
-    default:
-      return pm.accountName ?? '';
-  }
+  if (pm.rail === 'paypal') return `PayPal · ${pm.paypalEmail ?? ''}`.trim();
+  return `Bank · ${pm.bankName ?? ''} ${pm.accountNumberMasked ?? ''}`.trim();
 }

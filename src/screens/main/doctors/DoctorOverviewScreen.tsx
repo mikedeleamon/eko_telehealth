@@ -243,7 +243,16 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
               disabled={!selectedSlot}
               onPress={() =>
                 selectedSlot &&
-                navigation.navigate('CreateAppointment', { doctor, startAt: selectedSlot.startAt, type: visitType })
+                navigation.navigate('CreateAppointment', {
+                  doctor,
+                  startAt: selectedSlot.startAt,
+                  type: visitType,
+                  // Forwarded through from PeerReviewScreen / DependentCareScreen —
+                  // this screen is just the shared slot-picker in between.
+                  ...(route.params?.isPeerReview ? { isPeerReview: true } : {}),
+                  ...(route.params?.isCaseConference ? { isCaseConference: true } : {}),
+                  ...(route.params?.dependentId ? { dependentId: route.params.dependentId } : {}),
+                })
               }
             >
               <Text style={styles.bookBtnText}>{t('doctors.makeAppointment')}</Text>

@@ -46,4 +46,12 @@ export class MockChatService implements ChatService {
       this.handlers.get(conversationId)?.delete(handler);
     };
   }
+
+  /**
+   * No-op: message edits come from the server's contact filter, which only
+   * exists on the real backend. Nothing in the mock flow rewrites a message.
+   */
+  onMessageUpdated(): () => void {
+    return () => {};
+  }
 }

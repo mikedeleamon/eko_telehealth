@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, RefreshControl, Platform,
+  View, Text, StyleSheet, ScrollView, RefreshControl, Platform, TouchableOpacity, Modal, Alert,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,9 +10,10 @@ import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoButton from '../../../components/common/EkoButton';
-import { usePrescriptions } from '../../../hooks/queries';
-import type { Prescription, PatientSummary } from '../../../api/types';
+import { usePharmacyDirectory, usePreferredPharmacyFor, usePrescriptions, useProviderState, useReferPrescription } from '../../../hooks/queries';
+import type { FulfillmentStatus, Prescription, PatientSummary } from '../../../api/types';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { canAuthorPrescriptions } from '../../../utils/providerCapabilities';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -31,6 +32,25 @@ export default function PrescriptionHistoryScreen({ navigation, route }: Props) 
   const { t } = useTranslation();
   const patient = route.params?.patient as PatientSummary | undefined;
   const { data: prescriptions = [], isRefetching, refetch } = usePrescriptions(patient?.id ?? '');
+  const { data: providerState } = useProviderState();
+  const canPrescribe = canAuthorPrescriptions(providerState?.providerType);
+  const { data: directory = [] } = usePharmacyDirectory();
+  const { data: preferred } = usePreferredPharmacyFor(patient?.id ?? '');
+  const referPrescription = useReferPrescription(patient?.id ?? '');
+  // Which prescription the pharmacy picker is open for, if any.
+  const [referring, setReferring] = useState<Prescription | null>(null);
+
+  const sendToPharmacy = async (pharmacyId: string, pharmacyName: string) => {
+    if (!referring) return;
+    try {
+      await referPrescription.mutateAsync({ prescriptionId: referring.id, pharmacyId });
+      const drug = referring.drug;
+      setReferring(null);
+      Alert.alert(t('fulfillment.sentTitle'), t('fulfillment.sentBody', { drug, pharmacy: pharmacyName }));
+    } catch (err) {
+      Alert.alert(t('fulfillment.couldNotSend'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
+    }
+  };
 
   if (!patient) {
     return (
@@ -72,7 +92,7 @@ export default function PrescriptionHistoryScreen({ navigation, route }: Props) 
         {current.length === 0 ? (
           <Text style={styles.sectionEmpty}>{t('prescriptions.noCurrent')}</Text>
         ) : (
-          current.map((p) => <PrescriptionCard key={p.id} rx={p} />)
+          current.map((p) => <PrescriptionCard key={p.id} rx={p} onRefer={canPrescribe ? () => setReferring(p) : undefined} />)
         )}
 
         {/* Historical prescriptions */}
@@ -88,13 +108,54 @@ export default function PrescriptionHistoryScreen({ navigation, route }: Props) 
         )}
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-        <EkoButton
-          title={t('prescriptions.addPrescription')}
-          variant="primary"
-          onPress={() => navigation.navigate('AddPrescription', { patient })}
-        />
-      </View>
+      {/* Pharmacy picker — the patient's own preferred pharmacy floats to the
+          top, since that's where they've already said they collect. */}
+      <Modal visible={!!referring} transparent animationType="slide" onRequestClose={() => setReferring(null)}>
+        <TouchableOpacity style={styles.sheetOverlay} activeOpacity={1} onPress={() => setReferring(null)}>
+          <TouchableOpacity style={styles.sheet} activeOpacity={1} onPress={() => {}}>
+            <View style={styles.grabber} />
+            <Text style={styles.sheetTitle}>{t('fulfillment.choosePharmacy')}</Text>
+            <Text style={styles.sheetSub}>{referring ? `${referring.drug} ${referring.strength}` : ''}</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {directory.length === 0 ? (
+                <Text style={styles.sheetEmpty}>{t('fulfillment.noPharmacies')}</Text>
+              ) : (
+                [...directory]
+                  .sort((a, b) => (a.id === preferred?.id ? -1 : b.id === preferred?.id ? 1 : 0))
+                  .map((ph) => (
+                    <TouchableOpacity
+                      key={ph.id}
+                      style={styles.pharmRow}
+                      onPress={() => sendToPharmacy(ph.id, ph.name)}
+                      disabled={referPrescription.isPending}
+                      accessibilityRole="button"
+                    >
+                      <FontAwesome name="medkit" size={16} color={Colors.primary} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.pharmName}>{ph.name}</Text>
+                        <Text style={styles.pharmAddress}>{ph.address}</Text>
+                        {ph.id === preferred?.id ? (
+                          <Text style={styles.preferredTag}>{t('fulfillment.patientPreferred')}</Text>
+                        ) : null}
+                      </View>
+                      <FontAwesome name="chevron-right" size={12} color={Colors.textGray} />
+                    </TouchableOpacity>
+                  ))
+              )}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {canPrescribe && (
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+          <EkoButton
+            title={t('prescriptions.addPrescription')}
+            variant="primary"
+            onPress={() => navigation.navigate('AddPrescription', { patient })}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -105,7 +166,16 @@ const STATUS_META: Record<string, { labelKey: string; color: (c: ThemeColors) =>
   discontinued: { labelKey: 'prescriptions.statusDiscontinued', color: (c) => c.red },
 };
 
-function PrescriptionCard({ rx, muted }: { rx: Prescription; muted?: boolean }) {
+const FULFILLMENT_META: Record<FulfillmentStatus, { labelKey: string; icon: string; color: (c: ThemeColors) => string } | null> = {
+  none: null,
+  sent: { labelKey: 'fulfillment.sent', icon: 'paper-plane', color: (c) => c.accent },
+  accepted: { labelKey: 'fulfillment.accepted', icon: 'hourglass-half', color: (c) => c.accent },
+  ready: { labelKey: 'fulfillment.ready', icon: 'check-circle', color: (c) => c.green },
+  collected: { labelKey: 'fulfillment.collected', icon: 'check', color: (c) => c.textGray },
+  rejected: { labelKey: 'fulfillment.rejected', icon: 'exclamation-circle', color: (c) => c.red },
+};
+
+function PrescriptionCard({ rx, muted, onRefer }: { rx: Prescription; muted?: boolean; onRefer?: () => void }) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
@@ -142,6 +212,37 @@ function PrescriptionCard({ rx, muted }: { rx: Prescription; muted?: boolean }) 
           <Text style={styles.instructionsText}>{rx.instructions}</Text>
         </View>
       ) : null}
+
+      {/* Pharmacy referral (Batch 4). Absent entirely when never referred —
+          an un-referred script is normal, not an error state. */}
+      {(() => {
+        const fm = FULFILLMENT_META[rx.fulfillmentStatus];
+        if (!fm) {
+          return onRefer ? (
+            <TouchableOpacity style={styles.referBtn} onPress={onRefer} accessibilityRole="button">
+              <FontAwesome name="paper-plane-o" size={12} color={Colors.primary} />
+              <Text style={styles.referBtnText}>{t('fulfillment.sendToPharmacy')}</Text>
+            </TouchableOpacity>
+          ) : null;
+        }
+        const c = fm.color(Colors);
+        return (
+          <View style={[styles.fulfillRow, { backgroundColor: c + '12' }]}>
+            <FontAwesome name={fm.icon as any} size={12} color={c} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.fulfillText, { color: c }]}>
+                {t(fm.labelKey)}{rx.pharmacyName ? ` ${t('fulfillment.atPharmacy', { name: rx.pharmacyName })}` : ''}
+              </Text>
+              {rx.fulfillmentNote ? <Text style={styles.fulfillNote}>{rx.fulfillmentNote}</Text> : null}
+            </View>
+            {onRefer && (rx.fulfillmentStatus === 'sent' || rx.fulfillmentStatus === 'rejected') ? (
+              <TouchableOpacity onPress={onRefer} accessibilityRole="button">
+                <Text style={styles.fulfillChange}>{t('common.edit')}</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        );
+      })()}
 
       <View style={styles.cardFoot}>
         <Text style={styles.footMeta}>{rx.doctorName}</Text>
@@ -231,6 +332,40 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
 
   empty: { alignItems: 'center', marginTop: 70, paddingHorizontal: 32 },
   emptyText: { fontSize: 16, color: Colors.textGray, marginTop: 12, fontFamily: 'Poppins_600SemiBold' },
+
+  referBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start',
+    borderWidth: 1.5, borderColor: Colors.primary, borderStyle: 'dashed',
+    borderRadius: 18, paddingHorizontal: 12, paddingVertical: 7, marginTop: 10,
+  },
+  referBtnText: { fontSize: 12, fontWeight: '600', color: Colors.primary, fontFamily: 'Poppins_600SemiBold' },
+  fulfillRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, marginTop: 10,
+  },
+  fulfillText: { fontSize: 12, fontWeight: '600', fontFamily: 'Poppins_600SemiBold' },
+  fulfillNote: { fontSize: 11, color: Colors.textGray, marginTop: 2, lineHeight: 15 },
+  fulfillChange: { fontSize: 11, fontWeight: '700', color: Colors.primary },
+
+  sheetOverlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: Colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    padding: 24, paddingBottom: 36, maxHeight: '75%',
+  },
+  grabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.borderGray, marginBottom: 16 },
+  sheetTitle: { fontSize: 18, fontWeight: '800', color: Colors.textDark, marginBottom: 4, fontFamily: 'Poppins_700Bold' },
+  sheetSub: { fontSize: 12, color: Colors.textGray, marginBottom: 16 },
+  pharmRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: Colors.field, borderRadius: 12, padding: 14, marginBottom: 8,
+  },
+  pharmName: { fontSize: 14, fontWeight: '600', color: Colors.textDark, fontFamily: 'Poppins_600SemiBold' },
+  pharmAddress: { fontSize: 12, color: Colors.textGray, marginTop: 1 },
+  preferredTag: {
+    fontSize: 10, fontWeight: '700', color: Colors.primary, textTransform: 'uppercase',
+    letterSpacing: 0.4, marginTop: 3,
+  },
+  sheetEmpty: { fontSize: 13, color: Colors.textGray, textAlign: 'center', paddingVertical: 20 },
 
   footer: { paddingHorizontal: 16, paddingTop: 10, backgroundColor: Colors.bgLight },
 });

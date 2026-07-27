@@ -22,6 +22,7 @@ const MENU_ITEMS = [
   { icon: 'medkit', labelKey: 'account.myHealth', screen: 'MyHealth', color: '#3FBE6E' },
   { icon: 'flask', labelKey: 'labs.title', screen: 'Labs', color: '#8E44AD' },
   { icon: 'shield', labelKey: 'account.insurance', screen: 'Insurance', color: '#00CAAE' },
+  { icon: 'id-card', labelKey: 'account.verifyIdentity', screen: 'VerifyIdentity', color: '#009688' },
   { icon: 'medkit', labelKey: 'account.preferredPharmacy', screen: 'PreferredPharmacy', color: '#FF7043' },
   { icon: 'credit-card', labelKey: 'account.paymentInfo', screen: 'PaymentInfo', color: '#00897B' },
   { icon: 'file-text-o', labelKey: 'account.paymentHistory', screen: 'PaymentHistory', color: '#3F51B5' },
