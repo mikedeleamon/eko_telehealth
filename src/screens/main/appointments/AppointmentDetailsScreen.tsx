@@ -117,8 +117,10 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
       : null;
 
   const joinCall = () => {
-    if (type === 'Video Visit') navigation.navigate('VideoCall', { doctor });
-    else navigation.navigate('AudioCall', { doctor });
+    // The visit id is what authorizes the call — the room is derived from it
+    // server-side, and /calls/token refuses anyone who isn't a party to it.
+    if (type === 'Video Visit') navigation.navigate('VideoCall', { doctor, appointmentId: appointment.id });
+    else navigation.navigate('AudioCall', { doctor, appointmentId: appointment.id });
   };
 
   /** E-Check-In — patient marks themselves present/ready. "Begin Visit" (below) is Join Call, relabeled, enabled once this succeeds. */
@@ -347,6 +349,14 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
               title={t('appointments.sendMessage')}
               variant="outline"
               onPress={() => navigation.navigate('Chat', { doctor })}
+              style={styles.btn}
+            />
+            {/* SOW 1.6: send the provider a picture of the problem ahead of
+                the visit. Pre-selects this appointment on the upload form. */}
+            <EkoButton
+              title={t('appointments.attachPhotos')}
+              variant="outline"
+              onPress={() => navigation.navigate('ConditionUploads', { appointmentId: appointment.id })}
               style={styles.btn}
             />
             {isConfirmedOrCheckedIn && startAt && (

@@ -3,7 +3,7 @@ import { MockVideoService } from './MockVideoService';
 import { StreamVideoService } from './StreamVideoService';
 import type { VideoService } from './types';
 
-export type { CallControls, CallState, VideoService } from './types';
+export type { CallControls, CallState, ConnectionQuality, VideoService } from './types';
 
 /**
  * Singleton video service chosen by EXPO_PUBLIC_REALTIME_PROVIDER.

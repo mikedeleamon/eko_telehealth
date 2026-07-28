@@ -45,6 +45,13 @@
           "calendarPermission": "Eko Telehealth uses your calendar to add your upcoming visits.",
           "remindersPermission": "Eko Telehealth uses your calendar to add your upcoming visits."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Eko Telehealth lets you attach photos of a condition so your provider can see it before your visit.",
+          "cameraPermission": "Eko Telehealth lets you photograph a condition so your provider can see it before your visit."
+        }
       ]
     ]
   }

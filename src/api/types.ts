@@ -256,6 +256,12 @@ export interface PatientSummary {
    * a patient not yet linked to a real account.
    */
   dependents?: { id: string; firstName: string; lastName: string }[];
+  /**
+   * The real account behind this roster entry, when one is linked. Roster ids
+   * and user ids are separate spaces, so this is what matches a roster patient
+   * to their own appointments. Absent for walk-ins with no app account.
+   */
+  userId?: string;
 }
 
 /**
@@ -561,6 +567,25 @@ export interface Complaint {
   resolutionNote?: string;
   /** Display date, e.g. "Jul 19, 2026". */
   submittedAt: string;
+  /** ISO timestamp of the latest support reply, absent until someone replies. */
+  lastMessageAt?: string;
+  /** Replies the filer hasn't read yet — drives the badge on the report card. */
+  unread?: number;
+}
+
+/**
+ * One message in a support thread. A report is also a conversation with the
+ * platform: `authorRole` is which side wrote it, so the thread can be rendered
+ * with the user's own messages on one side and support's on the other.
+ */
+export interface SupportMessage {
+  id: string;
+  complaintId: string;
+  authorRole: 'user' | 'admin';
+  authorName: string;
+  body: string;
+  /** ISO timestamp — the thread sorts on this, oldest first. */
+  createdAt: string;
 }
 
 export interface ComplaintInput {
@@ -799,7 +824,14 @@ export interface GovIdStatus {
  * live in R2; this row is the metadata. `url` is the object key (or public URL)
  * in live mode, and the local file uri in mock mode.
  */
-export type DocumentCategory = 'license' | 'certification' | 'government-id' | 'insurance' | 'other';
+/**
+ * 'condition' is a PATIENT's picture/document of a medical condition (SOW 1.6);
+ * every other value is a provider credential. The split matters beyond
+ * labelling: only 'condition' uploads are readable by a treating provider
+ * (GET /practice/patients/:id/documents) — a patient's own ID scan or
+ * insurance card never leaves their own view.
+ */
+export type DocumentCategory = 'license' | 'certification' | 'government-id' | 'insurance' | 'condition' | 'other';
 
 export interface StoredDocument {
   id: string;
@@ -812,6 +844,10 @@ export interface StoredDocument {
   sizeBytes: number;
   /** R2 key/public URL (live) or local file uri (mock); null if not resolvable. */
   url: string | null;
+  /** The visit this was uploaded for, when the patient attached it to one. */
+  appointmentId?: string | null;
+  /** What the patient wants the provider to know about it — `name` is the title. */
+  description?: string | null;
   /** Display date, e.g. "Jul 20, 2026". */
   uploadedAt: string;
   /** ISO timestamp — lists sort on this. */
@@ -882,6 +918,80 @@ export interface CallTokenGrant {
   /** Public Stream API key + call type, so the SDK can init from the grant. */
   apiKey?: string;
   callType?: string;
+  /** How the server sees this caller: a party to the visit, or an admitted guest. */
+  role?: 'patient' | 'provider' | 'guest';
+}
+
+/**
+ * A third party invited into a visit's call (conference, patient-feedback
+ * item 10). Entry takes both an invite and an admission — see the backend's
+ * migrations/0029_call_invites.sql.
+ */
+export interface CallInvite {
+  id: string;
+  appointmentId: string;
+  inviteeId: string;
+  inviteeName: string;
+  invitedById: string;
+  invitedByName: string;
+  status: 'invited' | 'knocking' | 'admitted' | 'declined' | 'revoked';
+  knockedAt: string | null;
+  admittedAt: string | null;
+  createdAt: string;
+}
+
+/** An invite as the GUEST sees it — the visit's details, not the other invitees'. */
+export interface MyCallInvite {
+  id: string;
+  appointmentId: string;
+  status: CallInvite['status'];
+  invitedByName: string;
+  doctorName: string;
+  visitType: VisitType;
+  date: string;
+  time: string;
+}
+
+/** One bucket of a revenue/earnings trend. */
+export interface RevenueBucket {
+  /** Sortable yyyy-mm-dd key for the bucket's start. */
+  bucket: string;
+  /** Axis label, e.g. "Jul 14" / "Wk of Jul 14" / "Jul 2026". */
+  label: string;
+}
+
+export type RevenueGranularity = 'day' | 'week' | 'month';
+
+export interface RevenueRange {
+  from: string;
+  /** Inclusive last day of the window, as the client asked for it. */
+  to: string;
+  granularity: RevenueGranularity;
+}
+
+/**
+ * GET /practice/earnings/analysis — the provider's own revenue analysis
+ * (SOW 1.18). Distinct from DoctorEarnings, which is the wallet: this is the
+ * trend and the breakdown, over a range the provider chooses.
+ */
+export interface EarningsAnalysis {
+  range: RevenueRange;
+  currency: string;
+  totals: {
+    /** Settled earnings in the range. Withdrawals are never counted here. */
+    earned: number;
+    withdrawn: number;
+    visits: number;
+    averagePerVisit: number;
+  };
+  previous: {
+    earned: number;
+    visits: number;
+    /** Change vs. the same-length preceding window; null when there's no base. */
+    earnedChangePct: number | null;
+  };
+  series: (RevenueBucket & { earned: number; visits: number })[];
+  byVisitType: { type: string; earned: number; visits: number }[];
 }
 
 /** Access token grant for connecting to Stream Chat. */

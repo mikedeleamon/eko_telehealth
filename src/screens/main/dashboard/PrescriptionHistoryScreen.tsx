@@ -193,6 +193,12 @@ function PrescriptionCard({ rx, muted, onRefer }: { rx: Prescription; muted?: bo
             {rx.drug} <Text style={styles.strength}>{rx.strength}</Text>
           </Text>
           <Text style={styles.formRoute}>{rx.form} · {rx.route}</Text>
+          {/* This account has more than one person's records behind it (proxy
+              access) — say whose medication this is so it isn't read as the
+              account holder's own. Absent entirely for the common case. */}
+          {rx.dependentName ? (
+            <Text style={styles.dependentTag}>{t('prescriptions.forDependent', { name: rx.dependentName })}</Text>
+          ) : null}
         </View>
         <View style={[styles.statusPill, { backgroundColor: statusColor + '1A' }]}>
           <Text style={[styles.statusText, { color: statusColor }]}>{t(meta.labelKey)}</Text>
@@ -364,6 +370,10 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   preferredTag: {
     fontSize: 10, fontWeight: '700', color: Colors.primary, textTransform: 'uppercase',
     letterSpacing: 0.4, marginTop: 3,
+  },
+  dependentTag: {
+    fontSize: 11, fontWeight: '700', color: Colors.accent, marginTop: 4,
+    fontFamily: 'Poppins_600SemiBold',
   },
   sheetEmpty: { fontSize: 13, color: Colors.textGray, textAlign: 'center', paddingVertical: 20 },
 

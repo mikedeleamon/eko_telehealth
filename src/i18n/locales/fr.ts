@@ -103,7 +103,7 @@ const fr: TranslationSchema = {
     myChart: {
       Appointments: 'Rendez-vous', 'Health Summary': 'Résumé de santé', Medications: 'Médicaments',
       Messages: 'Messages', 'Find Care': 'Trouver des soins', Billing: 'Facturation',
-      'Test Results': 'Résultats d’analyses', Todo: 'À faire',
+      'Test Results': 'Résultats d’analyses', Todo: 'À faire', 'My Uploads': 'Mes envois',
     },
   },
 
@@ -390,6 +390,7 @@ const fr: TranslationSchema = {
     continueToPayment: 'Continuer vers le paiement',
     confirmed: 'Rendez-vous confirmé !',
     confirmedSubtitle: 'Votre visite avec {{doctor}} est réservée.',
+    attachPhotos: 'Joindre des photos ou documents',
     addToCalendar: 'Ajouter au calendrier',
     viewAppointment: 'Voir le rendez-vous',
     backToHome: 'Retour à l’accueil',
@@ -568,6 +569,40 @@ const fr: TranslationSchema = {
     cameraOff: 'Caméra désactivée',
     audioCall: 'Appel audio',
     videoCall: 'Appel vidéo',
+
+    // Conférence — faire entrer un tiers dans la consultation.
+    addGuest: 'Ajouter',
+    guests: 'Invités',
+    inviteTitle: 'Inviter quelqu’un à cette consultation',
+    inviteHint: 'Cette personne doit avoir un compte Eko. Invitez-la avec l’adresse e-mail de son compte — elle rejoint la même consultation, sans frais supplémentaires.',
+    inviteEmailLabel: 'Son adresse e-mail',
+    inviteEmailPlaceholder: 'nom@exemple.com',
+    inviteSend: 'Envoyer l’invitation',
+    inviteSending: 'Invitation…',
+    inviteFailed: 'Impossible d’envoyer cette invitation',
+    noGuests: 'Personne d’autre n’a été invité à cette consultation.',
+    guestInvited: 'Invité',
+    guestKnocking: 'Demande à entrer',
+    guestAdmitted: 'Dans l’appel',
+    admit: 'Faire entrer',
+    removeGuest: 'Retirer',
+    removeGuestTitle: 'Retirer {{name}} ?',
+    removeGuestConfirm: 'Cette personne sera retirée de l’appel. Vous pourrez l’inviter à nouveau ensuite.',
+    knockingTitle: '{{name}} demande à entrer',
+    waitingToBeAdmitted: 'En attente d’autorisation…',
+    waitingToBeAdmittedHint: 'Le médecin ou le patient doit vous faire entrer. Cet écran se connectera automatiquement.',
+    invitedToVisit: 'Vous avez été invité à une consultation',
+    joinVisit: 'Rejoindre',
+
+    // Repli en cas de bande passante faible.
+    connectionPoor: 'Votre connexion est instable',
+    connectionPoorHint: 'Désactiver la caméra stabilise généralement l’appel. Vous pouvez aussi continuer par messagerie.',
+    switchToVoice: 'Passer en audio',
+    voiceOnly: 'Audio seul',
+    turnVideoBackOn: 'Réactiver la vidéo',
+    continueInChat: 'Continuer par messagerie',
+    stayOnVideo: 'Rester en vidéo',
+    voiceOnlyBanner: 'Audio seul — votre caméra est désactivée',
   },
 
   account: {
@@ -870,6 +905,32 @@ const fr: TranslationSchema = {
     communication: 'Communication',
     experience: 'Expérience',
     speedyResponse: 'Rapidité de réponse',
+  },
+
+  // Envois du patient concernant un problème de santé (SOW 1.6). Distinct de
+  // `documents`, qui est l'espace des justificatifs du praticien.
+  uploads: {
+    title: 'Mes envois',
+    note: 'Les photos et documents ajoutés ici sont visibles par les praticiens qui vous soignent, au même titre que vos analyses et vos comptes rendus. Vos pièces d’identité et d’assurance ne le sont pas — elles restent privées.',
+    empty: 'Aucun envoi pour l’instant',
+    emptyHint: 'Photographiez une éruption, un gonflement ou une blessure, ou joignez un compte rendu d’une autre clinique, pour que votre praticien puisse le voir avant la consultation.',
+    add: 'Ajouter une photo ou un document',
+    newTitle: 'Ajouter une photo ou un document',
+    takePhoto: 'Prendre une photo',
+    choosePhoto: 'Photothèque',
+    chooseFile: 'Depuis les fichiers',
+    nameLabel: 'De quoi s’agit-il ?',
+    namePlaceholder: 'ex. Éruption sur l’avant-bras gauche',
+    descriptionLabel: 'Ce que votre praticien doit savoir (facultatif)',
+    descriptionPlaceholder: 'Depuis quand, douleurs éventuelles, évolution…',
+    forVisit: 'Pour quelle consultation ? (facultatif)',
+    noVisit: 'Sans consultation précise',
+    save: 'Envoyer',
+    couldNotAttach: 'Impossible de joindre ce fichier',
+    removeTitle: 'Supprimer cet envoi ?',
+    patientUploads: 'Envois du patient',
+    patientUploadsSubtitle: 'Photos et documents envoyés par ce patient',
+    patientUploadsEmpty: 'Ce patient n’a envoyé aucune photo ni document.',
   },
 
   documents: {
@@ -1241,6 +1302,7 @@ const fr: TranslationSchema = {
     newPrescription: 'Nouvelle ordonnance',
     prescribingFor: 'Ordonnance pour {{name}}',
     whoIsThisFor: 'Pour qui est-ce ?',
+    forDependent: 'Pour {{name}} (personne à charge)',
     // Statuts
     statusActive: 'Actif',
     statusCompleted: 'Terminé',
@@ -1278,6 +1340,17 @@ const fr: TranslationSchema = {
     pending: 'En attente',
     withdrawal: 'Retrait',
     noEarnings: 'Aucun revenu pour l’instant.',
+
+    // Analyse des revenus (SOW 1.18).
+    analysisTitle: 'Analyse des revenus',
+    period: { month: 'Ce mois-ci', quarter: '3 derniers mois', year: 'Cette année' },
+    visitsCount_one: '{{count}} consultation',
+    visitsCount_other: '{{count}} consultations',
+    perVisit: '{{amount}} par consultation',
+    vsPrevious: '{{amount}} sur la période précédente',
+    byVisitType: 'Par type de consultation',
+    barChart: 'Graphique à barres',
+    lineChart: 'Graphique linéaire',
   },
 
   paymentHistory: {
@@ -1290,6 +1363,14 @@ const fr: TranslationSchema = {
     emptyHint: 'Les reçus de vos visites payées apparaîtront ici.',
   },
 
+  support: {
+    title: 'Conversation avec le support',
+    placeholder: '\u00c9crire un message\u2026',
+    awaitingReply: 'Le support n\u2019a pas encore r\u00e9pondu. Nous vous pr\u00e9viendrons d\u00e8s que ce sera fait.',
+    viewConversation: 'Voir la conversation',
+    openThread: 'Ouvrir la conversation de support pour {{subject}}',
+    couldNotSend: 'Impossible d\u2019envoyer le message',
+  },
   report: {
     title: 'Signaler un problème',
     intro: 'Dites-nous ce qui s’est passé. Notre équipe examine chaque signalement et vous verrez la résolution ici une fois traité.',

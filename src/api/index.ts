@@ -15,8 +15,12 @@ import type {
   AuthSession,
   AvailabilityBlock,
   AvailabilitySlot,
+  CallInvite,
   CallTokenGrant,
   CashoutInput,
+  EarningsAnalysis,
+  MyCallInvite,
+  RevenueGranularity,
   ChatMessage,
   ChatTokenGrant,
   Complaint,
@@ -54,6 +58,7 @@ import type {
   Review,
   ReviewSummary,
   StoredDocument,
+  SupportMessage,
   DocumentCategory,
   PickedFile,
   PresignResult,
@@ -437,6 +442,30 @@ export const api = {
     },
 
     /**
+     * GET /practice/earnings/analysis — the trend and breakdown behind the
+     * wallet figure (SOW 1.18). Omitting the range asks for the current
+     * calendar month, which is the window EarningsScreen showed before this
+     * existed, so the default answer is the familiar one.
+     */
+    earningsAnalysis(params: { from?: string; to?: string; granularity?: RevenueGranularity } = {}): Promise<EarningsAnalysis> {
+      if (env.useMockApi) return mockApi.getEarningsAnalysis(params);
+      const query = new URLSearchParams(
+        Object.entries(params).filter(([, v]) => !!v) as [string, string][],
+      ).toString();
+      return request<EarningsAnalysis>(`/practice/earnings/analysis${query ? `?${query}` : ''}`);
+    },
+
+    /**
+     * GET /practice/patients/:patientId/documents — pictures/documents of a
+     * condition this patient uploaded (SOW 1.6). Condition uploads only; the
+     * patient's credential/identity files are never returned here.
+     */
+    patientDocuments(patientId: string): Promise<StoredDocument[]> {
+      if (env.useMockApi) return mockApi.getPatientConditionUploads(patientId);
+      return request<StoredDocument[]>(`/practice/patients/${patientId}/documents`);
+    },
+
+    /**
      * POST /practice/payouts — withdraw to the saved payment method. The
      * backend resolves the destination from /me/payment-method (never sent by
      * the client) and returns the updated wallet.
@@ -655,10 +684,58 @@ export const api = {
   },
 
   calls: {
-    /** POST /calls/token — backend mints a Stream Video access token for the room. */
-    token(roomName: string): Promise<CallTokenGrant> {
-      if (env.useMockApi) return mockApi.getCallToken(roomName);
-      return request<CallTokenGrant>('/calls/token', { method: 'POST', body: { roomName } });
+    /**
+     * POST /calls/token — mint a Stream Video token for one specific visit.
+     *
+     * The caller names the APPOINTMENT, not the room: the backend derives the
+     * room from it and refuses unless the caller is that visit's patient or
+     * provider and the visit is actually open (paid and not yet over). A
+     * client-chosen room name would let anyone walk into any consultation.
+     */
+    token(appointmentId: string): Promise<CallTokenGrant> {
+      if (env.useMockApi) return mockApi.getCallToken(appointmentId);
+      return request<CallTokenGrant>('/calls/token', { method: 'POST', body: { appointmentId } });
+    },
+
+    /**
+     * Conference: bringing a third party into a visit's call.
+     *
+     * Two gates, both server-enforced: a party to the visit invites a specific
+     * existing account, and the OTHER party admits them when they knock. An
+     * invite on its own is not entry — see the backend's calls.ts. There is no
+     * invite-by-link: a URL that admits its bearer is a PHI leak one forward
+     * away, so invitees are named by the email their account uses.
+     */
+    invites: {
+      /** GET /calls/invites?appointmentId= — parties only; drives the admit prompt. */
+      list(appointmentId: string): Promise<CallInvite[]> {
+        if (env.useMockApi) return mockApi.getCallInvites(appointmentId);
+        return request<CallInvite[]>(`/calls/invites?appointmentId=${encodeURIComponent(appointmentId)}`);
+      },
+
+      /** GET /calls/invites/mine — the guest's own way in; they have no appointment to open. */
+      mine(): Promise<MyCallInvite[]> {
+        if (env.useMockApi) return mockApi.getMyCallInvites();
+        return request<MyCallInvite[]>('/calls/invites/mine');
+      },
+
+      /** POST /calls/invites — invite an existing account into this visit. The guest is not charged. */
+      create(appointmentId: string, email: string): Promise<CallInvite> {
+        if (env.useMockApi) return mockApi.createCallInvite(appointmentId, email);
+        return request<CallInvite>('/calls/invites', { method: 'POST', body: { appointmentId, email } });
+      },
+
+      /** POST /calls/invites/:id/admit — let a knocking guest in. */
+      admit(id: string): Promise<CallInvite> {
+        if (env.useMockApi) return mockApi.admitCallInvite(id);
+        return request<CallInvite>(`/calls/invites/${id}/admit`, { method: 'POST' });
+      },
+
+      /** DELETE /calls/invites/:id — withdraw an invite, or remove an admitted guest. */
+      remove(id: string): Promise<void> {
+        if (env.useMockApi) return mockApi.removeCallInvite(id);
+        return request<void>(`/calls/invites/${id}`, { method: 'DELETE' });
+      },
     },
   },
 
@@ -670,21 +747,34 @@ export const api = {
     },
   },
 
-  /** Doctor "Documents & Certifications" — R2-backed credential storage. */
+  /**
+   * R2-backed file storage for the signed-in user, covering two populations:
+   * a provider's "Documents & Certifications", and a patient's pictures and
+   * documents of a medical condition (SOW 1.6, category 'condition').
+   */
   documents: {
-    /** GET /me/documents */
-    list(): Promise<StoredDocument[]> {
-      if (env.useMockApi) return mockApi.getDocuments();
-      return request<StoredDocument[]>('/me/documents');
+    /** GET /me/documents — `category` narrows to one population (e.g. 'condition'). */
+    list(category?: DocumentCategory): Promise<StoredDocument[]> {
+      if (env.useMockApi) return mockApi.getDocuments(category);
+      return request<StoredDocument[]>(`/me/documents${category ? `?category=${category}` : ''}`);
     },
 
     /**
      * Upload a picked file and record it. In live mode this presigns an R2 PUT,
      * uploads the bytes straight to R2, then records the metadata — the backend
      * never receives the file. In mock mode it just stores the local uri.
+     *
+     * `appointmentId` ties a condition upload to the visit it was sent for; the
+     * backend rejects an appointment that isn't the caller's own.
      */
-    async upload(input: { name: string; category: DocumentCategory; file: PickedFile }): Promise<StoredDocument> {
-      const { name, category, file } = input;
+    async upload(input: {
+      name: string;
+      category: DocumentCategory;
+      file: PickedFile;
+      appointmentId?: string;
+      description?: string;
+    }): Promise<StoredDocument> {
+      const { name, category, file, appointmentId, description } = input;
       if (env.useMockApi) {
         return mockApi.addDocument({
           name,
@@ -693,6 +783,8 @@ export const api = {
           mimeType: file.mimeType,
           sizeBytes: file.size,
           url: file.uri,
+          appointmentId,
+          description,
         });
       }
       const key = await uploadToR2('document', file);
@@ -705,6 +797,8 @@ export const api = {
           mimeType: file.mimeType,
           sizeBytes: file.size,
           key,
+          appointmentId,
+          description,
         },
       });
     },
@@ -802,6 +896,24 @@ export const api = {
     submit(input: ComplaintInput): Promise<Complaint> {
       if (env.useMockApi) return mockApi.submitComplaint(input);
       return request<Complaint>('/complaints', { method: 'POST', body: input });
+    },
+
+    /**
+     * GET /complaints/:id/messages — the support thread, oldest first. Reading
+     * it clears the filer's unread count server-side.
+     */
+    messages(complaintId: string): Promise<SupportMessage[]> {
+      if (env.useMockApi) return mockApi.getSupportMessages(complaintId);
+      return request<SupportMessage[]>(`/complaints/${complaintId}/messages`);
+    },
+
+    /**
+     * POST /complaints/:id/messages — reply to support. A reply to an already
+     * resolved report reopens it (mirrored server-side).
+     */
+    reply(complaintId: string, body: string): Promise<SupportMessage> {
+      if (env.useMockApi) return mockApi.replyToSupport(complaintId, body);
+      return request<SupportMessage>(`/complaints/${complaintId}/messages`, { method: 'POST', body: { body } });
     },
   },
 

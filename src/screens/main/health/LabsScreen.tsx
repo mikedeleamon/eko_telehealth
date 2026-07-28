@@ -328,6 +328,12 @@ function LabCard({ lab, onRemove }: { lab: LabResult; onRemove: () => void }) {
         <View style={styles.cardHeadText}>
           <Text style={styles.testName}>{lab.testName}</Text>
           {lab.loincCode ? <Text style={styles.loinc}>LOINC {lab.loincCode}</Text> : null}
+          {/* This account has more than one person's records behind it (proxy
+              access) — say whose result this is so it isn't read as the
+              account holder's own. Absent entirely for the common case. */}
+          {lab.dependentName ? (
+            <Text style={styles.dependentTag}>{t('prescriptions.forDependent', { name: lab.dependentName })}</Text>
+          ) : null}
         </View>
         <View style={[styles.statusPill, { backgroundColor: Colors.primaryFaded }]}>
           <Text style={[styles.statusText, { color: Colors.primary }]}>{t(`labs.statuses.${lab.status}`)}</Text>
@@ -405,6 +411,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   cardHeadText: { flex: 1 },
   testName: { fontSize: 15, fontWeight: '700', color: Colors.textDark, fontFamily: 'Poppins_700Bold' },
   loinc: { fontSize: 11, color: Colors.textGray, marginTop: 1, fontFamily: 'Poppins_400Regular' },
+  dependentTag: { fontSize: 11, fontWeight: '700', color: Colors.accent, marginTop: 4, fontFamily: 'Poppins_600SemiBold' },
   statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, marginRight: 10 },
   statusText: { fontSize: 11, fontWeight: '700', fontFamily: 'Poppins_600SemiBold' },
   trash: { paddingTop: 2 },

@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import { useDoctorAvailabilitySlots } from '../../../hooks/queries';
+import { useJoinableVisit } from '../../../hooks/useJoinableVisit';
 import { useTranslation } from '../../../i18n/useTranslation';
 import type { AvailabilitySlot } from '../../../api/types';
 
@@ -39,6 +40,8 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
     name: 'Dr. Amara Okafor', specialty: 'Therapist, Primary care doctor',
     rating: 4.5, reviews: 79, location: 'Victoria Island, Lagos', fee: '₦15,000', available: true, avatar: null,
   };
+  // The open visit a call from this profile would belong to, if any.
+  const joinableVisit = useJoinableVisit({ doctorId: route.params?.doctor?.id });
   const [activeTab, setActiveTab] = useState<'overview' | 'schedule'>(
     route.params?.initialTab === 'schedule' ? 'schedule' : 'overview'
   );
@@ -107,17 +110,26 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
         </View>
       </View>
 
-      {/* Floating action buttons straddling the photo bottom */}
+      {/* Floating action buttons straddling the photo bottom.
+
+          Calling is offered only when there's an open, paid visit with this
+          doctor: calls are authorized per-appointment, so a profile you're
+          merely browsing has no room to join. Messaging stays available
+          either way — it isn't gated on a booking. */}
       <View style={styles.actionRow}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('AudioCall', { doctor })} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={t('call.audioCall')}>
-          <FontAwesome name="phone" size={20} color={Colors.green} />
-        </TouchableOpacity>
+        {joinableVisit ? (
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('AudioCall', { doctor, appointmentId: joinableVisit.id })} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={t('call.audioCall')}>
+            <FontAwesome name="phone" size={20} color={Colors.green} />
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Chat', { doctor })} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={t('messages.chat')}>
           <FontAwesome name="comment" size={20} color={Colors.red} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('VideoCall', { doctor })} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={t('call.videoCall')}>
-          <FontAwesome name="video-camera" size={20} color={Colors.primary} />
-        </TouchableOpacity>
+        {joinableVisit ? (
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('VideoCall', { doctor, appointmentId: joinableVisit.id })} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={t('call.videoCall')}>
+            <FontAwesome name="video-camera" size={20} color={Colors.primary} />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>

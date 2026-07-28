@@ -22,8 +22,12 @@ import type {
   AuthSession,
   AvailabilityBlock,
   AvailabilitySlot,
+  CallInvite,
   CallTokenGrant,
   ChatMessage,
+  EarningsAnalysis,
+  MyCallInvite,
+  RevenueGranularity,
   ChatTokenGrant,
   Complaint,
   ComplaintInput,
@@ -66,6 +70,7 @@ import type {
   Review,
   ReviewSummary,
   StoredDocument,
+  SupportMessage,
   DocumentCategory,
   LabResult,
   LabInput,
@@ -153,9 +158,66 @@ let mockComplaints: Complaint[] = [
     submittedAt: 'Jul 10, 2026',
   },
 ];
+/**
+ * Support threads keyed by complaint (task #05). A report is also a
+ * conversation with the platform — c-1 has a worked exchange waiting on
+ * support, c-2 carries its resolution note as the closing message, mirroring
+ * how the real backend files a resolution into the transcript.
+ */
+const mockSupportMessages: SupportMessage[] = [
+  {
+    id: 'sm-1',
+    complaintId: 'c-1',
+    authorRole: 'admin',
+    authorName: 'Eko Admin',
+    body: 'Thanks for flagging this — I can see two authorisations against your card for Jul 18. Checking with our payment provider now.',
+    createdAt: '2026-07-19T14:10:00.000Z',
+  },
+  {
+    id: 'sm-2',
+    complaintId: 'c-1',
+    authorRole: 'user',
+    authorName: 'Martin Doe',
+    body: 'Thank you. Only one visit actually happened, so the second one should not be there.',
+    createdAt: '2026-07-19T15:02:00.000Z',
+  },
+  {
+    id: 'sm-3',
+    complaintId: 'c-2',
+    authorRole: 'admin',
+    authorName: 'Eko Admin',
+    body: "Traced to a CDN region issue on our video provider's side, resolved. Sorry for the disruption — let us know if it happens again.",
+    createdAt: '2026-07-12T15:00:00.000Z',
+  },
+];
+// Provider credentials and patient condition uploads (SOW 1.6) share this
+// store, exactly as they share the `documents` table server-side. `category`
+// is what separates the two populations everywhere.
 const mockDocuments: StoredDocument[] = [
   { id: 'doc-seed-1', name: 'MDCN Practising License 2026', category: 'license', fileName: 'mdcn-license-2026.pdf', mimeType: 'application/pdf', sizeBytes: 482_000, url: null, uploadedAt: 'Jan 12, 2026', createdAt: '2026-01-12T09:00:00.000Z' },
   { id: 'doc-seed-2', name: 'Board Certification — Internal Medicine', category: 'certification', fileName: 'board-cert.pdf', mimeType: 'application/pdf', sizeBytes: 1_204_000, url: null, uploadedAt: 'Nov 3, 2025', createdAt: '2025-11-03T09:00:00.000Z' },
+  { id: 'doc-seed-3', name: 'Rash on left forearm', category: 'condition', fileName: 'forearm-rash.jpg', mimeType: 'image/jpeg', sizeBytes: 1_840_000, url: null, description: 'Started Tuesday, itchy and worse at night. No new soap or detergent.', uploadedAt: 'Jul 24, 2026', createdAt: '2026-07-24T08:20:00.000Z' },
+  { id: 'doc-seed-4', name: 'Previous discharge summary', category: 'condition', fileName: 'discharge-summary.pdf', mimeType: 'application/pdf', sizeBytes: 620_000, url: null, description: 'From the hospital stay in March, in case it is relevant.', uploadedAt: 'Jul 20, 2026', createdAt: '2026-07-20T14:05:00.000Z' },
+];
+/**
+ * Conference invites (patient-feedback item 10). Seeded against appointment
+ * '1' — the upcoming Video Visit — and already knocking, so the in-call
+ * "someone is asking to join" prompt is reachable in a demo where there is
+ * only ever one signed-in user and no second device to knock from.
+ */
+const mockCallInvites: CallInvite[] = [
+  {
+    id: 'inv-seed-1',
+    appointmentId: '1',
+    inviteeId: 'guest-seed-1',
+    inviteeName: 'Ada Doe',
+    invitedById: 'pat-1',
+    invitedByName: 'Martin Doe',
+    status: 'knocking',
+    knockedAt: '2026-07-27T09:58:00.000Z',
+    admittedAt: null,
+    createdAt: '2026-07-27T09:55:00.000Z',
+  },
 ];
 const mockMedicalNotes: MedicalNote[] = [...(MOCK_MEDICAL_NOTES as MedicalNote[])];
 
@@ -302,11 +364,31 @@ function formatClock(d: Date): string {
 }
 
 /**
+ * Parse a ledger row's display date ("Jul 18, 2026") back into a Date.
+ *
+ * The mock ledger stores what it renders, so this is the only way to bucket it
+ * by time. Unparseable rows fall back to the epoch, which sorts them out of
+ * every range rather than into an arbitrary one.
+ */
+function earningDate(item: EarningItem): Date {
+  const m = /^([A-Za-z]{3}) (\d{1,2}), (\d{4})$/.exec(item.date);
+  if (!m) return new Date(0);
+  const month = MONTH_ABBR.indexOf(m[1]);
+  return month < 0 ? new Date(0) : new Date(Number(m[3]), month, Number(m[2]));
+}
+
+/**
  * Derive the wallet totals from the ledger so balance/pending/month stay
  * consistent as withdrawals are added. Balance = settled earnings minus every
  * withdrawal (pending ones are money already on its way out).
+ *
+ * `thisMonth` is scoped to the current calendar month, honoring the
+ * DoctorEarnings.thisMonth contract and matching the backend's own
+ * summarizeEarnings. It used to sum every settled earning regardless of date —
+ * harmless while the seed data was all recent, wrong the moment it wasn't.
  */
 function summarizeEarnings(): DoctorEarnings {
+  const now = new Date();
   let balance = 0;
   let pending = 0;
   let thisMonth = 0;
@@ -314,7 +396,8 @@ function summarizeEarnings(): DoctorEarnings {
     if (item.kind === 'earning') {
       if (item.status === 'settled') {
         balance += item.amount;
-        thisMonth += item.amount;
+        const at = earningDate(item);
+        if (at.getFullYear() === now.getFullYear() && at.getMonth() === now.getMonth()) thisMonth += item.amount;
       }
     } else {
       balance -= item.amount;
@@ -785,6 +868,100 @@ export const mockApi = {
   },
 
   /**
+   * GET /practice/earnings/analysis (SOW 1.18) — the trend and breakdown
+   * behind the wallet figure. Mirrors the server's bucketing rules, including
+   * the empty buckets: charting only the days that had earnings is how a
+   * scattered week gets drawn as a smooth climb.
+   */
+  async getEarningsAnalysis(params: {
+    from?: string;
+    to?: string;
+    granularity?: RevenueGranularity;
+  }): Promise<EarningsAnalysis> {
+    await delay();
+    const now = new Date();
+    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    // yyyy-mm-dd is a LOCAL calendar date. `new Date("2026-07-01")` is UTC
+    // midnight, which is still June 30th west of Greenwich — a range asked for
+    // "from the 1st" would open on the previous month's last day.
+    const localDay = (value: string) =>
+      new Date(Number(value.slice(0, 4)), Number(value.slice(5, 7)) - 1, Number(value.slice(8, 10)));
+    const from = startOfDay(params.from ? localDay(params.from) : new Date(now.getFullYear(), now.getMonth(), 1));
+    const to = params.to ? new Date(startOfDay(localDay(params.to)).getTime() + 86_400_000) : startOfDay(new Date(now.getTime() + 86_400_000));
+    const span = Math.max(86_400_000, to.getTime() - from.getTime());
+    const days = Math.round(span / 86_400_000);
+    const granularity: RevenueGranularity = params.granularity ?? (days <= 45 ? 'day' : days <= 190 ? 'week' : 'month');
+    const previousFrom = new Date(from.getTime() - span);
+
+    const key = (d: Date): string => {
+      const start =
+        granularity === 'month'
+          ? new Date(d.getFullYear(), d.getMonth(), 1)
+          : granularity === 'week'
+            ? new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7))
+            : startOfDay(d);
+      return `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+    };
+    const label = (k: string): string => {
+      const [y, m, d] = k.split('-').map(Number);
+      const date = new Date(y, m - 1, d);
+      if (granularity === 'month') return `${MONTH_ABBR[date.getMonth()]} ${date.getFullYear()}`;
+      const short = `${MONTH_ABBR[date.getMonth()]} ${date.getDate()}`;
+      return granularity === 'week' ? `Wk of ${short}` : short;
+    };
+
+    const series = new Map<string, { earned: number; visits: number }>();
+    for (const cursor = new Date(from); cursor.getTime() < to.getTime(); ) {
+      series.set(key(cursor), { earned: 0, visits: 0 });
+      if (granularity === 'month') cursor.setMonth(cursor.getMonth() + 1);
+      else cursor.setDate(cursor.getDate() + (granularity === 'week' ? 7 : 1));
+    }
+
+    const settled = mockEarnings.filter((e) => e.kind === 'earning' && e.status === 'settled');
+    const inRange = settled.filter((e) => earningDate(e) >= from && earningDate(e) < to);
+    const inPrevious = settled.filter((e) => earningDate(e) >= previousFrom && earningDate(e) < from);
+
+    const byVisitType = new Map<string, { earned: number; visits: number }>();
+    for (const item of inRange) {
+      const bucket = series.get(key(earningDate(item)));
+      if (bucket) {
+        bucket.earned += item.amount;
+        bucket.visits += 1;
+      }
+      // Seeded rows carry the visit type the earning came from; a row added
+      // in-session by cashing out doesn't, and lands in 'Unknown' — the same
+      // place the server puts an earning with no linked appointment.
+      const type = (item as EarningItem & { visitType?: VisitType }).visitType ?? 'Unknown';
+      const t = byVisitType.get(type) ?? { earned: 0, visits: 0 };
+      byVisitType.set(type, { earned: t.earned + item.amount, visits: t.visits + 1 });
+    }
+
+    const earned = inRange.reduce((sum, e) => sum + e.amount, 0);
+    const previousEarned = inPrevious.reduce((sum, e) => sum + e.amount, 0);
+    const withdrawn = mockEarnings
+      .filter((e) => e.kind === 'withdrawal' && earningDate(e) >= from && earningDate(e) < to)
+      .reduce((sum, e) => sum + e.amount, 0);
+
+    return {
+      range: { from: from.toISOString(), to: new Date(to.getTime() - 1).toISOString(), granularity },
+      currency: 'NGN',
+      totals: {
+        earned,
+        withdrawn,
+        visits: inRange.length,
+        averagePerVisit: inRange.length ? Math.round(earned / inRange.length) : 0,
+      },
+      previous: {
+        earned: previousEarned,
+        visits: inPrevious.length,
+        earnedChangePct: previousEarned ? Math.round(((earned - previousEarned) / previousEarned) * 1000) / 10 : null,
+      },
+      series: [...series.entries()].map(([bucket, v]) => ({ bucket, label: label(bucket), ...v })),
+      byVisitType: [...byVisitType.entries()].map(([type, v]) => ({ type, ...v })).sort((a, b) => b.earned - a.earned),
+    };
+  },
+
+  /**
    * Withdraw `amount` to the saved payment method. Mirrors the real payout flow:
    * validates against the balance + minimum, records a still-processing
    * ('pending') withdrawal, and returns the updated wallet.
@@ -937,9 +1114,23 @@ export const mockApi = {
     return mockGovId;
   },
 
-  async getDocuments(): Promise<StoredDocument[]> {
+  async getDocuments(category?: DocumentCategory): Promise<StoredDocument[]> {
     await delay();
-    return [...mockDocuments].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return mockDocuments
+      .filter((d) => !category || d.category === category)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+
+  /**
+   * A treating provider's read of a patient's condition uploads (SOW 1.6).
+   * Condition category only — the credential and identity files in the same
+   * store are the patient's own business and never surface on a chart.
+   */
+  async getPatientConditionUploads(_patientId: string): Promise<StoredDocument[]> {
+    await delay();
+    return mockDocuments
+      .filter((d) => d.category === 'condition')
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
   async addDocument(input: {
@@ -949,12 +1140,16 @@ export const mockApi = {
     mimeType: string;
     sizeBytes: number;
     url: string | null;
+    appointmentId?: string;
+    description?: string;
   }): Promise<StoredDocument> {
     await delay(500);
     const now = new Date();
     const doc: StoredDocument = {
       id: `doc-${Date.now()}`,
       ...input,
+      appointmentId: input.appointmentId ?? null,
+      description: input.description?.trim() || null,
       uploadedAt: `${MONTH_ABBR[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`,
       createdAt: now.toISOString(),
     };
@@ -1047,16 +1242,84 @@ export const mockApi = {
     return mockFeeBreakdown(appt?.fee, appt?.type);
   },
 
-  async getCallToken(roomName: string): Promise<CallTokenGrant> {
+  /**
+   * POST /calls/token. Mirrors the real route's contract: the caller names the
+   * appointment and the ROOM COMES BACK from here — it is never chosen by the
+   * client. The real route also rejects non-participants and unpaid/closed
+   * visits; the mock has a single signed-in user so there's nobody to reject,
+   * but the room derivation is kept identical so the shape can't drift.
+   */
+  async getCallToken(appointmentId: string): Promise<CallTokenGrant> {
     await delay(300);
     return {
       token: 'mock-stream-token',
-      roomName,
+      roomName: `visit-${appointmentId}`,
       identity: 'mock-user',
       expiresAt: new Date(Date.now() + 3600_000).toISOString(),
       apiKey: 'mock-stream-key',
       callType: 'default',
+      role: 'patient',
     };
+  },
+
+  /**
+   * Conference invites (patient-feedback item 10).
+   *
+   * Mock mode has one signed-in user, so there is nobody on the other end to
+   * knock or to admit. What it does model is the part the UI depends on: an
+   * invite list that grows, an invite that can be withdrawn, and a knocking
+   * guest that can be admitted — the seeded row below starts in 'knocking' so
+   * the admit prompt is reachable in a demo without a second device.
+   */
+  async getCallInvites(appointmentId: string): Promise<CallInvite[]> {
+    await delay(250);
+    return mockCallInvites
+      .filter((i) => i.appointmentId === appointmentId && i.status !== 'revoked')
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+
+  async getMyCallInvites(): Promise<MyCallInvite[]> {
+    await delay(250);
+    return [];
+  },
+
+  async createCallInvite(appointmentId: string, email: string): Promise<CallInvite> {
+    await delay(500);
+    if (!/.+@.+\..+/.test(email)) throw new Error('Enter a valid email address.');
+    const existing = mockCallInvites.find((i) => i.appointmentId === appointmentId && i.inviteeName === email);
+    if (existing) {
+      existing.status = 'invited';
+      return existing;
+    }
+    const invite: CallInvite = {
+      id: `inv-${Date.now()}`,
+      appointmentId,
+      inviteeId: `guest-${Date.now()}`,
+      inviteeName: email,
+      invitedById: 'pat-1',
+      invitedByName: 'You',
+      status: 'invited',
+      knockedAt: null,
+      admittedAt: null,
+      createdAt: new Date().toISOString(),
+    };
+    mockCallInvites.push(invite);
+    return invite;
+  },
+
+  async admitCallInvite(id: string): Promise<CallInvite> {
+    await delay(300);
+    const invite = mockCallInvites.find((i) => i.id === id);
+    if (!invite) throw new Error('Invite not found');
+    invite.status = 'admitted';
+    invite.admittedAt = new Date().toISOString();
+    return invite;
+  },
+
+  async removeCallInvite(id: string): Promise<void> {
+    await delay(300);
+    const invite = mockCallInvites.find((i) => i.id === id);
+    if (invite) invite.status = 'revoked';
   },
 
   async updateProfile(input: { firstName?: string; lastName?: string; phone?: string; spokenLanguages?: string[]; preferredCurrency?: string; twoFactorEnabled?: boolean }): Promise<User> {
@@ -1166,6 +1429,55 @@ export const mockApi = {
     };
     mockComplaints = [complaint, ...mockComplaints];
     return complaint;
+  },
+
+  /** GET /complaints/:id/messages — the support thread, oldest first. */
+  async getSupportMessages(complaintId: string): Promise<SupportMessage[]> {
+    await delay();
+    // Mirrors the server: opening the thread clears the filer's unread count.
+    const complaint = mockComplaints.find((c) => c.id === complaintId);
+    if (complaint) complaint.unread = 0;
+    return mockSupportMessages
+      .filter((m) => m.complaintId === complaintId)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  },
+
+  /**
+   * POST /complaints/:id/messages — reply to support. Reopens a resolved
+   * report, same as the real route, and echoes a canned support acknowledgement
+   * shortly after so the thread feels alive in demos.
+   */
+  async replyToSupport(complaintId: string, body: string): Promise<SupportMessage> {
+    await delay(400);
+    const message: SupportMessage = {
+      id: `sm-${Date.now()}`,
+      complaintId,
+      authorRole: 'user',
+      authorName: 'Martin Doe',
+      body,
+      createdAt: new Date().toISOString(),
+    };
+    mockSupportMessages.push(message);
+
+    const complaint = mockComplaints.find((c) => c.id === complaintId);
+    if (complaint) {
+      complaint.status = 'pending';
+      complaint.lastMessageAt = message.createdAt;
+    }
+
+    setTimeout(() => {
+      mockSupportMessages.push({
+        id: `sm-${Date.now()}-reply`,
+        complaintId,
+        authorRole: 'admin',
+        authorName: 'Eko Admin',
+        body: "Thanks — I've picked this up and will come back to you shortly.",
+        createdAt: new Date().toISOString(),
+      });
+      if (complaint) complaint.unread = (complaint.unread ?? 0) + 1;
+    }, 2500);
+
+    return message;
   },
 
   async getChatToken(): Promise<ChatTokenGrant> {

@@ -5,7 +5,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
-import type { AvailabilityBlock, CashoutInput, ComplaintInput, CreateAppointmentInput, DocumentCategory, LabInput, MedicalNoteInput, PatientBiometrics, PickedFile, PrescriptionInput, VisitType } from '../api/types';
+import type { AvailabilityBlock, CashoutInput, ComplaintInput, CreateAppointmentInput, DocumentCategory, LabInput, MedicalNoteInput, PatientBiometrics, PickedFile, PrescriptionInput, RevenueGranularity, VisitType } from '../api/types';
 
 export const queryKeys = {
   doctors: (params?: { category?: string; query?: string }) => ['doctors', params ?? {}] as const,
@@ -34,6 +34,7 @@ export const queryKeys = {
   reviews: (subject?: string) => ['reviews', subject ?? 'all'] as const,
   reviewSummary: (subject?: string) => ['review-summary', subject ?? 'all'] as const,
   complaints: ['complaints'] as const,
+  supportThread: (complaintId: string) => ['support-thread', complaintId] as const,
   currencies: ['currencies'] as const,
   pharmacyDirectory: ['pharmacy-directory'] as const,
   govId: ['gov-id'] as const,
@@ -45,7 +46,12 @@ export const queryKeys = {
   insurance: ['insurance'] as const,
   pharmacy: ['pharmacy'] as const,
   settings: ['settings'] as const,
-  documents: ['documents'] as const,
+  documents: (category?: DocumentCategory) => ['documents', category ?? 'all'] as const,
+  patientDocuments: (patientId: string) => ['patient-documents', patientId] as const,
+  earningsAnalysis: (params: { from?: string; to?: string; granularity?: string }) =>
+    ['earnings-analysis', params.from ?? '', params.to ?? '', params.granularity ?? ''] as const,
+  callInvites: (appointmentId?: string) => ['call-invites', appointmentId ?? 'none'] as const,
+  myCallInvites: ['my-call-invites'] as const,
   labs: (patientId?: string) => ['labs', patientId ?? 'me'] as const,
   myVisitNotes: ['my-visit-notes'] as const,
   dependentPrescriptions: (dependentId: string) => ['dependent-prescriptions', dependentId] as const,
@@ -192,6 +198,21 @@ export function useAddPrescription(patientId: string) {
 /** The doctor's wallet — balance + earnings/withdrawal ledger. */
 export function useDoctorEarnings(enabled = true) {
   return useQuery({ queryKey: queryKeys.earnings, queryFn: api.practice.earnings, enabled });
+}
+
+/**
+ * The provider's revenue analysis over a chosen range (SOW 1.18) — the trend
+ * and breakdown behind the wallet total, not the wallet itself.
+ */
+export function useEarningsAnalysis(
+  params: { from?: string; to?: string; granularity?: RevenueGranularity } = {},
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: queryKeys.earningsAnalysis(params),
+    queryFn: () => api.practice.earningsAnalysis(params),
+    enabled,
+  });
 }
 
 /** Withdraw to the saved payment method; writes the returned wallet back to cache. */
@@ -450,17 +471,36 @@ export function useSaveSettings() {
   });
 }
 
-// ── Documents & Certifications (Doctor) ─────────────────────────────────────
+// ── Uploads: provider credentials + patient condition photos (SOW 1.6) ──────
 
-export function useDocuments() {
-  return useQuery({ queryKey: queryKeys.documents, queryFn: api.documents.list });
+/** Pass 'condition' for a patient's own condition uploads; omit for everything they own. */
+export function useDocuments(category?: DocumentCategory) {
+  return useQuery({ queryKey: queryKeys.documents(category), queryFn: () => api.documents.list(category) });
+}
+
+/** A treating provider's read of one patient's condition uploads. */
+export function usePatientDocuments(patientId?: string) {
+  return useQuery({
+    queryKey: queryKeys.patientDocuments(patientId ?? ''),
+    queryFn: () => api.practice.patientDocuments(patientId!),
+    enabled: !!patientId,
+  });
 }
 
 export function useUploadDocument() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { name: string; category: DocumentCategory; file: PickedFile }) => api.documents.upload(input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.documents }),
+    mutationFn: (input: {
+      name: string;
+      category: DocumentCategory;
+      file: PickedFile;
+      appointmentId?: string;
+      description?: string;
+    }) => api.documents.upload(input),
+    // Invalidates both the all-documents key and every category-scoped one —
+    // a new condition photo has to land in the patient's list AND in any
+    // unfiltered view of the same store.
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
   });
 }
 
@@ -468,7 +508,7 @@ export function useRemoveDocument() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.documents.remove(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.documents }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
   });
 }
 
@@ -555,6 +595,31 @@ export function useSubmitComplaint() {
   });
 }
 
+/**
+ * The support thread on one report. Reading it clears the unread count
+ * server-side, so the complaints list is invalidated alongside the thread on
+ * every change — otherwise the badge would linger on a thread just read.
+ */
+export function useSupportThread(complaintId?: string) {
+  return useQuery({
+    queryKey: queryKeys.supportThread(complaintId ?? ''),
+    queryFn: () => api.complaints.messages(complaintId!),
+    enabled: !!complaintId,
+  });
+}
+
+export function useReplyToSupport(complaintId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: string) => api.complaints.reply(complaintId, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.supportThread(complaintId) });
+      // A reply reopens a resolved report, so the list's status is stale too.
+      qc.invalidateQueries({ queryKey: queryKeys.complaints });
+    },
+  });
+}
+
 /** Active display currencies (task 2.4) — rarely changes, fine to cache long. */
 export function useCurrencies() {
   return useQuery({ queryKey: queryKeys.currencies, queryFn: api.currencies.list, staleTime: 5 * 60 * 1000 });
@@ -568,4 +633,53 @@ export function useContentBlocks() {
 /** A single content block by key (TermsOfServiceScreen, PrivacyPolicyScreen). */
 export function useContentBlock(key: string) {
   return useQuery({ queryKey: queryKeys.contentBlock(key), queryFn: () => api.content.get(key), staleTime: 5 * 60 * 1000 });
+}
+
+// ── Conference: guests invited into a visit's call ──────────────────────────
+
+/**
+ * The invite list for a visit, as a party to it sees it. Polled while a call
+ * is up: a guest knocking is an event the room has to notice, and there's no
+ * push channel for it — Stream carries media, not our own membership state.
+ */
+export function useCallInvites(appointmentId?: string, poll = false) {
+  return useQuery({
+    queryKey: queryKeys.callInvites(appointmentId),
+    queryFn: () => api.calls.invites.list(appointmentId!),
+    enabled: !!appointmentId,
+    refetchInterval: poll ? 5000 : false,
+    // A guest calling this gets a 404 by design — the list is for parties to
+    // the visit only. That's an expected answer, not a flaky request, so it
+    // isn't retried; the panel just stays empty for them.
+    retry: false,
+  });
+}
+
+/** Visits the signed-in user has been invited into — the guest's only way in. */
+export function useMyCallInvites(enabled = true) {
+  return useQuery({ queryKey: queryKeys.myCallInvites, queryFn: api.calls.invites.mine, enabled });
+}
+
+export function useInviteToCall(appointmentId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (email: string) => api.calls.invites.create(appointmentId!, email),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.callInvites(appointmentId) }),
+  });
+}
+
+export function useAdmitCallGuest(appointmentId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (inviteId: string) => api.calls.invites.admit(inviteId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.callInvites(appointmentId) }),
+  });
+}
+
+export function useRemoveCallGuest(appointmentId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (inviteId: string) => api.calls.invites.remove(inviteId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.callInvites(appointmentId) }),
+  });
 }

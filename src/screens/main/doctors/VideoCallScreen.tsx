@@ -10,6 +10,9 @@ import { useCall } from '../../../hooks/useCall';
 import { env } from '../../../config/env';
 import { useTranslation } from '../../../i18n/useTranslation';
 
+import CallGuestPanel from '../../../components/call/CallGuestPanel';
+import ConnectionFallback from '../../../components/call/ConnectionFallback';
+
 // Live Stream video tracks. Lazy-loaded so the native WebRTC SDK is pulled in
 // only during an actual Stream call — mock/chat builds never touch it.
 const StreamCallView = lazy(() => import('../../../components/call/StreamCallView'));
@@ -24,18 +27,32 @@ export default function VideoCallScreen({ navigation, route }: Props) {
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
   const doctor = route.params?.doctor;
+  const appointmentId = route.params?.appointmentId as string | undefined;
   const {
-    state, statusLabel, muted, cameraOff, speakerOn, frontCamera,
-    toggleMuted, toggleCamera, toggleSpeaker, flipCamera, hangUp,
-  } = useCall({ roomName: route.params?.roomName ?? `visit-${doctor?.id ?? 'demo'}` });
+    state, statusLabel, awaitingAdmission, muted, cameraOff, speakerOn, frontCamera,
+    voiceOnly, fallbackPrompted,
+    toggleMuted, toggleCamera, toggleSpeaker, flipCamera,
+    switchToVoice, restoreVideo, dismissFallback, hangUp,
+  } = useCall({ appointmentId });
 
-  // Show real video only for a connected Stream call; mock mode keeps the
-  // placeholder avatars so demos work with no backend or native rebuild.
-  const showLiveVideo = env.realtimeProvider === 'stream' && state === 'connected';
+  // Show real video only for a connected Stream call that hasn't been dropped
+  // to voice; mock mode keeps the placeholder avatars so demos work with no
+  // backend or native rebuild.
+  const showLiveVideo = env.realtimeProvider === 'stream' && state === 'connected' && !voiceOnly;
 
   const endCall = async () => {
     await hangUp();
     navigation.goBack();
+  };
+
+  /**
+   * The chat half of the bandwidth fallback: leave the call and carry on in
+   * the existing thread with the same provider, rather than sitting in a room
+   * whose media can't get through.
+   */
+  const continueInChat = async () => {
+    await hangUp();
+    navigation.replace('Chat', { doctor });
   };
 
   return (
@@ -57,23 +74,51 @@ export default function VideoCallScreen({ navigation, route }: Props) {
       ) : (
         <>
           <View style={styles.remoteVideo}>
-            <FontAwesome name="user-md" size={80} color="rgba(255,255,255,0.3)" />
+            <FontAwesome name={voiceOnly ? 'microphone' : 'user-md'} size={80} color="rgba(255,255,255,0.3)" />
             <Text style={styles.remoteName}>{doctor?.name ?? 'Dr. Johnson'}</Text>
             <Text style={styles.callStatus}>{statusLabel}</Text>
+            {awaitingAdmission && (
+              <Text style={styles.waitingHint}>{t('call.waitingToBeAdmittedHint')}</Text>
+            )}
           </View>
 
-          <View style={styles.localVideo}>
-            <FontAwesome name="user" size={28} color="rgba(255,255,255,0.6)" />
-            <Text style={styles.cameraOffText}>{cameraOff ? t('call.cameraOff') : frontCamera ? t('call.front') : t('call.back')}</Text>
-          </View>
+          {!voiceOnly && (
+            <View style={styles.localVideo}>
+              <FontAwesome name="user" size={28} color="rgba(255,255,255,0.6)" />
+              <Text style={styles.cameraOffText}>{cameraOff ? t('call.cameraOff') : frontCamera ? t('call.front') : t('call.back')}</Text>
+            </View>
+          )}
         </>
       )}
+
+      <ConnectionFallback
+        prompted={fallbackPrompted}
+        voiceOnly={voiceOnly}
+        onSwitchToVoice={switchToVoice}
+        onRestoreVideo={restoreVideo}
+        onContinueInChat={continueInChat}
+        onDismiss={dismissFallback}
+      />
+
+      {/* Conference controls — invite, admit, remove. Hidden for a guest, who
+          gets 404s from the invite list by design. */}
+      {!awaitingAdmission && <CallGuestPanel appointmentId={appointmentId} active={state === 'connected'} />}
 
       <View style={styles.controls}>
         <CallBtn icon={muted ? 'microphone-slash' : 'microphone'} label={muted ? t('call.unmute') : t('call.mute')} onPress={toggleMuted} active={muted} />
         <CallBtn icon={speakerOn ? 'volume-up' : 'volume-off'} label={t('call.speaker')} onPress={toggleSpeaker} />
-        <CallBtn icon={cameraOff ? 'video-slash' : 'video'} family="FontAwesome5" label={cameraOff ? t('call.camOff') : t('call.camOn')} onPress={toggleCamera} active={cameraOff} />
-        <CallBtn icon="refresh" label={t('call.flip')} onPress={flipCamera} />
+        {voiceOnly ? (
+          <CallBtn icon="video" family="FontAwesome5" label={t('call.turnVideoBackOn')} onPress={restoreVideo} />
+        ) : (
+          <>
+            <CallBtn icon={cameraOff ? 'video-slash' : 'video'} family="FontAwesome5" label={cameraOff ? t('call.camOff') : t('call.camOn')} onPress={toggleCamera} active={cameraOff} />
+            <CallBtn icon="refresh" label={t('call.flip')} onPress={flipCamera} />
+          </>
+        )}
+        {/* The manual half of the fallback: always reachable, not only once
+            the connection has already degraded. */}
+        {!voiceOnly && <CallBtn icon="signal" label={t('call.voiceOnly')} onPress={switchToVoice} />}
+        <CallBtn icon="comment" label={t('call.continueInChat')} onPress={continueInChat} />
 
         <TouchableOpacity style={styles.endBtn} onPress={endCall} accessibilityRole="button" accessibilityLabel={t('a11y.endCall')}>
           <FontAwesome name="phone" size={26} color={Colors.white} />
@@ -103,6 +148,10 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   remoteVideo: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   remoteName: { fontSize: 22, fontWeight: '700', color: Colors.white, marginTop: 16 },
   callStatus: { fontSize: 16, color: 'rgba(255,255,255,0.65)', marginTop: 6 },
+  waitingHint: {
+    fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center',
+    marginTop: 12, paddingHorizontal: 40, lineHeight: 19,
+  },
   localVideo: {
     position: 'absolute', top: 60, right: 20, width: 90, height: 130,
     borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.15)',
@@ -113,13 +162,16 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   topBar: { position: 'absolute', top: 54, left: 0, right: 0, alignItems: 'center' },
   topBarName: { fontSize: 16, fontWeight: '700', color: Colors.white },
   topBarStatus: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 2, fontVariant: ['tabular-nums'] },
+  // Wraps rather than squeezing: the conference and fallback controls took
+  // this row past what a single line fits on a small phone.
   controls: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',
-    paddingHorizontal: 20, paddingBottom: 48, paddingTop: 20,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    flexWrap: 'wrap', rowGap: 14, columnGap: 18,
+    paddingHorizontal: 20, paddingBottom: 44, paddingTop: 18,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
-  callBtn: { alignItems: 'center' },
+  callBtn: { alignItems: 'center', width: 62 },
   callBtnCircle: {
     width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center', justifyContent: 'center', marginBottom: 6,

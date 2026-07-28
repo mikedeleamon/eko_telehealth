@@ -104,7 +104,7 @@ const en = {
     myChart: {
       Appointments: 'Appointments', 'Health Summary': 'Health Summary', Medications: 'Medications',
       Messages: 'Messages', 'Find Care': 'Find Care', Billing: 'Billing',
-      'Test Results': 'Test Results', Todo: 'Todo',
+      'Test Results': 'Test Results', Todo: 'Todo', 'My Uploads': 'My Uploads',
     },
   },
 
@@ -396,6 +396,7 @@ const en = {
     continueToPayment: 'Continue to Payment',
     confirmed: 'Appointment Confirmed!',
     confirmedSubtitle: 'Your visit with {{doctor}} is booked.',
+    attachPhotos: 'Attach photos or documents',
     addToCalendar: 'Add to Calendar',
     viewAppointment: 'View Appointment',
     backToHome: 'Back to Home',
@@ -574,6 +575,40 @@ const en = {
     cameraOff: 'Camera off',
     audioCall: 'Audio call',
     videoCall: 'Video call',
+
+    // Conference — bringing a third party into the visit.
+    addGuest: 'Add',
+    guests: 'Guests',
+    inviteTitle: 'Invite someone to this visit',
+    inviteHint: 'They need an Eko account. Invite them by the email address it uses — they join this same visit, at no extra charge.',
+    inviteEmailLabel: 'Their email address',
+    inviteEmailPlaceholder: 'name@example.com',
+    inviteSend: 'Send invite',
+    inviteSending: 'Inviting…',
+    inviteFailed: 'Could not send that invite',
+    noGuests: 'Nobody else has been invited to this visit.',
+    guestInvited: 'Invited',
+    guestKnocking: 'Asking to join',
+    guestAdmitted: 'In the call',
+    admit: 'Let in',
+    removeGuest: 'Remove',
+    removeGuestTitle: 'Remove {{name}}?',
+    removeGuestConfirm: 'They will be dropped from this call. You can invite them again afterwards.',
+    knockingTitle: '{{name}} is asking to join',
+    waitingToBeAdmitted: 'Waiting to be let in…',
+    waitingToBeAdmittedHint: 'The doctor or patient has to let you into this visit. This screen will connect on its own once they do.',
+    invitedToVisit: 'You have been invited to a visit',
+    joinVisit: 'Join',
+
+    // Weak-bandwidth fallback.
+    connectionPoor: 'Your connection is struggling',
+    connectionPoorHint: 'Turning your camera off usually steadies the call. You can also carry on in chat.',
+    switchToVoice: 'Switch to voice',
+    voiceOnly: 'Voice only',
+    turnVideoBackOn: 'Turn video back on',
+    continueInChat: 'Continue in chat',
+    stayOnVideo: 'Stay on video',
+    voiceOnlyBanner: 'Voice only — your camera is off',
   },
 
   account: {
@@ -881,6 +916,33 @@ const en = {
     communication: 'Communication',
     experience: 'Experience',
     speedyResponse: 'Speedy Response',
+  },
+
+  // Patient uploads of a medical condition (SOW 1.6). Separate from
+  // `documents`, which is the provider's credential store.
+  uploads: {
+    title: 'My Uploads',
+    note: 'Photos and documents you add here are visible to the providers treating you, alongside your labs and visit notes. Your ID and insurance files are not — those stay private to you.',
+    empty: 'Nothing uploaded yet',
+    emptyHint: 'Photograph a rash, a swelling or an injury, or attach a report from another clinic, so your provider can see it before your visit.',
+    add: 'Add a photo or document',
+    newTitle: 'Add a photo or document',
+    takePhoto: 'Take a photo',
+    choosePhoto: 'Photo library',
+    chooseFile: 'From files',
+    nameLabel: 'What is this?',
+    namePlaceholder: 'e.g. Rash on left forearm',
+    descriptionLabel: 'Anything your provider should know (optional)',
+    descriptionPlaceholder: 'When it started, whether it hurts, what changed…',
+    forVisit: 'For which visit? (optional)',
+    noVisit: 'Not visit-specific',
+    save: 'Upload',
+    couldNotAttach: 'Could not attach that',
+    removeTitle: 'Remove this upload?',
+    // Provider-side, on the patient's chart.
+    patientUploads: 'Patient uploads',
+    patientUploadsSubtitle: 'Photos and documents this patient sent in',
+    patientUploadsEmpty: 'This patient has not uploaded any photos or documents.',
   },
 
   documents: {
@@ -1256,6 +1318,7 @@ const en = {
     newPrescription: 'New Prescription',
     prescribingFor: 'Prescribing for {{name}}',
     whoIsThisFor: 'Who is this for?',
+    forDependent: 'For {{name}} (dependent)',
     // Statuses
     statusActive: 'Active',
     statusCompleted: 'Completed',
@@ -1293,6 +1356,17 @@ const en = {
     pending: 'Pending',
     withdrawal: 'Withdrawal',
     noEarnings: 'No earnings yet.',
+
+    // Revenue analysis (SOW 1.18).
+    analysisTitle: 'Revenue analysis',
+    period: { month: 'This month', quarter: 'Last 3 months', year: 'This year' },
+    visitsCount_one: '{{count}} visit',
+    visitsCount_other: '{{count}} visits',
+    perVisit: '{{amount}} per visit',
+    vsPrevious: '{{amount}} in the period before',
+    byVisitType: 'By visit type',
+    barChart: 'Bar chart',
+    lineChart: 'Line chart',
   },
 
   paymentHistory: {
@@ -1305,6 +1379,14 @@ const en = {
     emptyHint: 'Receipts for your paid visits will show up here.',
   },
 
+  support: {
+    title: 'Support Conversation',
+    placeholder: 'Write a message\u2026',
+    awaitingReply: 'Support has not replied yet. We\u2019ll notify you when they do.',
+    viewConversation: 'View conversation',
+    openThread: 'Open the support conversation for {{subject}}',
+    couldNotSend: 'Could not send message',
+  },
   report: {
     title: 'Report a Problem',
     intro: "Tell us what happened. Our team reviews every report and you'll see the resolution here once it's handled.",

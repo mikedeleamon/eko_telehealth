@@ -26,6 +26,10 @@ const CATEGORY_ICON: Record<DocumentCategory, string> = {
   certification: 'certificate',
   'government-id': 'id-card-o',
   insurance: 'shield',
+  // Patient condition uploads (SOW 1.6) live in the same store but are added
+  // and read from My Health, never from this provider-credential screen —
+  // CATEGORIES below is what this screen actually offers.
+  condition: 'camera',
   other: 'file-o',
 };
 

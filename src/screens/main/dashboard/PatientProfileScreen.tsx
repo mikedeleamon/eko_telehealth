@@ -18,6 +18,7 @@ import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import Cross from '../../../components/common/Cross';
 import { usePatientBiometrics, useSavePatientBiometrics } from '../../../hooks/queries';
+import { useJoinableVisit } from '../../../hooks/useJoinableVisit';
 import VitalsEditModal from '../../../components/health/VitalsEditModal';
 import type { PatientBiometrics, PatientSummary } from '../../../api/types';
 import { useTranslation } from '../../../i18n/useTranslation';
@@ -46,6 +47,11 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
     // is itself gated on a truthy id and won't fire until a real patient exists.
     const { data: liveBiometrics } = usePatientBiometrics(patient?.id ?? '');
     const saveBiometrics = useSavePatientBiometrics(patient?.id ?? '');
+    // Same constraint: the open visit a "Start Visit" call would belong to.
+    // Keyed on the LINKED ACCOUNT id, not the roster id — appointments are
+    // owned by user accounts and the two are separate id spaces. A walk-in
+    // with no account has no userId, so no visit matches and the button hides.
+    const joinableVisit = useJoinableVisit({ patientId: patient?.userId });
     const [editingVitals, setEditingVitals] = useState(false);
 
     if (!patient) {
@@ -388,13 +394,49 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                         />
                     </TouchableOpacity>
 
+                    {/* What the patient sent in themselves (SOW 1.6) —
+                        photos of a condition, reports from elsewhere. */}
+                    <TouchableOpacity
+                        style={styles.historyRowStacked}
+                        onPress={() =>
+                            navigation.navigate('PatientUploads', { patient })
+                        }
+                        activeOpacity={0.85}
+                    >
+                        <View style={styles.historyIcon}>
+                            <FontAwesome
+                                name='camera'
+                                size={16}
+                                color={Colors.primary}
+                            />
+                        </View>
+                        <View style={styles.historyInfo}>
+                            <Text style={styles.historyTitle}>
+                                {t('uploads.patientUploads')}
+                            </Text>
+                            <Text style={styles.historySub}>
+                                {t('uploads.patientUploadsSubtitle')}
+                            </Text>
+                        </View>
+                        <FontAwesome
+                            name='chevron-right'
+                            size={14}
+                            color={Colors.textGray}
+                        />
+                    </TouchableOpacity>
+
                     {/* Actions */}
                     <View style={styles.actionsRow}>
+                        {/* Only for a visit that's actually open — calls are
+                            authorized per-appointment, so there's no room to
+                            start against a patient with no booked visit. */}
+                        {joinableVisit ? (
                         <TouchableOpacity
                             style={[styles.actionBtn, styles.actionPrimary]}
                             onPress={() =>
                                 navigation.navigate('VideoCall', {
                                     doctor: counterpart,
+                                    appointmentId: joinableVisit.id,
                                 })
                             }
                             activeOpacity={0.85}
@@ -410,6 +452,7 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
                                 {t('patients.startVisitBtn')}
                             </Text>
                         </TouchableOpacity>
+                        ) : null}
                         <TouchableOpacity
                             style={[styles.actionBtn, styles.actionSecondary]}
                             onPress={() =>

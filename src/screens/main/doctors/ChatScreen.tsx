@@ -11,6 +11,7 @@ import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import { chatService } from '../../../services/messaging';
 import { REDACTION_PLACEHOLDER } from '../../../services/messaging/types';
+import { useJoinableVisit } from '../../../hooks/useJoinableVisit';
 import { api } from '../../../api';
 import type { ChatMessage } from '../../../api/types';
 import { useTranslation } from '../../../i18n/useTranslation';
@@ -32,6 +33,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   // Message ids we've already warned the sender about, so a second edit to the
   // same message doesn't re-alert.
   const warnedRef = useRef<Set<string>>(new Set());
+  const joinableVisit = useJoinableVisit({ doctorId: doctor?.id });
 
   // Start (or fetch) the thread so chat runs on the backend-owned Stream
   // channel. POST /conversations is idempotent and ensures both members;
@@ -104,7 +106,18 @@ export default function ChatScreen({ navigation, route }: Props) {
       <EkoHeader
         title={doctor?.name ?? t('messages.chat')}
         onBack={() => navigation.goBack()}
-        rightAction={{ icon: 'video-camera', onPress: () => navigation.navigate('VideoCall', { doctor }), accessibilityLabel: t('call.videoCall') }}
+        // Only offered when there's an open, paid visit to place the call
+        // against — calls are authorized per-appointment, so a chat with no
+        // booked visit has no room to join.
+        rightAction={
+          joinableVisit
+            ? {
+                icon: 'video-camera',
+                onPress: () => navigation.navigate('VideoCall', { doctor, appointmentId: joinableVisit.id }),
+                accessibilityLabel: t('call.videoCall'),
+              }
+            : undefined
+        }
       />
       <FlatList
         ref={listRef}

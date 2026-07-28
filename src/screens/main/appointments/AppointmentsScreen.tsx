@@ -7,7 +7,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import { ACTIVE_STATUSES } from '../../../api/types';
-import { useAppointmentDecision, useAppointments, usePracticeAppointments } from '../../../hooks/queries';
+import { useAppointmentDecision, useAppointments, useMyCallInvites, usePracticeAppointments } from '../../../hooks/queries';
 import AppointmentCard from '../../../components/appointments/AppointmentCard';
 import Cross from '../../../components/common/Cross';
 import { useAuth } from '../../../context/AuthContext';
@@ -27,6 +27,7 @@ export default function AppointmentsScreen({ navigation }: Props) {
 
   const { data: appointments = [] } = useAppointments();
   const { data: practiceAppointments = [] } = usePracticeAppointments(isDoctor);
+  const { data: callInvites = [] } = useMyCallInvites();
   const decision = useAppointmentDecision();
 
   // Doctors read their own practice list; patients read theirs. Both come back
@@ -116,6 +117,41 @@ export default function AppointmentsScreen({ navigation }: Props) {
         )}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          // Visits someone invited this user to sit in on (conference). A guest
+          // has no appointment of their own, so without this there is nothing
+          // in the app for them to open — the invite would be a dead end.
+          tab === 'upcoming' && callInvites.length > 0 ? (
+            <View style={styles.inviteBlock}>
+              {callInvites.map((invite) => (
+                <View key={invite.id} style={styles.inviteCard}>
+                  <View style={styles.inviteIcon}>
+                    <FontAwesome name="video-camera" size={16} color={Colors.primary} />
+                  </View>
+                  <View style={styles.inviteInfo}>
+                    <Text style={styles.inviteTitle} numberOfLines={1}>{t('call.invitedToVisit')}</Text>
+                    <Text style={styles.inviteMeta} numberOfLines={2}>
+                      {invite.invitedByName} · {invite.doctorName} · {invite.date} {invite.time}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.inviteJoinBtn}
+                    onPress={() =>
+                      navigation.navigate(invite.visitType === 'Video Visit' ? 'VideoCall' : 'AudioCall', {
+                        doctor: { name: invite.doctorName },
+                        appointmentId: invite.appointmentId,
+                      })
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel={t('call.joinVisit')}
+                  >
+                    <Text style={styles.inviteJoinText}>{t('call.joinVisit')}</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <FontAwesome name="calendar-o" size={48} color={Colors.textLight} />
@@ -157,6 +193,21 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 16, padding: 4,
   },
+  inviteBlock: { marginBottom: 14, gap: 10 },
+  inviteCard: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface,
+    borderRadius: 16, padding: 14, borderWidth: 1.5, borderColor: Colors.primary,
+  },
+  inviteIcon: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primaryFaded,
+    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+  },
+  inviteInfo: { flex: 1, marginRight: 10 },
+  inviteTitle: { fontSize: 14, fontWeight: '700', color: Colors.textDark, fontFamily: 'Poppins_600SemiBold' },
+  inviteMeta: { fontSize: 12, color: Colors.textGray, marginTop: 2, fontFamily: 'Poppins_400Regular' },
+  inviteJoinBtn: { backgroundColor: Colors.primary, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 8 },
+  inviteJoinText: { color: Colors.white, fontSize: 13, fontWeight: '700', fontFamily: 'Poppins_600SemiBold' },
+
   tabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 13 },
   tabBtnActive: { backgroundColor: Colors.surface },
   tabBtnText: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.8)', fontFamily: 'Poppins_600SemiBold' },

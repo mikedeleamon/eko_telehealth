@@ -1,7 +1,26 @@
 import type { Call, StreamVideoClient } from '@stream-io/video-react-native-sdk';
 import { api } from '../../api';
 import { env } from '../../config/env';
-import type { CallEvents, CallState, VideoService } from './types';
+import type { CallEvents, CallState, ConnectionQuality, VideoService } from './types';
+
+/**
+ * Stream reports connection quality as an SfuModels.ConnectionQuality enum:
+ * 0 UNSPECIFIED, 1 POOR, 2 GOOD, 3 EXCELLENT. Mapped by value rather than by
+ * importing the enum, so the numbers can't drag the native SDK into a mock
+ * build through a type-only path.
+ */
+function toQuality(raw: unknown): ConnectionQuality {
+  switch (raw) {
+    case 1:
+      return 'poor';
+    case 2:
+      return 'fair';
+    case 3:
+      return 'good';
+    default:
+      return 'unknown';
+  }
+}
 
 /**
  * Stream Video implementation of the VideoService interface.
@@ -32,12 +51,14 @@ export class StreamVideoService implements VideoService {
     this.events.onStateChange?.(state);
   }
 
-  async join(roomName: string, opts: { audioOnly?: boolean } & CallEvents): Promise<void> {
+  async join(appointmentId: string, opts: { audioOnly?: boolean } & CallEvents): Promise<void> {
     this.events = opts;
     this.setState('connecting');
 
     try {
-      const grant = await api.calls.token(roomName);
+      // This call is the authorization gate: it 404s if the caller isn't a
+      // party to the visit and 409s if the visit isn't open (unpaid, or over).
+      const grant = await api.calls.token(appointmentId);
       const apiKey = grant.apiKey || env.streamApiKey;
       if (!apiKey) {
         throw new Error('Missing Stream API key — set EXPO_PUBLIC_STREAM_API_KEY or return it from /calls/token.');
@@ -50,7 +71,9 @@ export class StreamVideoService implements VideoService {
         user: { id: grant.identity },
         token: grant.token,
       });
-      const call = client.call(grant.callType || 'default', roomName);
+      // The server's room, never a client-side one — that indirection is what
+      // stops a caller joining a room they simply named.
+      const call = client.call(grant.callType || 'default', grant.roomName);
 
       this.unsubscribers.push(
         call.on('call.session_participant_joined', (event) => {
@@ -62,6 +85,32 @@ export class StreamVideoService implements VideoService {
           this.events.onRemoteLeft?.(participant?.user_id ?? 'participant');
         }),
       );
+
+      // Local connection quality, for the weak-bandwidth fallback. Subscribed
+      // defensively: this is an observable on Stream's call state rather than
+      // an event, and a provider that stops publishing it must degrade to
+      // "we don't know" rather than taking the call screen down with it.
+      try {
+        const localParticipant$ = (call.state as { localParticipant$?: { subscribe: (fn: (p: unknown) => void) => { unsubscribe: () => void } } })
+          .localParticipant$;
+        if (localParticipant$) {
+          let last: ConnectionQuality = 'unknown';
+          const sub = localParticipant$.subscribe((participant) => {
+            const quality = toQuality((participant as { connectionQuality?: unknown } | undefined)?.connectionQuality);
+            // Only forward transitions — the observable re-emits on every
+            // participant change, and a per-frame callback would defeat the
+            // debounce the prompt relies on.
+            if (quality !== last) {
+              last = quality;
+              this.events.onQualityChange?.(quality);
+            }
+          });
+          this.unsubscribers.push(() => sub.unsubscribe());
+        }
+      } catch {
+        // No quality signal from this SDK version — the manual "switch to
+        // voice" / "continue in chat" controls still work without it.
+      }
 
       await call.join({ create: true });
       if (opts.audioOnly) await call.camera.disable();

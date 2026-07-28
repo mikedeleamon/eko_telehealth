@@ -47,6 +47,7 @@ export default function MyHealthScreen({ navigation }: Props) {
   const openItem = (label: string) => {
     if (label === 'Appointments') navigation.navigate('AppointmentsTab');
     else if (label === 'Find Care') navigation.navigate('HomeTab');
+    else if (label === 'My Uploads') navigation.navigate('ConditionUploads');
     else navigation.navigate('PatientOverview');
   };
 

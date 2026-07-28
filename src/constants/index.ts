@@ -150,6 +150,7 @@ export const MOCK_DOCTORS = [
 export const MOCK_APPOINTMENTS = [
   {
     id: '1',
+    doctorId: '1',
     doctor: 'Dr. Amara Okafor MD',
     specialty: 'Primary Care',
     date: 'Mon, Jun 29, 2026',
@@ -162,6 +163,7 @@ export const MOCK_APPOINTMENTS = [
   },
   {
     id: '1b',
+    doctorId: '1',
     doctor: 'Dr. Amara Okafor MD',
     specialty: 'Primary Care',
     date: 'Mon, Jun 29, 2026',
@@ -172,6 +174,7 @@ export const MOCK_APPOINTMENTS = [
   },
   {
     id: '2',
+    doctorId: '2',
     doctor: 'Dr. Chinedu Eze MD',
     specialty: 'Eye Doctor',
     date: 'Wed, Jul 2, 2026',
@@ -183,6 +186,7 @@ export const MOCK_APPOINTMENTS = [
   },
   {
     id: '3',
+    doctorId: '3',
     doctor: 'Dr. Funmilayo Adeyemi',
     specialty: 'OBGYN',
     date: 'May 15, 2026',
@@ -192,6 +196,7 @@ export const MOCK_APPOINTMENTS = [
   },
   {
     id: '4',
+    doctorId: '4',
     doctor: 'Dr. James Whitfield MD',
     specialty: 'Cardiology',
     date: 'Apr 28, 2026',
@@ -429,7 +434,7 @@ export const MOCK_PRESCRIPTIONS = [
 
 export const MOCK_PATIENTS = [
   {
-    id: 'p1', name: 'Emeka Obi', age: 34, gender: 'Male', condition: 'Hypertension', lastVisit: 'Jun 20, 2026',
+    id: 'p1', userId: 'p1', name: 'Emeka Obi', age: 34, gender: 'Male', condition: 'Hypertension', lastVisit: 'Jun 20, 2026',
     reason: 'Follow-up for high blood pressure and medication review',
     symptoms: 'Occasional headaches, mild dizziness in the mornings',
     allergies: 'Penicillin',
@@ -437,7 +442,7 @@ export const MOCK_PATIENTS = [
     biometrics: { bloodPressure: '148/95 mmHg', heartRate: '82 bpm', temperature: '36.7 °C', weight: '84 kg', height: '178 cm', bmi: '26.5', bloodType: 'O+' },
   },
   {
-    id: 'p2', name: 'Yusuf Ibrahim', age: 28, gender: 'Male', condition: 'First Visit', lastVisit: 'New patient',
+    id: 'p2', userId: 'p2', name: 'Yusuf Ibrahim', age: 28, gender: 'Male', condition: 'First Visit', lastVisit: 'New patient',
     reason: 'New patient consultation — persistent cough for two weeks',
     symptoms: 'Dry cough, sore throat, low-grade fever at night',
     allergies: 'None reported',
@@ -445,7 +450,7 @@ export const MOCK_PATIENTS = [
     biometrics: { bloodPressure: '122/78 mmHg', heartRate: '76 bpm', temperature: '37.4 °C', weight: '71 kg', height: '175 cm', bmi: '23.2', bloodType: 'A+' },
   },
   {
-    id: 'p3', name: 'Alex Stewart', age: 45, gender: 'Male', condition: 'Diabetes Type 2', lastVisit: 'Jun 12, 2026',
+    id: 'p3', userId: 'p3', name: 'Alex Stewart', age: 45, gender: 'Male', condition: 'Diabetes Type 2', lastVisit: 'Jun 12, 2026',
     reason: 'Quarterly diabetes management and HbA1c review',
     symptoms: 'Increased thirst, fatigue after meals',
     allergies: 'Sulfa drugs',
@@ -453,7 +458,7 @@ export const MOCK_PATIENTS = [
     biometrics: { bloodPressure: '134/86 mmHg', heartRate: '88 bpm', temperature: '36.6 °C', weight: '92 kg', height: '181 cm', bmi: '28.1', bloodType: 'B+' },
   },
   {
-    id: 'p4', name: 'Augustine Watts', age: 52, gender: 'Female', condition: 'Migraine', lastVisit: 'Jun 5, 2026',
+    id: 'p4', userId: 'p4', name: 'Augustine Watts', age: 52, gender: 'Female', condition: 'Migraine', lastVisit: 'Jun 5, 2026',
     reason: 'Recurrent migraines — evaluating current treatment plan',
     symptoms: 'Throbbing headaches, light sensitivity, nausea',
     allergies: 'Aspirin',
@@ -461,7 +466,7 @@ export const MOCK_PATIENTS = [
     biometrics: { bloodPressure: '128/82 mmHg', heartRate: '74 bpm', temperature: '36.8 °C', weight: '68 kg', height: '165 cm', bmi: '25.0', bloodType: 'AB+' },
   },
   {
-    id: 'p5', name: 'Ngozi Nwosu', age: 31, gender: 'Female', condition: 'Pregnancy care', lastVisit: 'May 29, 2026',
+    id: 'p5', userId: 'p5', name: 'Ngozi Nwosu', age: 31, gender: 'Female', condition: 'Pregnancy care', lastVisit: 'May 29, 2026',
     reason: 'Antenatal check-up — 24 weeks gestation',
     symptoms: 'Mild back pain, occasional swelling in ankles',
     allergies: 'None reported',
@@ -469,7 +474,7 @@ export const MOCK_PATIENTS = [
     biometrics: { bloodPressure: '118/76 mmHg', heartRate: '80 bpm', temperature: '36.9 °C', weight: '73 kg', height: '168 cm', bmi: '25.9', bloodType: 'O-' },
   },
   {
-    id: 'p6', name: 'Tunde Bakare', age: 40, gender: 'Male', condition: 'Annual checkup', lastVisit: 'May 14, 2026',
+    id: 'p6', userId: 'p6', name: 'Tunde Bakare', age: 40, gender: 'Male', condition: 'Annual checkup', lastVisit: 'May 14, 2026',
     reason: 'Routine annual physical and preventive screening',
     symptoms: 'No active complaints',
     allergies: 'None reported',
@@ -483,13 +488,21 @@ export const MOCK_PATIENTS = [
  * the 25% taxes & fees shown on AppointmentDetails, e.g. ₦15,000 fee → ₦11,250).
  * The mock derives the balance / month / pending totals from these rows.
  */
+// Earlier months are seeded deliberately: the earnings analysis (SOW 1.18)
+// compares a range against the preceding one, and a ledger that starts this
+// month would make every trend read "no prior data" in mock mode.
 export const MOCK_EARNINGS = [
-  { id: 'ern-1', kind: 'earning', title: 'Emeka Obi', date: 'Jul 18, 2026', time: '10:00 AM', amount: 11250, status: 'settled' },
-  { id: 'ern-2', kind: 'earning', title: 'Alex Stewart', date: 'Jul 17, 2026', time: '2:30 PM', amount: 15000, status: 'settled' },
+  { id: 'ern-1', kind: 'earning', title: 'Emeka Obi', date: 'Jul 18, 2026', time: '10:00 AM', amount: 11250, status: 'settled', visitType: 'Video Visit' },
+  { id: 'ern-2', kind: 'earning', title: 'Alex Stewart', date: 'Jul 17, 2026', time: '2:30 PM', amount: 15000, status: 'settled', visitType: 'Home Visit' },
   { id: 'ern-3', kind: 'withdrawal', title: 'Withdrawal', date: 'Jul 16, 2026', time: '9:15 AM', amount: 25000, status: 'settled' },
-  { id: 'ern-4', kind: 'earning', title: 'Ngozi Nwosu', date: 'Jul 15, 2026', time: '11:00 AM', amount: 7500, status: 'settled' },
-  { id: 'ern-5', kind: 'earning', title: 'Augustine Watts', date: 'Jul 12, 2026', time: '3:00 PM', amount: 11250, status: 'settled' },
-  { id: 'ern-6', kind: 'earning', title: 'Emeka Obi', date: 'Jul 8, 2026', time: '10:30 AM', amount: 11250, status: 'settled' },
+  { id: 'ern-4', kind: 'earning', title: 'Ngozi Nwosu', date: 'Jul 15, 2026', time: '11:00 AM', amount: 7500, status: 'settled', visitType: 'Clinic Visit' },
+  { id: 'ern-5', kind: 'earning', title: 'Augustine Watts', date: 'Jul 12, 2026', time: '3:00 PM', amount: 11250, status: 'settled', visitType: 'Video Visit' },
+  { id: 'ern-6', kind: 'earning', title: 'Emeka Obi', date: 'Jul 8, 2026', time: '10:30 AM', amount: 11250, status: 'settled', visitType: 'Video Visit' },
+  { id: 'ern-7', kind: 'earning', title: 'Ngozi Nwosu', date: 'Jun 24, 2026', time: '9:30 AM', amount: 11250, status: 'settled', visitType: 'Video Visit' },
+  { id: 'ern-8', kind: 'earning', title: 'Alex Stewart', date: 'Jun 17, 2026', time: '4:00 PM', amount: 15000, status: 'settled', visitType: 'Home Visit' },
+  { id: 'ern-9', kind: 'earning', title: 'Augustine Watts', date: 'Jun 9, 2026', time: '11:30 AM', amount: 7500, status: 'settled', visitType: 'Clinic Visit' },
+  { id: 'ern-10', kind: 'earning', title: 'Emeka Obi', date: 'May 27, 2026', time: '10:00 AM', amount: 11250, status: 'settled', visitType: 'Video Visit' },
+  { id: 'ern-11', kind: 'earning', title: 'Ngozi Nwosu', date: 'May 14, 2026', time: '2:00 PM', amount: 11250, status: 'settled', visitType: 'Video Visit' },
 ];
 
 export const TIME_SLOTS = [
@@ -507,4 +520,7 @@ export const MY_CHART_ITEMS = [
   { id: '6', label: 'Billing', icon: 'credit-card' },
   { id: '7', label: 'Test Results', icon: 'flask' },
   { id: '8', label: 'Todo', icon: 'check-square-o' },
+  // Patient uploads of a medical condition (SOW 1.6) — photos and documents
+  // their treating providers can see, distinct from a lab report.
+  { id: '9', label: 'My Uploads', icon: 'camera' },
 ];

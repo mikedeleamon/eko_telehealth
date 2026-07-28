@@ -59,11 +59,14 @@ import PatientOverviewScreen from '../screens/main/account/PatientOverviewScreen
 import PaymentInfoScreen from '../screens/main/account/PaymentInfoScreen';
 import PaymentHistoryScreen from '../screens/main/account/PaymentHistoryScreen';
 import ReportProblemScreen from '../screens/main/account/ReportProblemScreen';
+import SupportThreadScreen from '../screens/main/account/SupportThreadScreen';
 import TermsOfServiceScreen from '../screens/main/account/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '../screens/main/account/PrivacyPolicyScreen';
 import DocumentsScreen from '../screens/main/account/DocumentsScreen';
 import DoctorAvailabilityScreen from '../screens/main/doctors/DoctorAvailabilityScreen';
 import MyHealthScreen from '../screens/main/health/MyHealthScreen';
+import ConditionUploadsScreen from '../screens/main/health/ConditionUploadsScreen';
+import PatientUploadsScreen from '../screens/main/dashboard/PatientUploadsScreen';
 import MyPrescriptionsScreen from '../screens/main/health/MyPrescriptionsScreen';
 import LabsScreen from '../screens/main/health/LabsScreen';
 import VisitNotesScreen from '../screens/main/health/VisitNotesScreen';
@@ -117,6 +120,10 @@ function HomeNavigator() {
             <HomeStack.Screen
                 name='AppointmentDetails'
                 component={AppointmentDetailsScreen}
+            />
+            <HomeStack.Screen
+                name='ConditionUploads'
+                component={ConditionUploadsScreen}
             />
             <HomeStack.Screen
                 name='VideoCall'
@@ -204,6 +211,10 @@ function AppointmentsNavigator() {
             <AppointmentsStack.Screen
                 name='Chat'
                 component={ChatScreen}
+            />
+            <AppointmentsStack.Screen
+                name='ConditionUploads'
+                component={ConditionUploadsScreen}
             />
             <AppointmentsStack.Screen
                 name='Reviews'
@@ -294,6 +305,10 @@ function AccountNavigator() {
                 component={MyHealthScreen}
             />
             <AccountStack.Screen
+                name='ConditionUploads'
+                component={ConditionUploadsScreen}
+            />
+            <AccountStack.Screen
                 name='Labs'
                 component={LabsScreen}
             />
@@ -348,6 +363,10 @@ function AccountNavigator() {
             <AccountStack.Screen
                 name='ReportProblem'
                 component={ReportProblemScreen}
+            />
+            <AccountStack.Screen
+                name='SupportThread'
+                component={SupportThreadScreen}
             />
             <AccountStack.Screen
                 name='TermsOfService'
@@ -435,6 +454,10 @@ function PatientsNavigator() {
                 component={LabsScreen}
             />
             <PatientsStack.Screen
+                name='PatientUploads'
+                component={PatientUploadsScreen}
+            />
+            <PatientsStack.Screen
                 name='AddPrescription'
                 component={AddPrescriptionScreen}
             />
@@ -502,6 +525,10 @@ function SettingsNavigator() {
             <SettingsStack.Screen
                 name='ReportProblem'
                 component={ReportProblemScreen}
+            />
+            <SettingsStack.Screen
+                name='SupportThread'
+                component={SupportThreadScreen}
             />
             <SettingsStack.Screen
                 name='TermsOfService'

@@ -99,23 +99,40 @@ export default function ReportProblemScreen({ navigation }: Props) {
             <Text style={styles.emptyText}>{t('report.noReports')}</Text>
           </View>
         ) : (
-          complaints.map((c) => <ReportCard key={c.id} complaint={c} />)
+          complaints.map((c) => (
+            <ReportCard
+              key={c.id}
+              complaint={c}
+              onPress={() => navigation.navigate('SupportThread', { complaint: c })}
+            />
+          ))
         )}
       </ScrollView>
     </View>
   );
 }
 
-function ReportCard({ complaint }: { complaint: Complaint }) {
+function ReportCard({ complaint, onPress }: { complaint: Complaint; onPress: () => void }) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
   const statusColor =
     complaint.status === 'pending' ? Colors.orange : complaint.status === 'resolved' ? Colors.green : Colors.textGray;
+  const unread = complaint.unread ?? 0;
   return (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={t('support.openThread', { subject: complaint.subject })}
+    >
       <View style={styles.cardHeader}>
         <Text style={styles.cardSubject} numberOfLines={1}>{complaint.subject}</Text>
+        {unread > 0 && (
+          <View style={styles.unreadBadge}>
+            <Text style={styles.unreadText}>{unread}</Text>
+          </View>
+        )}
         <View style={[styles.statusPill, { backgroundColor: statusColor + '18' }]}>
           <Text style={[styles.statusText, { color: statusColor }]}>{t(`report.status.${complaint.status}`)}</Text>
         </View>
@@ -128,7 +145,11 @@ function ReportCard({ complaint }: { complaint: Complaint }) {
           <Text style={styles.resolutionText}>{complaint.resolutionNote}</Text>
         </View>
       )}
-    </View>
+      <View style={styles.cardFooter}>
+        <FontAwesome name="comments-o" size={12} color={Colors.primary} />
+        <Text style={styles.cardFooterText}>{t('support.viewConversation')}</Text>
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -185,4 +206,11 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   },
   resolutionLabel: { fontSize: 11, fontWeight: '700', color: Colors.primary, marginBottom: 2, fontFamily: 'Poppins_600SemiBold' },
   resolutionText: { fontSize: 12, color: Colors.textDark, lineHeight: 17, fontFamily: 'Poppins_400Regular' },
+  unreadBadge: {
+    minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6,
+    backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center',
+  },
+  unreadText: { fontSize: 11, fontWeight: '700', color: Colors.white, fontFamily: 'Poppins_600SemiBold' },
+  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  cardFooterText: { fontSize: 12, fontWeight: '600', color: Colors.primary, fontFamily: 'Poppins_600SemiBold' },
 });

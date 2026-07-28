@@ -27,6 +27,14 @@ export const env = {
    */
   streamApiKey: process.env.EXPO_PUBLIC_STREAM_API_KEY ?? '',
 
+  /**
+   * Demo aid for the weak-bandwidth fallback: in mock mode, script a call's
+   * connection quality down to 'poor' a few seconds in so the fallback prompt
+   * can be shown without real network trouble. Off by default — a demo call
+   * that offers to drop video on its own looks broken.
+   */
+  simulatePoorConnection: process.env.EXPO_PUBLIC_SIMULATE_POOR_CONNECTION === 'true',
+
   /** Request timeout in ms for API calls. */
   requestTimeoutMs: 15000,
 };
