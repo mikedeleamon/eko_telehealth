@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
@@ -7,6 +7,7 @@ import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import { useNotifications } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -23,40 +24,45 @@ export default function NotificationsScreen({ navigation }: Props) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
-  const { data: notifications = [] } = useNotifications();
+  const { data: notifications = [], isLoading } = useNotifications();
   return (
     <View style={styles.container}>
       <EkoHeader title={t('account.notifications')} onBack={() => navigation.goBack()} />
-      <FlatList
-        data={notifications}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => (
-          <View style={[styles.card, { backgroundColor: Colors.cardColors[index % Colors.cardColors.length] }]}>
-            <View style={styles.iconBox}>
-              <FontAwesome name={(NOTIF_ICONS[item.title] || 'bell') as any} size={20} color={Colors.primary} />
+      {isLoading ? (
+        <ActivityIndicator style={styles.loader} color={Colors.primary} />
+      ) : (
+        <FlatList
+          data={notifications}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item, index }) => (
+            <View style={[styles.card, { backgroundColor: Colors.cardColors[index % Colors.cardColors.length] }]}>
+              <View style={styles.iconBox}>
+                <FontAwesome name={(NOTIF_ICONS[item.title] || 'bell') as any} size={20} color={Colors.primary} />
+              </View>
+              <View style={styles.info}>
+                <Text style={styles.title}>{item.title}</Text>
+                <Text style={styles.body}>{item.body}</Text>
+              </View>
+              <Text style={styles.time}>{item.time}</Text>
             </View>
-            <View style={styles.info}>
-              <Text style={styles.title}>{item.title}</Text>
-              <Text style={styles.body}>{item.body}</Text>
+          )}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <FontAwesome name="bell-slash-o" size={44} color={Colors.textLight} />
+              <Text style={styles.emptyText}>{t('notifications.noNotifications')}</Text>
             </View>
-            <Text style={styles.time}>{item.time}</Text>
-          </View>
-        )}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <FontAwesome name="bell-slash-o" size={44} color={Colors.textLight} />
-            <Text style={styles.emptyText}>{t('notifications.noNotifications')}</Text>
-          </View>
-        }
-      />
+          }
+        />
+      )}
     </View>
   );
 }
 
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
-  list: { padding: 16 },
+  loader: { marginTop: 40 },
+  list: { padding: 16, paddingBottom: TAB_BAR_SPACE },
   card: {
     flexDirection: 'row', alignItems: 'flex-start', borderRadius: 14, padding: 14, marginBottom: 10,
     shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 6, elevation: 2,

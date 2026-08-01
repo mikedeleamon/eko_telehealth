@@ -8,6 +8,7 @@ import RatingStars from '../../../components/common/RatingStars';
 import { useDoctors } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import type { Doctor } from '../../../api/types';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -76,7 +77,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
   intro: { fontSize: 13, color: Colors.textGray, lineHeight: 19, padding: 16, paddingBottom: 0 },
   loader: { marginTop: 40 },
-  list: { padding: 16 },
+  list: { padding: 16, paddingBottom: TAB_BAR_SPACE },
   card: {
     backgroundColor: Colors.surface, borderRadius: 14, padding: 16, marginBottom: 12,
     borderLeftWidth: 4, shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 6, elevation: 2,

@@ -5,7 +5,8 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
-import type { AvailabilityBlock, CashoutInput, ComplaintInput, CreateAppointmentInput, DocumentCategory, LabInput, MedicalNoteInput, PatientBiometrics, PickedFile, PrescriptionInput, RevenueGranularity, VisitType } from '../api/types';
+import type { AvailabilityBlock, CashoutInput, ComplaintInput, CreateAppointmentInput, DocumentCategory, LabInput, MedicalNoteInput, PatientBiometrics, PatientConditionInput, PatientConditionUpdate, PickedFile, PrescriptionInput, RevenueGranularity, SymptomLogInput, SymptomLogUpdate, VisitType } from '../api/types';
+import { searchIcd10 } from '../services/icd10';
 
 export const queryKeys = {
   doctors: (params?: { category?: string; query?: string }) => ['doctors', params ?? {}] as const,
@@ -20,6 +21,13 @@ export const queryKeys = {
   agenda: ['agenda'] as const,
   practiceAppointments: ['practice-appointments'] as const,
   medicalNotes: (patientId: string) => ['medical-notes', patientId] as const,
+  icd10Search: (q: string) => ['icd10-search', q] as const,
+  codeFavorites: ['icd10-favorites'] as const,
+  patientConditions: (patientId: string) => ['patient-conditions', patientId] as const,
+  myConditions: ['my-conditions'] as const,
+  dependentConditions: (dependentId: string) => ['dependent-conditions', dependentId] as const,
+  mySymptoms: ['my-symptoms'] as const,
+  patientSymptoms: (patientId: string) => ['patient-symptoms', patientId] as const,
   prescriptions: (patientId: string) => ['prescriptions', patientId] as const,
   myPrescriptions: ['my-prescriptions'] as const,
   myPayments: ['my-payments'] as const,
@@ -154,7 +162,10 @@ export function useAddMedicalNote(patientId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: MedicalNoteInput) => api.practice.addMedicalNote(input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.medicalNotes(patientId) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.medicalNotes(patientId) });
+      qc.invalidateQueries({ queryKey: queryKeys.codeFavorites });
+    },
   });
 }
 
@@ -164,7 +175,132 @@ export function useUpdateMedicalNote(patientId: string) {
   return useMutation({
     mutationFn: ({ noteId, input }: { noteId: string; input: MedicalNoteInput }) =>
       api.practice.updateMedicalNote(noteId, input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.medicalNotes(patientId) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.medicalNotes(patientId) });
+      qc.invalidateQueries({ queryKey: queryKeys.codeFavorites });
+    },
+  });
+}
+
+/**
+ * Debounced merge of the bundled local subset + server long-tail search
+ * (see services/icd10). Reference data — stays fresh for the whole session.
+ */
+export function useIcd10Search(query: string) {
+  return useQuery({
+    queryKey: queryKeys.icd10Search(query),
+    queryFn: () => searchIcd10(query),
+    enabled: query.trim().length > 0,
+    staleTime: Infinity,
+    gcTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+/** The signed-in doctor's ranked code shortlist — the picker's Frequent tab. */
+export function useCodeFavorites() {
+  return useQuery({
+    queryKey: queryKeys.codeFavorites,
+    queryFn: api.practice.codeFavorites,
+    staleTime: Infinity,
+    gcTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+export function usePinCode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => api.practice.pinCode(code),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.codeFavorites }),
+  });
+}
+
+/** A patient's problem list, as seen by their treating doctors. */
+export function usePatientConditions(patientId?: string) {
+  return useQuery({
+    queryKey: queryKeys.patientConditions(patientId ?? ''),
+    queryFn: () => api.conditions.list(patientId!),
+    enabled: !!patientId,
+  });
+}
+
+export function useAddCondition(patientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PatientConditionInput) => api.conditions.add(patientId, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.patientConditions(patientId) });
+      qc.invalidateQueries({ queryKey: queryKeys.myConditions });
+    },
+  });
+}
+
+export function useUpdateCondition(patientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: PatientConditionUpdate }) => api.conditions.update(id, input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.patientConditions(patientId) }),
+  });
+}
+
+/** The signed-in patient's own problem list — read-only. */
+export function useMyConditions() {
+  return useQuery({ queryKey: queryKeys.myConditions, queryFn: api.me.conditions });
+}
+
+export function useDependentConditions(dependentId?: string) {
+  return useQuery({
+    queryKey: queryKeys.dependentConditions(dependentId ?? ''),
+    queryFn: () => api.me.dependentConditions(dependentId!),
+    enabled: !!dependentId,
+  });
+}
+
+/** The signed-in patient's own symptom log — powers SymptomLogScreen. */
+export function useMySymptoms() {
+  return useQuery({ queryKey: queryKeys.mySymptoms, queryFn: api.me.symptoms });
+}
+
+export function useLogSymptom() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SymptomLogInput) => api.me.logSymptom(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mySymptoms }),
+  });
+}
+
+export function useUpdateSymptom() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: SymptomLogUpdate }) => api.me.updateSymptom(id, input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mySymptoms }),
+  });
+}
+
+export function useRemoveSymptom() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.me.removeSymptom(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mySymptoms }),
+  });
+}
+
+/**
+ * A patient's symptom logs, as seen by a treating provider — feeds the
+ * DiagnosisPicker's "For this patient" candidates band (spec §7.2).
+ */
+export function usePatientSymptoms(patientId?: string) {
+  return useQuery({
+    queryKey: queryKeys.patientSymptoms(patientId ?? ''),
+    queryFn: () => api.conditions.patientSymptoms(patientId!),
+    enabled: !!patientId,
+  });
+}
+
+export function useUnpinCode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => api.practice.unpinCode(code),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.codeFavorites }),
   });
 }
 

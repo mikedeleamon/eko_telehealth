@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, StatusBar, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, StatusBar, Platform, Image, ActivityIndicator } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,7 +14,9 @@ import { api } from '../../../api';
 import { useAuthStore } from '../../../store/authStore';
 import { LANGUAGE_OPTIONS } from '../../../constants';
 import { sanitizePhoneInput, isValidPhone } from '../../../utils/format';
+import { pickPhoto, FileTooLargeError } from '../../../utils/pickMedia';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -28,11 +30,42 @@ export default function EditProfileScreen({ navigation }: Props) {
   const { user } = useAuth();
   const [firstName, setFirstName] = useState(user?.firstName ?? '');
   const [lastName, setLastName] = useState(user?.lastName ?? '');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(user?.phone ?? '');
   // Who this account holder can communicate with (task 2.5) — distinct from
   // the app's own display language, set separately in Settings.
   const [spokenLanguages, setSpokenLanguages] = useState<string[]>(user?.spokenLanguages ?? []);
   const [loading, setLoading] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatar, setAvatar] = useState(user?.avatar ?? null);
+
+  const syncSession = (updated: typeof user) => {
+    const session = useAuthStore.getState().session;
+    if (session && updated) useAuthStore.getState().setSession({ ...session, user: updated });
+  };
+
+  const pickAvatarFrom = async (source: 'camera' | 'library') => {
+    try {
+      const file = await pickPhoto(source);
+      if (!file) return;
+      setAvatarUploading(true);
+      const updated = await api.auth.updateAvatar(file);
+      setAvatar(updated.avatar);
+      syncSession(updated);
+    } catch (err) {
+      const message = err instanceof FileTooLargeError ? t('documents.tooLarge') : err instanceof Error ? err.message : t('common.somethingWentWrong');
+      Alert.alert(t('account.couldNotUpdateAvatar'), message);
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const changeAvatar = () => {
+    Alert.alert(t('account.profilePhoto'), undefined, [
+      { text: t('account.takePhoto'), onPress: () => pickAvatarFrom('camera') },
+      { text: t('account.chooseFromLibrary'), onPress: () => pickAvatarFrom('library') },
+      { text: t('documents.cancel'), style: 'cancel' },
+    ]);
+  };
 
   const toggleLanguage = (lang: string) => {
     setSpokenLanguages((prev) => (prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang]));
@@ -50,8 +83,7 @@ export default function EditProfileScreen({ navigation }: Props) {
         spokenLanguages,
       });
       // Refresh the persisted session so the whole app shows the new name.
-      const session = useAuthStore.getState().session;
-      if (session) useAuthStore.getState().setSession({ ...session, user: updated });
+      syncSession(updated);
       Alert.alert(t('auth.success'), t('account.profileUpdatedFull'), [{ text: t('common.ok'), onPress: () => navigation.goBack() }]);
     } catch (err) {
       Alert.alert(t('account.couldNotUpdateProfile'), err instanceof Error ? err.message : t('common.somethingWentWrong'));
@@ -86,10 +118,26 @@ export default function EditProfileScreen({ navigation }: Props) {
         <View style={styles.avatarWrap}>
           <TouchableOpacity
             style={styles.avatar}
-            onPress={() => Alert.alert(t('account.profilePhoto'), t('account.photoSoon'))}
+            onPress={changeAvatar}
             activeOpacity={0.85}
+            disabled={avatarUploading}
+            accessibilityRole="button"
+            accessibilityLabel={t('account.profilePhoto')}
           >
-            <FontAwesome name="user" size={44} color={Colors.primary} />
+            {avatar ? (
+              <Image source={{ uri: avatar }} style={styles.avatarImage} resizeMode="cover" accessibilityIgnoresInvertColors />
+            ) : (
+              <FontAwesome name="user" size={44} color={Colors.primary} />
+            )}
+            {avatarUploading ? (
+              <View style={styles.avatarOverlay}>
+                <ActivityIndicator color={Colors.white} size="small" />
+              </View>
+            ) : (
+              <View style={styles.avatarBadge}>
+                <FontAwesome name="camera" size={13} color={Colors.white} />
+              </View>
+            )}
           </TouchableOpacity>
         </View>
         <Text style={styles.name}>
@@ -133,7 +181,7 @@ export default function EditProfileScreen({ navigation }: Props) {
 
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
-  scroll: { paddingBottom: 40 },
+  scroll: { paddingBottom: TAB_BAR_SPACE },
 
   header: {
     paddingHorizontal: 20,
@@ -158,10 +206,24 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     backgroundColor: Colors.surface,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 4, borderColor: Colors.white,
+    overflow: 'hidden',
     ...Platform.select({
       ios: { shadowColor: 'rgba(0,0,0,0.18)', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 12 },
       android: { elevation: 6 },
     }),
+  },
+  avatarImage: { width: '100%', height: '100%' },
+  avatarOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarBadge: {
+    position: 'absolute', right: 0, bottom: 0,
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: Colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: Colors.white,
   },
   name: {
     fontSize: 19, fontWeight: '700', color: Colors.textDark,

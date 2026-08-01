@@ -18,6 +18,7 @@ import {
 } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../constants/Colors';
+import { TAB_BAR_HEIGHT, TAB_BAR_TOP_GAP } from '../constants/layout';
 import { useTheme, useThemeMode, type ThemeColors } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../i18n/useTranslation';
@@ -64,12 +65,14 @@ import TermsOfServiceScreen from '../screens/main/account/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '../screens/main/account/PrivacyPolicyScreen';
 import DocumentsScreen from '../screens/main/account/DocumentsScreen';
 import DoctorAvailabilityScreen from '../screens/main/doctors/DoctorAvailabilityScreen';
-import MyHealthScreen from '../screens/main/health/MyHealthScreen';
 import ConditionUploadsScreen from '../screens/main/health/ConditionUploadsScreen';
+import VitalsScreen from '../screens/main/health/VitalsScreen';
 import PatientUploadsScreen from '../screens/main/dashboard/PatientUploadsScreen';
 import MyPrescriptionsScreen from '../screens/main/health/MyPrescriptionsScreen';
 import LabsScreen from '../screens/main/health/LabsScreen';
 import VisitNotesScreen from '../screens/main/health/VisitNotesScreen';
+import MyConditionsScreen from '../screens/main/health/MyConditionsScreen';
+import SymptomLogScreen from '../screens/main/health/SymptomLogScreen';
 import ChangePasswordScreen from '../screens/auth/ChangePasswordScreen';
 
 // Doctor earnings
@@ -120,6 +123,10 @@ function HomeNavigator() {
             <HomeStack.Screen
                 name='AppointmentDetails'
                 component={AppointmentDetailsScreen}
+            />
+            <HomeStack.Screen
+                name='SymptomLog'
+                component={SymptomLogScreen}
             />
             <HomeStack.Screen
                 name='ConditionUploads'
@@ -177,6 +184,10 @@ function AppointmentsNavigator() {
             <AppointmentsStack.Screen
                 name='AppointmentDetails'
                 component={AppointmentDetailsScreen}
+            />
+            <AppointmentsStack.Screen
+                name='SymptomLog'
+                component={SymptomLogScreen}
             />
             <AppointmentsStack.Screen
                 name='DoctorOverview'
@@ -301,8 +312,8 @@ function AccountNavigator() {
                 component={PaymentHistoryScreen}
             />
             <AccountStack.Screen
-                name='MyHealth'
-                component={MyHealthScreen}
+                name='Vitals'
+                component={VitalsScreen}
             />
             <AccountStack.Screen
                 name='ConditionUploads'
@@ -315,6 +326,14 @@ function AccountNavigator() {
             <AccountStack.Screen
                 name='VisitNotes'
                 component={VisitNotesScreen}
+            />
+            <AccountStack.Screen
+                name='MyConditions'
+                component={MyConditionsScreen}
+            />
+            <AccountStack.Screen
+                name='SymptomLog'
+                component={SymptomLogScreen}
             />
             <AccountStack.Screen
                 name='Insurance'
@@ -421,6 +440,10 @@ function DashboardNavigator() {
                 name='AudioCall'
                 component={AudioCallScreen}
                 options={{ presentation: 'fullScreenModal' }}
+            />
+            <DashboardStack.Screen
+                name='Notifications'
+                component={NotificationsScreen}
             />
         </DashboardStack.Navigator>
     );
@@ -648,6 +671,7 @@ function TabBarContent({ state, navigation, items }: any) {
                                 }
                             />
                             <Text
+                                numberOfLines={1}
                                 style={[
                                     tabStyles.label,
                                     focused && tabStyles.labelActive,
@@ -764,11 +788,17 @@ function CustomTabBar({ state, navigation, items }: any) {
 
 const makeTabStyles = (Colors: ThemeColors) =>
     StyleSheet.create({
-        // Transparent margin around the floating pill — this is what separates it
-        // from a flush, edge-to-edge "footer" bar.
+        // Lifted out of the layout flow entirely so screen content runs to the
+        // bottom of the window and passes under the pill. Left in flow it would
+        // reserve a band of opaque screen background beneath itself, which is
+        // what made the floating bar read as a solid footer.
         wrapper: {
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
             paddingHorizontal: 18,
-            paddingTop: 8,
+            paddingTop: TAB_BAR_TOP_GAP,
             backgroundColor: 'transparent',
         },
         shadowWrap: {
@@ -784,7 +814,7 @@ const makeTabStyles = (Colors: ThemeColors) =>
             }),
         },
         bar: {
-            height: 64,
+            height: TAB_BAR_HEIGHT,
             borderRadius: BAR_RADIUS,
             overflow: 'hidden',
         },
@@ -794,12 +824,16 @@ const makeTabStyles = (Colors: ThemeColors) =>
         tab: { flex: 1, alignItems: 'center', justifyContent: 'center' },
         // Wraps icon + label together — the active tab gets a solid white
         // capsule around both, matching the reference design.
+        // maxWidth pins the capsule to its tab column so a long label truncates
+        // (numberOfLines={1} on the Text) instead of widening the capsule and
+        // shoving the neighbouring icons off-centre.
         tabInner: {
             alignItems: 'center',
             justifyContent: 'center',
             paddingVertical: 8,
-            paddingHorizontal: 10,
+            paddingHorizontal: 6,
             borderRadius: 20,
+            maxWidth: '100%',
         },
         tabInnerActive: { backgroundColor: Colors.white },
         label: {

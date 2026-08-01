@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, Alert,
+  View, Text, StyleSheet, TouchableOpacity, TextInput, Alert,
   KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
+import SheetModal from '../common/SheetModal';
 import { FontAwesome } from '@expo/vector-icons';
 import { useTheme, type ThemeColors } from '../../theme';
 import { useTranslation } from '../../i18n/useTranslation';
@@ -110,7 +111,7 @@ export default function CallGuestPanel({ appointmentId, active }: Props) {
         </View>
       )}
 
-      <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
+      <SheetModal visible={sheetOpen} onRequestClose={() => setSheetOpen(false)}>
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setSheetOpen(false)}>
             <TouchableOpacity style={styles.sheet} activeOpacity={1} onPress={() => {}}>
@@ -184,7 +185,7 @@ export default function CallGuestPanel({ appointmentId, active }: Props) {
             </TouchableOpacity>
           </TouchableOpacity>
         </KeyboardAvoidingView>
-      </Modal>
+      </SheetModal>
 
       {/* The control that opens all of the above, styled to sit in the call bar. */}
       <GuestButton onPress={() => setSheetOpen(true)} count={present.length} pending={knocking.length} />
@@ -248,7 +249,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   floatingGuestText: { color: Colors.white, fontSize: 12, fontWeight: '600', fontFamily: 'Poppins_600SemiBold' },
   pendingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.orange },
 
-  overlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: Colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     padding: 24, paddingBottom: 36,

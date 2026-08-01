@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,6 +8,7 @@ import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import { useAuth } from '../../../context/AuthContext';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -27,8 +28,12 @@ export default function PatientOverviewScreen({ navigation }: Props) {
   ];
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <LinearGradient colors={[Colors.primaryDark, Colors.primary]} style={styles.header}>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <LinearGradient
+        colors={[Colors.primaryDark, Colors.primary]}
+        style={[styles.header, { paddingTop: insets.top }]}
+      >
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel={t('a11y.back')}>
           <FontAwesome name="chevron-left" size={16} color={Colors.white} />
         </TouchableOpacity>
@@ -127,7 +132,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   tabText: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.7)' },
   tabTextActive: { color: Colors.white },
   body: { flex: 1 },
-  bodyContent: { padding: 16, paddingBottom: 32 },
+  bodyContent: { padding: 16, paddingBottom: TAB_BAR_SPACE },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: Colors.textDark, marginTop: 16, marginBottom: 12 },
   careCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 12,

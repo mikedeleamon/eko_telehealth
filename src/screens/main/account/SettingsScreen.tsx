@@ -13,6 +13,7 @@ import { useTranslation } from '../../../i18n/useTranslation';
 import { SUPPORTED_LOCALES } from '../../../store/localeStore';
 import { THEME_MODES, type ThemeMode } from '../../../store/themeStore';
 import type { UserSettings } from '../../../api/types';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -268,7 +269,7 @@ export default function SettingsScreen({ navigation }: Props) {
 
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
-  content: { padding: 16, paddingBottom: 40 },
+  content: { padding: 16, paddingBottom: TAB_BAR_SPACE },
   sectionTitle: { fontSize: 13, fontWeight: '700', color: Colors.textGray, marginBottom: 8, marginTop: 16, textTransform: 'uppercase', letterSpacing: 0.8 },
   card: {
     backgroundColor: Colors.surface, borderRadius: 14,

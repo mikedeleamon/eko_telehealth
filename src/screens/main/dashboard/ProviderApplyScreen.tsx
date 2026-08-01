@@ -15,6 +15,7 @@ import { api } from '../../../api';
 import { queryKeys } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import type { AppointmentProviderType, ProviderApplicationDocument } from '../../../api/types';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 const MAX_DOC_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -234,7 +235,7 @@ export default function ProviderApplyScreen({ navigation }: Props) {
 
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 20, paddingBottom: TAB_BAR_SPACE },
   intro: {
     fontSize: 13, color: Colors.textGray, lineHeight: 20,
     marginBottom: 20, fontFamily: 'Poppins_400Regular',

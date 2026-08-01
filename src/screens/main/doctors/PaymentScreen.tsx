@@ -15,6 +15,7 @@ import { queryKeys, useCurrencies, usePaymentPreview } from '../../../hooks/quer
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { splitFee, formatMoney, convertFeeDisplay } from '../../../utils/format';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -228,7 +229,7 @@ export default function PaymentScreen({ navigation, route }: Props) {
 
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 20, paddingBottom: TAB_BAR_SPACE },
   doctorCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.primaryFaded,
     borderRadius: 14, padding: 14, marginBottom: 24,

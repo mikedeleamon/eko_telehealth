@@ -5,6 +5,7 @@ import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import { useContentBlock } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -33,7 +34,7 @@ export default function TermsOfServiceScreen({ navigation }: Props) {
 
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 20, paddingBottom: TAB_BAR_SPACE },
   loader: { marginTop: 40 },
   body: { fontSize: 14, color: Colors.textMedium, lineHeight: 22 },
 });

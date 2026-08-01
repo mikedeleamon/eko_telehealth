@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import SheetModal from './SheetModal';
 import { Colors } from '../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../theme';
 import { parseDMY, formatDMY, MONTH_NAMES } from '../../utils/format';
@@ -94,7 +95,7 @@ export default function CalendarSheet({
   }, [today]);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <SheetModal visible={visible} onRequestClose={onClose}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
         <TouchableOpacity style={styles.sheet} activeOpacity={1} onPress={() => {}}>
           <View style={styles.grabber} />
@@ -165,14 +166,14 @@ export default function CalendarSheet({
           )}
         </TouchableOpacity>
       </TouchableOpacity>
-    </Modal>
+    </SheetModal>
   );
 }
 
 const hit = { top: 10, bottom: 10, left: 10, right: 10 };
 
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: Colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     padding: 20, paddingBottom: 32,

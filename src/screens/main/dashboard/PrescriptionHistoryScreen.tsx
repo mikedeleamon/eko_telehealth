@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, RefreshControl, Platform, TouchableOpacity, Modal, Alert,
+  View, Text, StyleSheet, ScrollView, RefreshControl, Platform, TouchableOpacity, Alert,
 } from 'react-native';
+import SheetModal from '../../../components/common/SheetModal';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -14,6 +15,7 @@ import { usePharmacyDirectory, usePreferredPharmacyFor, usePrescriptions, usePro
 import type { FulfillmentStatus, Prescription, PatientSummary } from '../../../api/types';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { canAuthorPrescriptions } from '../../../utils/providerCapabilities';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -110,7 +112,7 @@ export default function PrescriptionHistoryScreen({ navigation, route }: Props) 
 
       {/* Pharmacy picker — the patient's own preferred pharmacy floats to the
           top, since that's where they've already said they collect. */}
-      <Modal visible={!!referring} transparent animationType="slide" onRequestClose={() => setReferring(null)}>
+      <SheetModal visible={!!referring} onRequestClose={() => setReferring(null)}>
         <TouchableOpacity style={styles.sheetOverlay} activeOpacity={1} onPress={() => setReferring(null)}>
           <TouchableOpacity style={styles.sheet} activeOpacity={1} onPress={() => {}}>
             <View style={styles.grabber} />
@@ -145,10 +147,10 @@ export default function PrescriptionHistoryScreen({ navigation, route }: Props) 
             </ScrollView>
           </TouchableOpacity>
         </TouchableOpacity>
-      </Modal>
+      </SheetModal>
 
       {canPrescribe && (
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+        <View style={[styles.footer, { paddingBottom: TAB_BAR_SPACE }]}>
           <EkoButton
             title={t('prescriptions.addPrescription')}
             variant="primary"
@@ -353,7 +355,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   fulfillNote: { fontSize: 11, color: Colors.textGray, marginTop: 2, lineHeight: 15 },
   fulfillChange: { fontSize: 11, fontWeight: '700', color: Colors.primary },
 
-  sheetOverlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
+  sheetOverlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: Colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     padding: 24, paddingBottom: 36, maxHeight: '75%',

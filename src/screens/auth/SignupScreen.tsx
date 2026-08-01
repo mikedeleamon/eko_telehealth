@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  KeyboardAvoidingView, Platform, TextInput, StatusBar, Alert, Modal,
+  KeyboardAvoidingView, Platform, TextInput, StatusBar, Alert,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import SheetModal from '../../components/common/SheetModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../constants/Colors';
@@ -12,6 +13,8 @@ import { GENDER_OPTIONS } from '../../constants';
 import { useTranslation } from '../../i18n/useTranslation';
 import { api } from '../../api';
 import CalendarSheet from '../../components/common/CalendarSheet';
+import EkoTextField from '../../components/common/EkoTextField';
+import EkoButton from '../../components/common/EkoButton';
 import { sanitizePhoneInput, isValidPhone, maskDateInput, isValidDate } from '../../utils/format';
 
 interface Props {
@@ -49,8 +52,6 @@ export default function SignupScreen({ navigation }: Props) {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [hipaaAccepted, setHipaaAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [pwFocused, setPwFocused] = useState(false);
-  const [showPw, setShowPw] = useState(false);
   const [genderModal, setGenderModal] = useState(false);
   const [dobCalendar, setDobCalendar] = useState(false);
   const [dobFocused, setDobFocused] = useState(false);
@@ -138,29 +139,21 @@ export default function SignupScreen({ navigation }: Props) {
           ))}
         </View>
 
-        <AuthField colorsOverride={Colors} icon="at" placeholder={t('auth.email')} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-        <AuthField colorsOverride={Colors} icon="at" placeholder={t('auth.confirmEmail')} value={confirmEmail} onChangeText={setConfirmEmail} keyboardType="email-address" autoCapitalize="none" />
+        <EkoTextField pill focusColor={Colors.primary} icon="at" placeholder={t('auth.email')} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+        <EkoTextField pill focusColor={Colors.primary} icon="at" placeholder={t('auth.confirmEmail')} value={confirmEmail} onChangeText={setConfirmEmail} keyboardType="email-address" autoCapitalize="none" />
 
         {/* Password with strength indicator */}
-        <View style={[styles.field, pwFocused && styles.fieldFocused]}>
-          <FontAwesome name="lock" size={18} color={pwFocused ? Colors.primary : Colors.textGray} style={styles.fieldIcon} />
-          <TextInput
-            style={styles.fieldInput}
-            placeholder={t('auth.password')}
-            placeholderTextColor={Colors.textGray}
-            accessibilityLabel={t('auth.password')}
-            value={password}
-            onChangeText={setPassword}
-            onFocus={() => setPwFocused(true)}
-            onBlur={() => setPwFocused(false)}
-            secureTextEntry={!showPw}
-          />
-          <TouchableOpacity onPress={() => setShowPw(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <FontAwesome name={showPw ? 'eye' : 'eye-slash'} size={18} color={Colors.textGray} />
-          </TouchableOpacity>
-        </View>
+        <EkoTextField
+          pill
+          isPassword
+          focusColor={Colors.primary}
+          icon="lock"
+          placeholder={t('auth.password')}
+          value={password}
+          onChangeText={setPassword}
+        />
 
-        {pwFocused && password.length > 0 && (
+        {password.length > 0 && (
           <View style={styles.strengthPopup}>
             {pwCriteria.map((c, i) => (
               <View key={i} style={styles.criteriaRow}>
@@ -171,9 +164,9 @@ export default function SignupScreen({ navigation }: Props) {
           </View>
         )}
 
-        <AuthField colorsOverride={Colors} icon="user" placeholder={t('auth.firstName')} value={firstName} onChangeText={setFirstName} />
-        <AuthField colorsOverride={Colors} icon="user" placeholder={t('auth.lastName')} value={lastName} onChangeText={setLastName} />
-        <AuthField colorsOverride={Colors} icon="mobile" placeholder={t('auth.mobileNumber')} value={phone} onChangeText={(val: string) => setPhone(sanitizePhoneInput(val))} keyboardType="phone-pad" />
+        <EkoTextField pill focusColor={Colors.primary} icon="user" placeholder={t('auth.firstName')} value={firstName} onChangeText={setFirstName} />
+        <EkoTextField pill focusColor={Colors.primary} icon="user" placeholder={t('auth.lastName')} value={lastName} onChangeText={setLastName} />
+        <EkoTextField pill focusColor={Colors.primary} icon="mobile" placeholder={t('auth.mobileNumber')} value={phone} onChangeText={(val: string) => setPhone(sanitizePhoneInput(val))} keyboardType="phone-pad" />
 
         {/* Date of birth — typeable (masked to DD-MM-YYYY) with a calendar shortcut */}
         <View style={[styles.field, dobFocused && styles.fieldFocused]}>
@@ -219,9 +212,14 @@ export default function SignupScreen({ navigation }: Props) {
         />
 
         {/* Submit */}
-        <TouchableOpacity style={styles.submitBtn} onPress={handleSignup} disabled={loading} activeOpacity={0.85}>
-          <Text style={styles.submitBtnText}>{loading ? t('auth.creatingAccount') : t('auth.saveAndContinue')}</Text>
-        </TouchableOpacity>
+        <EkoButton
+          title={t('auth.saveAndContinue')}
+          onPress={handleSignup}
+          loading={loading}
+          disabled={loading}
+          color={Colors.primary}
+          style={styles.submitBtn}
+        />
       </ScrollView>
 
       <CalendarSheet
@@ -233,7 +231,7 @@ export default function SignupScreen({ navigation }: Props) {
         title={t('auth.dobTitle')}
       />
 
-      <Modal visible={genderModal} transparent animationType="slide">
+      <SheetModal visible={genderModal} onRequestClose={() => setGenderModal(false)}>
         <TouchableOpacity style={styles.modalOverlay} onPress={() => setGenderModal(false)}>
           <View style={styles.modalSheet}>
             <Text style={styles.modalTitle}>{t('auth.selectGender')}</Text>
@@ -245,27 +243,8 @@ export default function SignupScreen({ navigation }: Props) {
             ))}
           </View>
         </TouchableOpacity>
-      </Modal>
+      </SheetModal>
     </KeyboardAvoidingView>
-  );
-}
-
-function AuthField({ icon, colorsOverride, ...props }: any) {
-  const themeColors = useTheme();
-  const Colors = colorsOverride ?? themeColors;
-  const styles = makeStyles(Colors);
-  const [focused, setFocused] = useState(false);
-  return (
-    <View style={[styles.field, focused && styles.fieldFocused]}>
-      <FontAwesome name={icon} size={18} color={focused ? Colors.primary : Colors.textGray} style={styles.fieldIcon} />
-      <TextInput
-        style={styles.fieldInput}
-        placeholderTextColor={Colors.textGray}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        {...props}
-      />
-    </View>
   );
 }
 
@@ -274,7 +253,13 @@ function CheckRow({ checked, onToggle, label, linkText, colorsOverride }: { chec
   const Colors = colorsOverride ?? themeColors;
   const styles = makeStyles(Colors);
   return (
-    <TouchableOpacity style={styles.checkRow} onPress={onToggle} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={styles.checkRow}
+      onPress={onToggle}
+      activeOpacity={0.7}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+    >
       <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
         {checked && <FontAwesome name="check" size={11} color={Colors.white} />}
       </View>
@@ -339,17 +324,12 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   checkLink: { color: Colors.primary, fontWeight: '600' },
 
   submitBtn: {
-    backgroundColor: Colors.primary, borderRadius: 32, height: 56,
-    alignItems: 'center', justifyContent: 'center', marginTop: 8,
+    height: 56, marginTop: 8,
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
   },
-  submitBtnText: {
-    color: Colors.white, fontSize: 15, fontWeight: '700',
-    letterSpacing: 0.8, fontFamily: 'Poppins_700Bold',
-  },
 
-  modalOverlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
   modalSheet: {
     backgroundColor: Colors.surface, borderTopLeftRadius: 28,
     borderTopRightRadius: 28, padding: 28, paddingBottom: 40,

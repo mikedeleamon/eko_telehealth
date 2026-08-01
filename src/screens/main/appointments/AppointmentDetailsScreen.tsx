@@ -20,6 +20,7 @@ import EkoButton from '../../../components/common/EkoButton';
 import { useAuth } from '../../../context/AuthContext';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { splitFee, formatMoney } from '../../../utils/format';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -359,6 +360,14 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
               onPress={() => navigation.navigate('ConditionUploads', { appointmentId: appointment.id })}
               style={styles.btn}
             />
+            {/* ICD-10 spec §7.2: a symptom logged here becomes a code candidate
+                in the provider's DiagnosisPicker at this appointment. */}
+            <EkoButton
+              title={t('symptoms.tellYourDoctor')}
+              variant="outline"
+              onPress={() => navigation.navigate('SymptomLog', { appointmentId: appointment.id })}
+              style={styles.btn}
+            />
             {isConfirmedOrCheckedIn && startAt && (
               <EkoButton title={t('appointments.addToCalendar')} variant="outline" onPress={addToCalendar} style={styles.btn} />
             )}
@@ -411,7 +420,7 @@ function DetailRow({ icon, label, value, last, valueColor, emphasize }: { icon: 
 
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 20, paddingBottom: TAB_BAR_SPACE },
 
   doctorCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.primaryFaded,

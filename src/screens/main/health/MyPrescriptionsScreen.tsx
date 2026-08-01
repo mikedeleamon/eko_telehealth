@@ -12,6 +12,7 @@ import Cross from '../../../components/common/Cross';
 import { useMyPrescriptions } from '../../../hooks/queries';
 import type { Prescription } from '../../../api/types';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -53,7 +54,7 @@ export default function MyPrescriptionsScreen(_props: Props) {
         <ActivityIndicator style={styles.loader} color={Colors.primary} />
       ) : (
         <ScrollView
-          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}
+          contentContainerStyle={[styles.list, { paddingBottom: TAB_BAR_SPACE }]}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />}
         >

@@ -7,6 +7,7 @@ import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import { useContentBlocks } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -70,7 +71,7 @@ export default function AboutUsScreen({ navigation }: Props) {
 
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 20, paddingBottom: TAB_BAR_SPACE },
   logoArea: { alignItems: 'center', marginBottom: 24, paddingVertical: 20 },
   appName: { fontSize: 26, fontWeight: '900', color: Colors.textDark, marginTop: 10 },
   version: { fontSize: 13, color: Colors.textGray, marginTop: 4 },

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, StatusBar, Platform, Alert, Modal,
+  View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, StatusBar, Platform, Alert, ActivityIndicator,
 } from 'react-native';
+import SheetModal from '../../../components/common/SheetModal';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +20,7 @@ import Cross from '../../../components/common/Cross';
 import EkoButton from '../../../components/common/EkoButton';
 import { useAuth } from '../../../context/AuthContext';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -65,6 +67,11 @@ export default function DashboardScreen({ navigation }: Props) {
   const { data: agenda = [] } = useDoctorAgenda(isLive);
   const { data: practiceAppointments = [] } = usePracticeAppointments(isLive);
   const decision = useAppointmentDecision();
+  // useAppointmentDecision is a single shared mutation object for the whole
+  // list — decision.isPending alone would disable every row's buttons at
+  // once. Track which request is actually in flight so only that row's
+  // Accept/Decline get disabled.
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const unreadCount = conversations.reduce((n, c) => n + c.unread, 0);
   const remaining = agenda.length;
 
@@ -84,9 +91,11 @@ export default function DashboardScreen({ navigation }: Props) {
   });
 
   const respond = (id: string, name: string, decide: 'accept' | 'decline') => {
+    setPendingId(id);
     decision.mutate(
       { id, decision: decide },
       {
+        onSettled: () => setPendingId(null),
         onError: (err) =>
           Alert.alert(
             decide === 'accept' ? t('dashboard.couldNotAccept') : t('dashboard.couldNotDecline'),
@@ -127,6 +136,14 @@ export default function DashboardScreen({ navigation }: Props) {
           <TouchableOpacity style={styles.avatarBtn} onPress={() => navigation.navigate('SettingsTab')}>
             <FontAwesome name="user-md" size={18} color={Colors.primary} />
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => navigation.navigate('Notifications')}
+            accessibilityRole="button"
+            accessibilityLabel={t('a11y.notifications')}
+          >
+            <FontAwesome name="bell" size={19} color={Colors.white} />
+          </TouchableOpacity>
         </View>
 
         {/* Greeting */}
@@ -145,6 +162,11 @@ export default function DashboardScreen({ navigation }: Props) {
             value={search}
             onChangeText={setSearch}
           />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <FontAwesome name="times-circle" size={15} color={Colors.textGray} />
+            </TouchableOpacity>
+          )}
           <View style={styles.searchDivider} />
           <TouchableOpacity
             onPress={() => setFilterOpen(true)}
@@ -158,7 +180,7 @@ export default function DashboardScreen({ navigation }: Props) {
         </View>
       </LinearGradient>
 
-      <ScrollView style={styles.body} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView style={styles.body} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: TAB_BAR_SPACE }}>
         {/* A Doctor account isn't bookable until an admin approves its
             application, so say so rather than showing an empty practice. */}
         {provider && !isLive && (
@@ -208,7 +230,9 @@ export default function DashboardScreen({ navigation }: Props) {
           {requests.length === 0 ? (
             <Text style={styles.emptyRequests}>{query.length > 0 ? t('dashboard.noMatchesFor', { query: search.trim() }) : t('dashboard.noPendingRequests')}</Text>
           ) : (
-            requests.map((req, i) => (
+            requests.map((req, i) => {
+              const isRowPending = decision.isPending && pendingId === req.id;
+              return (
               <View key={req.id} style={[styles.requestCard, { backgroundColor: Colors.cardColors[i % 2 === 0 ? 0 : 1] }]}>
                 <View style={styles.reqAvatar}>
                   <FontAwesome name="user" size={22} color={Colors.primary} />
@@ -219,24 +243,35 @@ export default function DashboardScreen({ navigation }: Props) {
                 </View>
                 <View style={styles.reqActions}>
                   <TouchableOpacity
-                    style={[styles.reqBtn, styles.acceptBtn]}
+                    style={[styles.reqBtn, styles.acceptBtn, isRowPending && styles.reqBtnDisabled]}
                     onPress={() => respond(req.id, req.doctor, 'accept')}
+                    disabled={isRowPending}
                     accessibilityRole="button"
                     accessibilityLabel={t('dashboard.accept')}
                   >
-                    <Text style={styles.acceptText}>{t('dashboard.accept')}</Text>
+                    {isRowPending ? (
+                      <ActivityIndicator size="small" color={Colors.white} />
+                    ) : (
+                      <Text style={styles.acceptText}>{t('dashboard.accept')}</Text>
+                    )}
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.reqBtn, styles.declineBtn]}
+                    style={[styles.reqBtn, styles.declineBtn, isRowPending && styles.reqBtnDisabled]}
                     onPress={() => respond(req.id, req.doctor, 'decline')}
+                    disabled={isRowPending}
                     accessibilityRole="button"
                     accessibilityLabel={t('dashboard.decline')}
                   >
-                    <Text style={styles.declineText}>{t('dashboard.decline')}</Text>
+                    {isRowPending ? (
+                      <ActivityIndicator size="small" color={Colors.white} />
+                    ) : (
+                      <Text style={styles.declineText}>{t('dashboard.decline')}</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               </View>
-            ))
+              );
+            })
           )}
         </View>
         )}
@@ -284,7 +319,7 @@ export default function DashboardScreen({ navigation }: Props) {
       </ScrollView>
 
       {/* Agenda status filter sheet */}
-      <Modal visible={filterOpen} transparent animationType="slide" onRequestClose={() => setFilterOpen(false)}>
+      <SheetModal visible={filterOpen} onRequestClose={() => setFilterOpen(false)}>
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setFilterOpen(false)}>
           <TouchableOpacity style={styles.sheet} activeOpacity={1} onPress={() => {}}>
             <View style={styles.grabber} />
@@ -326,7 +361,7 @@ export default function DashboardScreen({ navigation }: Props) {
             />
           </TouchableOpacity>
         </TouchableOpacity>
-      </Modal>
+      </SheetModal>
     </View>
   );
 }
@@ -424,6 +459,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   reqReason: { fontSize: 12, color: Colors.textGray, marginTop: 2, fontFamily: 'Poppins_400Regular' },
   reqActions: { gap: 8 },
   reqBtn: { borderRadius: 18, paddingHorizontal: 22, paddingVertical: 8, alignItems: 'center', minWidth: 96 },
+  reqBtnDisabled: { opacity: 0.6 },
   acceptBtn: { backgroundColor: Colors.green },
   declineBtn: { backgroundColor: Colors.red },
   acceptText: { fontSize: 13, fontWeight: '700', color: Colors.white, fontFamily: 'Poppins_600SemiBold' },
@@ -449,7 +485,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   apptTime: { fontSize: 12, color: Colors.textMedium, fontFamily: 'Poppins_500Medium' },
 
   // Filter sheet
-  overlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: Colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     padding: 24, paddingBottom: 36,

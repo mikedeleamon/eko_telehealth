@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Modal,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
+import SheetModal from '../../../components/common/SheetModal';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme, type ThemeColors } from '../../../theme';
@@ -11,6 +11,7 @@ import EkoButton from '../../../components/common/EkoButton';
 import { useDoctorAvailability, useSaveDoctorAvailability } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import type { AvailabilityBlock } from '../../../api/types';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -129,7 +130,7 @@ export default function DoctorAvailabilityScreen({ navigation }: Props) {
         <EkoButton title={t('availability.addHours')} variant="primary" onPress={() => setFormOpen(true)} />
       </View>
 
-      <Modal visible={formOpen} transparent animationType="slide" onRequestClose={() => setFormOpen(false)}>
+      <SheetModal visible={formOpen} onRequestClose={() => setFormOpen(false)}>
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setFormOpen(false)}>
             <TouchableOpacity style={styles.sheet} activeOpacity={1} onPress={() => {}}>
@@ -226,7 +227,7 @@ export default function DoctorAvailabilityScreen({ navigation }: Props) {
             </TouchableOpacity>
           </TouchableOpacity>
         </KeyboardAvoidingView>
-      </Modal>
+      </SheetModal>
     </View>
   );
 }
@@ -258,9 +259,9 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   blockDay: { fontSize: 15, fontWeight: '700', color: Colors.textDark, fontFamily: 'Poppins_600SemiBold' },
   blockMeta: { fontSize: 12, color: Colors.textGray, marginTop: 2, fontFamily: 'Poppins_400Regular' },
 
-  footer: { padding: 16, backgroundColor: Colors.bgLight, borderTopWidth: 1, borderTopColor: Colors.borderGray },
+  footer: { paddingBottom: TAB_BAR_SPACE, padding: 16, backgroundColor: Colors.bgLight, borderTopWidth: 1, borderTopColor: Colors.borderGray },
 
-  overlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: Colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     padding: 24, paddingBottom: 36,

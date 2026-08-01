@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ViewStyle } from 'react-native';
+import SheetModal from './SheetModal';
 import { FontAwesome } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../theme';
@@ -72,7 +73,7 @@ export default function EkoSelectField({
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+      <SheetModal visible={open} onRequestClose={() => setOpen(false)}>
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setOpen(false)}>
           <TouchableOpacity style={styles.sheet} activeOpacity={1} onPress={() => {}}>
             <View style={styles.grabber} />
@@ -101,7 +102,7 @@ export default function EkoSelectField({
             </ScrollView>
           </TouchableOpacity>
         </TouchableOpacity>
-      </Modal>
+      </SheetModal>
     </View>
   );
 }
@@ -123,7 +124,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   otherField: { marginTop: 10, marginBottom: 0 },
   error: { fontSize: 12, color: Colors.error, marginTop: 4, marginLeft: 2, fontFamily: 'Poppins_400Regular' },
 
-  overlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: Colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     padding: 24, paddingBottom: 36, maxHeight: '70%',

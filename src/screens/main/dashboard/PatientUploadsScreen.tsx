@@ -10,6 +10,7 @@ import { usePatientDocuments } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { formatFileSize } from '../../../utils/pickMedia';
 import type { PatientSummary } from '../../../api/types';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -81,7 +82,7 @@ export default function PatientUploadsScreen({ navigation, route }: Props) {
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
   loader: { marginTop: 40 },
-  list: { padding: 16, paddingBottom: 24, flexGrow: 1 },
+  list: { padding: 16, paddingBottom: TAB_BAR_SPACE, flexGrow: 1 },
   note: { fontSize: 13, color: Colors.textGray, marginBottom: 14, fontFamily: 'Poppins_500Medium' },
 
   empty: { alignItems: 'center', marginTop: 60, paddingHorizontal: 32 },

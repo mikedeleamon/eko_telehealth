@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, Modal, Image,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, Image,
   KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
+import SheetModal from '../../../components/common/SheetModal';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -15,6 +16,7 @@ import { useTranslation } from '../../../i18n/useTranslation';
 import { ACTIVE_STATUSES } from '../../../api/types';
 import { FileTooLargeError, formatFileSize, pickDocument, pickPhoto } from '../../../utils/pickMedia';
 import type { PickedFile, StoredDocument } from '../../../api/types';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -185,7 +187,7 @@ export default function ConditionUploadsScreen({ navigation, route }: Props) {
         <EkoButton title={t('uploads.add')} variant="primary" onPress={() => setFormOpen(true)} />
       </View>
 
-      <Modal visible={formOpen} transparent animationType="slide" onRequestClose={() => setFormOpen(false)}>
+      <SheetModal visible={formOpen} onRequestClose={() => setFormOpen(false)}>
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setFormOpen(false)}>
             <TouchableOpacity style={styles.sheet} activeOpacity={1} onPress={() => {}}>
@@ -271,7 +273,7 @@ export default function ConditionUploadsScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </TouchableOpacity>
         </KeyboardAvoidingView>
-      </Modal>
+      </SheetModal>
     </View>
   );
 }
@@ -318,9 +320,9 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   visitTag: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
   visitTagText: { fontSize: 11, color: Colors.primary, fontFamily: 'Poppins_500Medium', flexShrink: 1 },
 
-  footer: { padding: 16, backgroundColor: Colors.bgLight, borderTopWidth: 1, borderTopColor: Colors.borderGray },
+  footer: { paddingBottom: TAB_BAR_SPACE, padding: 16, backgroundColor: Colors.bgLight, borderTopWidth: 1, borderTopColor: Colors.borderGray },
 
-  overlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: Colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     padding: 24, paddingBottom: 36,

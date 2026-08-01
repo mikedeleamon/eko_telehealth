@@ -11,6 +11,7 @@ import EkoHeader from '../../../components/common/EkoHeader';
 import { useReplyToSupport, useSupportThread } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import type { Complaint, SupportMessage } from '../../../api/types';
+import { useTabBarInset } from '../../../hooks/useTabBarInset';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -26,6 +27,7 @@ interface Props {
  * rendered as the opening message so the thread reads from the start.
  */
 export default function SupportThreadScreen({ navigation, route }: Props) {
+  const tabBarInset = useTabBarInset();
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
@@ -123,7 +125,7 @@ export default function SupportThreadScreen({ navigation, route }: Props) {
           />
         )}
 
-        <View style={styles.composer}>
+        <View style={[styles.composer, { paddingBottom: tabBarInset }]}>
           <TextInput
             style={styles.input}
             value={draft}

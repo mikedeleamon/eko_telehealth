@@ -14,6 +14,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useMedicalNotes } from '../../../hooks/queries';
 import type { MedicalNote, PatientSummary } from '../../../api/types';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -132,7 +133,7 @@ export default function MedicalHistoryScreen({ navigation, route }: Props) {
         }
       />
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+      <View style={[styles.footer, { paddingBottom: TAB_BAR_SPACE }]}>
         <EkoButton
           title={t('patients.addMedicalNotes')}
           variant="primary"

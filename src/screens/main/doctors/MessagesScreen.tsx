@@ -7,6 +7,7 @@ import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import { useConversations, useDoctors } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -75,7 +76,7 @@ export default function MessagesScreen({ navigation }: Props) {
 
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
-  list: { padding: 16 },
+  list: { paddingBottom: TAB_BAR_SPACE, padding: 16 },
 
   row: {
     flexDirection: 'row', alignItems: 'center',

@@ -7,6 +7,7 @@
  * behavior, no backend required.
  */
 import { env } from '../config/env';
+import { findSymptomEntry } from '../constants/symptoms';
 import { request } from './client';
 import { mockApi } from './mock/mockApi';
 import type {
@@ -46,7 +47,14 @@ import type {
   PharmacyInput,
   PharmacyDirectoryEntry,
   GovIdStatus,
+  Icd10Code,
+  PatientCondition,
+  PatientConditionInput,
+  PatientConditionUpdate,
   PatientVisitNote,
+  SymptomLog,
+  SymptomLogInput,
+  SymptomLogUpdate,
   Prescription,
   PrescriptionInput,
   FeeBreakdown,
@@ -78,7 +86,7 @@ import type {
  * and return the object key to record with the metadata. Live mode only — the
  * backend never receives the bytes. Callers in mock mode skip this entirely.
  */
-async function uploadToR2(kind: 'document' | 'lab' | 'provider-doc' | 'gov-id', file: PickedFile): Promise<string> {
+async function uploadToR2(kind: 'document' | 'lab' | 'provider-doc' | 'gov-id' | 'avatar', file: PickedFile): Promise<string> {
   const presign = await request<PresignResult>('/uploads/presign', {
     method: 'POST',
     body: { kind, contentType: file.mimeType },
@@ -163,6 +171,17 @@ export const api = {
     updateProfile(input: { firstName?: string; lastName?: string; phone?: string; spokenLanguages?: string[]; preferredCurrency?: string; twoFactorEnabled?: boolean }): Promise<User> {
       if (env.useMockApi) return mockApi.updateProfile(input);
       return request<User>('/auth/me', { method: 'PATCH', body: input });
+    },
+
+    /**
+     * Upload a new profile photo and save it. Live mode presigns+uploads to
+     * R2 then PATCHes /auth/me with the object key; mock mode just echoes the
+     * local file uri back as the avatar so the screen updates immediately.
+     */
+    async updateAvatar(file: PickedFile): Promise<User> {
+      if (env.useMockApi) return mockApi.updateProfile({ avatar: file.uri });
+      const key = await uploadToR2('avatar', file);
+      return request<User>('/auth/me', { method: 'PATCH', body: { avatar: key } });
     },
 
     /** POST /auth/change-password — signed-in change; needs the current password. */
@@ -474,6 +493,28 @@ export const api = {
       if (env.useMockApi) return mockApi.cashOut(input.amount);
       return request<DoctorEarnings>('/practice/payouts', { method: 'POST', body: input });
     },
+
+    /**
+     * GET /practice/icd10/favorites — the signed-in doctor's coding shortlist,
+     * ranked pinned-first then recency-decayed frequency. Powers the
+     * DiagnosisPicker's default Frequent tab.
+     */
+    codeFavorites(): Promise<Icd10Code[]> {
+      if (env.useMockApi) return mockApi.getCodeFavorites();
+      return request<Icd10Code[]>('/practice/icd10/favorites');
+    },
+
+    /** POST /practice/icd10/favorites/:code/pin */
+    pinCode(code: string): Promise<void> {
+      if (env.useMockApi) return mockApi.pinCode(code);
+      return request<void>(`/practice/icd10/favorites/${encodeURIComponent(code)}/pin`, { method: 'POST' });
+    },
+
+    /** DELETE /practice/icd10/favorites/:code/pin */
+    unpinCode(code: string): Promise<void> {
+      if (env.useMockApi) return mockApi.unpinCode(code);
+      return request<void>(`/practice/icd10/favorites/${encodeURIComponent(code)}/pin`, { method: 'DELETE' });
+    },
   },
 
   payments: {
@@ -626,6 +667,52 @@ export const api = {
     dependentNotes(dependentId: string): Promise<PatientVisitNote[]> {
       if (env.useMockApi) return mockApi.getDependentVisitNotes(dependentId);
       return request<PatientVisitNote[]>(`/me/dependents/${dependentId}/notes`);
+    },
+
+    /**
+     * GET /me/conditions — the signed-in patient's own problem list, read-only.
+     * Patients cannot write conditions (D-condition); the "looks wrong"
+     * affordance opens the support flow instead of mutating the chart.
+     */
+    conditions(): Promise<PatientCondition[]> {
+      if (env.useMockApi) return mockApi.getMyConditions();
+      return request<PatientCondition[]>('/me/conditions');
+    },
+
+    /** GET /me/dependents/:id/conditions — a proxy's view of a dependent's problem list. */
+    dependentConditions(dependentId: string): Promise<PatientCondition[]> {
+      if (env.useMockApi) return mockApi.getDependentConditions(dependentId);
+      return request<PatientCondition[]>(`/me/dependents/${dependentId}/conditions`);
+    },
+
+    /** GET /me/symptoms — the signed-in patient's own symptom log. */
+    symptoms(): Promise<SymptomLog[]> {
+      if (env.useMockApi) return mockApi.getMySymptoms();
+      return request<SymptomLog[]>('/me/symptoms');
+    },
+
+    /**
+     * POST /me/symptoms — `suggestedCode` is looked up here from the bundled
+     * catalog (never asked of the patient) so the server can validate it
+     * against icd10_codes without the client needing to know codes exist.
+     */
+    logSymptom(input: SymptomLogInput): Promise<SymptomLog> {
+      const suggestedCode = findSymptomEntry(input.symptomKey)?.suggestedCode;
+      const body = { ...input, suggestedCode };
+      if (env.useMockApi) return mockApi.logSymptom(body);
+      return request<SymptomLog>('/me/symptoms', { method: 'POST', body });
+    },
+
+    /** PATCH /me/symptoms/:id — severity, notes, resolvedAt only. */
+    updateSymptom(id: string, input: SymptomLogUpdate): Promise<SymptomLog> {
+      if (env.useMockApi) return mockApi.updateSymptom(id, input);
+      return request<SymptomLog>(`/me/symptoms/${id}`, { method: 'PATCH', body: input });
+    },
+
+    /** DELETE /me/symptoms/:id — the patient's own log entry. */
+    removeSymptom(id: string): Promise<void> {
+      if (env.useMockApi) return mockApi.removeSymptom(id);
+      return request<void>(`/me/symptoms/${id}`, { method: 'DELETE' });
     },
 
     /** GET /me/settings — returns defaults before the first save. */
@@ -852,6 +939,40 @@ export const api = {
     },
   },
 
+  /**
+   * Patient problem list — provider-authored, patient-read-only (see
+   * api.me.conditions). GET/POST are scoped by patientId (roster id); PATCH
+   * targets the condition itself and cannot change its code.
+   */
+  conditions: {
+    /** GET /practice/patients/:patientId/conditions */
+    list(patientId: string): Promise<PatientCondition[]> {
+      if (env.useMockApi) return mockApi.getConditions(patientId);
+      return request<PatientCondition[]>(`/practice/patients/${patientId}/conditions`);
+    },
+
+    /** POST /practice/patients/:patientId/conditions */
+    add(patientId: string, input: PatientConditionInput): Promise<PatientCondition> {
+      if (env.useMockApi) return mockApi.addCondition(patientId, input);
+      return request<PatientCondition>(`/practice/patients/${patientId}/conditions`, { method: 'POST', body: input });
+    },
+
+    /** PATCH /practice/conditions/:id */
+    update(id: string, input: PatientConditionUpdate): Promise<PatientCondition> {
+      if (env.useMockApi) return mockApi.updateCondition(id, input);
+      return request<PatientCondition>(`/practice/conditions/${id}`, { method: 'PATCH', body: input });
+    },
+
+    /**
+     * GET /practice/patients/:patientId/symptoms — every symptom log tied to
+     * this patient, feeding the DiagnosisPicker's "For this patient" band.
+     */
+    patientSymptoms(patientId: string): Promise<SymptomLog[]> {
+      if (env.useMockApi) return mockApi.getPatientSymptoms(patientId);
+      return request<SymptomLog[]>(`/practice/patients/${patientId}/symptoms`);
+    },
+  },
+
   reviews: {
     /** GET /reviews?subject= — published reviews (moderated by the admin console). */
     list(subject?: string): Promise<Review[]> {
@@ -922,6 +1043,21 @@ export const api = {
     list(): Promise<Currency[]> {
       if (env.useMockApi) return mockApi.getCurrencies();
       return request<Currency[]>('/currencies');
+    },
+  },
+
+  reference: {
+    /** GET /reference/icd10?q= — server-side long-tail search. Local subset
+     *  search happens in services/icd10 and never reaches this. */
+    searchIcd10(q: string, limit = 25): Promise<Icd10Code[]> {
+      if (env.useMockApi) return mockApi.searchIcd10(q, limit);
+      return request<Icd10Code[]>(`/reference/icd10?q=${encodeURIComponent(q)}&limit=${limit}`);
+    },
+
+    /** GET /reference/icd10/:code */
+    getIcd10(code: string): Promise<Icd10Code | null> {
+      if (env.useMockApi) return mockApi.getIcd10(code);
+      return request<Icd10Code | null>(`/reference/icd10/${encodeURIComponent(code)}`);
     },
   },
 

@@ -1,4 +1,4 @@
-import type { ChatMessage } from '../../api/types';
+import type { ChatMessage, PickedFile } from '../../api/types';
 
 /**
  * What the server's anti-disintermediation filter substitutes for contact
@@ -19,6 +19,9 @@ export interface ChatService {
 
   /** Send a message; resolves with the persisted message. */
   sendMessage(conversationId: string, text: string): Promise<ChatMessage>;
+
+  /** Send a picked photo/document as an attachment; resolves with the persisted message. */
+  sendAttachment(conversationId: string, file: PickedFile, kind: 'image' | 'file'): Promise<ChatMessage>;
 
   /**
    * Subscribe to incoming messages for a conversation.

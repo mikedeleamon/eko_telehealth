@@ -10,6 +10,7 @@ import { Colors } from '../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../theme';
 import { api } from '../../api';
 import { useTranslation } from '../../i18n/useTranslation';
+import EkoButton from '../../components/common/EkoButton';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -119,9 +120,13 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
           ))}
         </View>
 
-        <TouchableOpacity style={styles.btn} onPress={handleVerify} disabled={loading} activeOpacity={0.85}>
-          <Text style={styles.btnText}>{loading ? t('auth.verifying') : t('auth.verifyCta')}</Text>
-        </TouchableOpacity>
+        <EkoButton
+          title={t('auth.verifyCta')}
+          onPress={handleVerify}
+          loading={loading}
+          disabled={loading}
+          style={styles.btn}
+        />
 
         <TouchableOpacity style={styles.resendRow} onPress={handleResend}>
           <Text style={styles.resendText}>{t('auth.didntReceive')}</Text>
@@ -159,12 +164,10 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   otpBoxFilled: { borderColor: Colors.primary, backgroundColor: Colors.primaryFaded },
 
   btn: {
-    backgroundColor: Colors.primary, borderRadius: 32, height: 56,
-    alignItems: 'center', justifyContent: 'center', width: '100%',
+    height: 56, width: '100%',
     marginBottom: 20, shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
   },
-  btnText: { color: Colors.white, fontSize: 16, fontWeight: '700', letterSpacing: 1, fontFamily: 'Poppins_700Bold' },
 
   resendRow: { flexDirection: 'row' },
   resendText: { fontSize: 14, color: Colors.textGray, fontFamily: 'Poppins_400Regular' },

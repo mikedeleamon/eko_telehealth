@@ -10,6 +10,8 @@ import { useTheme, type ThemeColors } from '../../theme';
 import { api } from '../../api';
 import { sanitizePhoneInput, isValidPhone } from '../../utils/format';
 import { useTranslation } from '../../i18n/useTranslation';
+import EkoTextField from '../../components/common/EkoTextField';
+import EkoButton from '../../components/common/EkoButton';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -24,7 +26,6 @@ export default function VerifyMobileScreen({ navigation }: Props) {
   const [codeSent, setCodeSent] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
-  const [phoneFocused, setPhoneFocused] = useState(false);
   const inputs = useRef<(TextInput | null)[]>([]);
 
   const sendCode = async () => {
@@ -82,26 +83,25 @@ export default function VerifyMobileScreen({ navigation }: Props) {
         <Text style={styles.title}>{t('auth.mobileVerification')}</Text>
         <Text style={styles.sub}>{t('auth.mobileVerificationBody')}</Text>
 
-        <View style={[styles.field, phoneFocused && styles.fieldFocused]}>
-          <FontAwesome name="phone" size={18} color={phoneFocused ? Colors.primary : Colors.textGray} style={styles.fieldIcon} />
-          <TextInput
-            style={styles.fieldInput}
-            placeholder={t('auth.phonePlaceholder')}
-            placeholderTextColor={Colors.textGray}
-            accessibilityLabel={t('auth.phone')}
-            value={phone}
-            onChangeText={(val) => setPhone(sanitizePhoneInput(val))}
-            onFocus={() => setPhoneFocused(true)}
-            onBlur={() => setPhoneFocused(false)}
-            keyboardType="phone-pad"
-            editable={!codeSent}
-          />
-        </View>
+        <EkoTextField
+          pill
+          icon="phone"
+          placeholder={t('auth.phonePlaceholder')}
+          value={phone}
+          onChangeText={(val) => setPhone(sanitizePhoneInput(val))}
+          keyboardType="phone-pad"
+          editable={!codeSent}
+          containerStyle={styles.phoneField}
+        />
 
         {!codeSent ? (
-          <TouchableOpacity style={styles.btn} onPress={sendCode} disabled={loading} activeOpacity={0.85}>
-            <Text style={styles.btnText}>{loading ? t('auth.sending') : t('auth.sendCodeCta')}</Text>
-          </TouchableOpacity>
+          <EkoButton
+            title={t('auth.sendCodeCta')}
+            onPress={sendCode}
+            loading={loading}
+            disabled={loading}
+            style={styles.btn}
+          />
         ) : (
           <>
             <View style={styles.otpRow}>
@@ -114,12 +114,17 @@ export default function VerifyMobileScreen({ navigation }: Props) {
                   onChangeText={v => handleChange(v.slice(-1), i)}
                   keyboardType="number-pad"
                   maxLength={1}
+                  accessibilityLabel={`Digit ${i + 1} of 6`}
                 />
               ))}
             </View>
-            <TouchableOpacity style={styles.btn} onPress={verify} disabled={loading} activeOpacity={0.85}>
-              <Text style={styles.btnText}>{loading ? t('auth.verifying') : t('auth.verifyCta')}</Text>
-            </TouchableOpacity>
+            <EkoButton
+              title={t('auth.verifyCta')}
+              onPress={verify}
+              loading={loading}
+              disabled={loading}
+              style={styles.btn}
+            />
             <TouchableOpacity style={styles.resendRow} onPress={() => setCodeSent(false)}>
               <Text style={styles.resendLink}>{t('auth.resendCodeShort')}</Text>
             </TouchableOpacity>
@@ -148,15 +153,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     marginBottom: 28, lineHeight: 22, fontFamily: 'Poppins_400Regular',
   },
 
-  field: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.field, borderRadius: 32,
-    paddingHorizontal: 20, height: 56, marginBottom: 20, width: '100%',
-    borderWidth: 1.5, borderColor: 'transparent',
-  },
-  fieldFocused: { borderColor: Colors.primary, backgroundColor: Colors.surface },
-  fieldIcon: { marginRight: 12 },
-  fieldInput: { flex: 1, fontSize: 15, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },
+  phoneField: { width: '100%', marginBottom: 20 },
 
   otpRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 28 },
   otpBox: {
@@ -167,12 +164,10 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   otpBoxFilled: { borderColor: Colors.primary, backgroundColor: Colors.primaryFaded },
 
   btn: {
-    backgroundColor: Colors.primary, borderRadius: 32, height: 56,
-    alignItems: 'center', justifyContent: 'center', width: '100%',
+    height: 56, width: '100%',
     marginBottom: 16, shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
   },
-  btnText: { color: Colors.white, fontSize: 16, fontWeight: '700', letterSpacing: 1, fontFamily: 'Poppins_700Bold' },
 
   resendRow: { marginTop: 4 },
   resendLink: { fontSize: 14, color: Colors.primary, fontWeight: '700', fontFamily: 'Poppins_700Bold' },

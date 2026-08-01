@@ -11,6 +11,7 @@ import EkoButton from '../../../components/common/EkoButton';
 import { useReviews, useReviewSummary, useSubmitReview } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import type { Review, ReviewSummary } from '../../../api/types';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -212,7 +213,7 @@ function ReviewCard({ review }: { review: Review }) {
 
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
-  list: { padding: 16, paddingBottom: 24 },
+  list: { padding: 16, paddingBottom: TAB_BAR_SPACE },
   empty: { textAlign: 'center', color: Colors.textGray, marginTop: 24, fontSize: 14 },
 
   // Summary header

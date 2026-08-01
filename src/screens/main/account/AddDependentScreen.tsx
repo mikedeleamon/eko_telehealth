@@ -13,6 +13,7 @@ import { RELATIONSHIP_OPTIONS } from '../../../constants';
 import { isValidDate } from '../../../utils/format';
 import { useAddDependent, useDependents, useRemoveDependent } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -138,7 +139,7 @@ export default function AddDependentScreen({ navigation }: Props) {
 
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 20, paddingBottom: TAB_BAR_SPACE },
   info: { fontSize: 14, color: Colors.textMedium, lineHeight: 20, marginBottom: 20, backgroundColor: Colors.primaryFaded, borderRadius: 10, padding: 14 },
 
   list: { marginBottom: 24 },

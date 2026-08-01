@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput,
-  Modal, StatusBar, KeyboardAvoidingView, Platform,
+  View, Text, StyleSheet, TouchableOpacity,
+  StatusBar, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import SheetModal from '../../components/common/SheetModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../theme';
 import { api } from '../../api';
 import { useTranslation } from '../../i18n/useTranslation';
+import EkoTextField from '../../components/common/EkoTextField';
+import EkoButton from '../../components/common/EkoButton';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -21,7 +24,6 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
-  const [emailFocused, setEmailFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorEmail, setErrorEmail] = useState('');
   const [showError, setShowError] = useState(false);
@@ -61,31 +63,29 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
           <Text style={styles.subtitle}>{t('auth.forgotRegisteredEmail')}</Text>
 
           {/* Email field */}
-          <View style={[styles.field, emailFocused && styles.fieldFocused]}>
-            <FontAwesome name="envelope-o" size={17} color={emailFocused ? Colors.primary : Colors.textGray} style={styles.fieldIcon} />
-            <TextInput
-              style={styles.fieldInput}
-              placeholder={t('auth.emailAddress')}
-              placeholderTextColor={Colors.textGray}
-              accessibilityLabel={t('auth.emailAddress')}
-              value={email}
-              onChangeText={setEmail}
-              onFocus={() => setEmailFocused(true)}
-              onBlur={() => setEmailFocused(false)}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoFocus
-            />
-          </View>
+          <EkoTextField
+            pill
+            icon="envelope-o"
+            placeholder={t('auth.emailAddress')}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoFocus
+          />
 
-          <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={loading} activeOpacity={0.85}>
-            <Text style={styles.submitBtnText}>{loading ? t('auth.sending') : t('auth.sendResetLink')}</Text>
-          </TouchableOpacity>
+          <EkoButton
+            title={t('auth.sendResetLink')}
+            onPress={handleSubmit}
+            loading={loading}
+            disabled={loading}
+            style={styles.submitBtn}
+          />
         </View>
       </View>
 
       {/* Error Modal */}
-      <Modal visible={showError} transparent animationType="fade">
+      <SheetModal visible={showError} variant="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
             {/* Close button */}
@@ -93,9 +93,9 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
               <FontAwesome name="times" size={14} color={Colors.white} />
             </TouchableOpacity>
 
-            <Text style={styles.modalTitle}>{t('auth.emailNotFound')}</Text>
+            <Text style={styles.modalTitle}>{t('common.somethingWentWrong')}</Text>
             <Text style={styles.modalEmail}>{errorEmail}</Text>
-            <Text style={styles.modalSub}>{t('auth.useRegisteredEmail')}</Text>
+            <Text style={styles.modalSub}>{t('auth.checkConnectionTryAgain')}</Text>
 
             <TouchableOpacity
               style={styles.tryAgainBtn}
@@ -106,7 +106,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      </SheetModal>
     </KeyboardAvoidingView>
   );
 }
@@ -125,30 +125,15 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     marginBottom: 32, fontFamily: 'Poppins_400Regular',
   },
 
-  field: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.field, borderRadius: 32,
-    paddingHorizontal: 20, height: 56,
-    marginBottom: 24, borderWidth: 1.5, borderColor: 'transparent',
-  },
-  fieldFocused: { borderColor: Colors.primary, backgroundColor: Colors.surface },
-  fieldIcon: { marginRight: 12 },
-  fieldInput: { flex: 1, fontSize: 15, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },
-
   submitBtn: {
-    backgroundColor: Colors.primary, borderRadius: 32, height: 56,
-    alignItems: 'center', justifyContent: 'center',
+    height: 56,
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
-  },
-  submitBtnText: {
-    color: Colors.white, fontSize: 16, fontWeight: '700',
-    letterSpacing: 0.8, fontFamily: 'Poppins_700Bold',
   },
 
   // Error modal
   modalOverlay: {
-    flex: 1, backgroundColor: Colors.overlay,
+    flex: 1,
     alignItems: 'center', justifyContent: 'center', padding: 28,
   },
   modal: {

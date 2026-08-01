@@ -1,6 +1,6 @@
 import { StreamChat } from 'stream-chat';
 import { api } from '../../api';
-import type { ChatMessage } from '../../api/types';
+import type { ChatAttachment, ChatMessage, PickedFile } from '../../api/types';
 import { env } from '../../config/env';
 import { useAuthStore } from '../../store/authStore';
 import type { ChatService } from './types';
@@ -11,6 +11,7 @@ interface StreamMessageLike {
   text?: string;
   user?: { id?: string } | null;
   created_at?: string | Date;
+  attachments?: { type?: string; image_url?: string; asset_url?: string; title?: string; fallback?: string; mime_type?: string }[];
 }
 
 const formatTime = (value: string | Date | undefined): string =>
@@ -59,6 +60,16 @@ export class StreamChatService implements ChatService {
     return client.channel('messaging', conversationId, { members: [client.userID!] });
   }
 
+  /** This client only ever sends one attachment per message, so we only ever read the first. */
+  private toAttachment(msg: StreamMessageLike): ChatAttachment | undefined {
+    const a = msg.attachments?.[0];
+    if (!a) return undefined;
+    const isImage = a.type === 'image';
+    const url = isImage ? a.image_url : a.asset_url;
+    if (!url) return undefined;
+    return { url, name: a.title ?? a.fallback ?? 'Attachment', mimeType: a.mime_type ?? '', kind: isImage ? 'image' : 'file' };
+  }
+
   private toMessage(conversationId: string, msg: StreamMessageLike, myId: string | undefined): ChatMessage {
     return {
       id: msg.id,
@@ -66,6 +77,7 @@ export class StreamChatService implements ChatService {
       text: msg.text ?? '',
       fromMe: !!myId && msg.user?.id === myId,
       time: formatTime(msg.created_at),
+      attachment: this.toAttachment(msg),
     };
   }
 
@@ -82,6 +94,27 @@ export class StreamChatService implements ChatService {
     const client = await this.connect();
     const channel = this.channelFor(client, conversationId);
     const res = await channel.sendMessage({ text });
+    return this.toMessage(conversationId, res.message as unknown as StreamMessageLike, client.userID ?? undefined);
+  }
+
+  /**
+   * Uploads the file to Stream's own CDN (its `sendImage`/`sendFile` accept a
+   * plain RN `{uri, name, type}`-shaped source — here just the uri string
+   * plus name/contentType args, which the SDK wraps the same way), then sends
+   * a message whose only content is that attachment.
+   */
+  async sendAttachment(conversationId: string, file: PickedFile, kind: 'image' | 'file'): Promise<ChatMessage> {
+    const client = await this.connect();
+    const channel = this.channelFor(client, conversationId);
+    const uploaded =
+      kind === 'image'
+        ? await channel.sendImage(file.uri, file.name, file.mimeType)
+        : await channel.sendFile(file.uri, file.name, file.mimeType);
+    const attachment =
+      kind === 'image'
+        ? { type: 'image', image_url: uploaded.file, fallback: file.name }
+        : { type: 'file', asset_url: uploaded.file, title: file.name, mime_type: file.mimeType };
+    const res = await channel.sendMessage({ text: '', attachments: [attachment] });
     return this.toMessage(conversationId, res.message as unknown as StreamMessageLike, client.userID ?? undefined);
   }
 

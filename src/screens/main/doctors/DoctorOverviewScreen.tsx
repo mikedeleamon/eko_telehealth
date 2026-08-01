@@ -13,6 +13,7 @@ import { useDoctorAvailabilitySlots } from '../../../hooks/queries';
 import { useJoinableVisit } from '../../../hooks/useJoinableVisit';
 import { useTranslation } from '../../../i18n/useTranslation';
 import type { AvailabilitySlot } from '../../../api/types';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -29,6 +30,11 @@ function toISODate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/** "1.2K" past 1000, else the plain number — matches how big counts read elsewhere in the app. */
+function formatPatientCount(count: number): string {
+  return count >= 1000 ? `${(count / 1000).toFixed(count % 1000 === 0 ? 0 : 1)}K` : String(count);
+}
+
 const VISIT_TYPES = ['Home Visit', 'Clinic Visit', 'Video Visit'];
 
 export default function DoctorOverviewScreen({ navigation, route }: Props) {
@@ -39,6 +45,7 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
   const doctor = route.params?.doctor ?? {
     name: 'Dr. Amara Okafor', specialty: 'Therapist, Primary care doctor',
     rating: 4.5, reviews: 79, location: 'Victoria Island, Lagos', fee: '₦15,000', available: true, avatar: null,
+    patientCount: 0, yearsExperience: 0,
   };
   // The open visit a call from this profile would belong to, if any.
   const joinableVisit = useJoinableVisit({ doctorId: route.params?.doctor?.id });
@@ -140,9 +147,12 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
             style={{ flexDirection: 'row', alignItems: 'center' }}
             onPress={() => navigation.navigate('Reviews', { doctor })}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('doctors.ratingStat')}
           >
             <FontAwesome name="star" size={18} color="#F5A623" style={{ marginLeft: 8 }} />
             <Text style={styles.ratingText}>{doctor.rating}</Text>
+            <FontAwesome name="chevron-right" size={12} color={Colors.textGray} style={{ marginLeft: 4 }} />
           </TouchableOpacity>
         </View>
 
@@ -161,11 +171,11 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
             <View style={styles.statsRow}>
               <View style={[styles.statCard, { backgroundColor: Colors.accent }]}>
                 <Text style={styles.statLabel}>{t('doctors.patient')}</Text>
-                <Text style={styles.statValue}>10K</Text>
+                <Text style={styles.statValue}>{formatPatientCount(doctor.patientCount ?? 0)}</Text>
               </View>
               <View style={[styles.statCard, { backgroundColor: Colors.primary }]}>
                 <Text style={styles.statLabel}>{t('doctors.experience')}</Text>
-                <Text style={styles.statValue}>3 Years</Text>
+                <Text style={styles.statValue}>{t('doctors.yearsValue', { count: doctor.yearsExperience ?? 0 })}</Text>
               </View>
               <TouchableOpacity
                 style={[styles.statCard, { backgroundColor: '#00CAAE' }]}
@@ -198,6 +208,9 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
                       setSelectedDay(i);
                       setSelectedSlot(null); // slots are date-specific — a prior pick from another day is no longer valid
                     }}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: selectedDay === i }}
+                    accessibilityLabel={`${item.day} ${item.date}`}
                   >
                     <Text style={[styles.dayName, selectedDay === i && styles.dayActiveText]}>{item.day}</Text>
                     <Text style={[styles.dayNum, selectedDay === i && styles.dayActiveText]}>{item.date}</Text>
@@ -216,6 +229,8 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
                     style={[styles.visitBtn, active && styles.visitBtnActive]}
                     onPress={() => setVisitType(v)}
                     activeOpacity={0.85}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
                   >
                     <Text style={[styles.visitText, active && styles.visitTextActive]}>
                       {t(`options.appointmentType.${v}`).replace(' ', '\n')}
@@ -240,6 +255,9 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
                       style={[styles.slot, active && styles.slotActive]}
                       onPress={() => setSelectedSlot(slot)}
                       activeOpacity={0.85}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={slot.label}
                     >
                       <FontAwesome name="clock-o" size={13} color={active ? Colors.white : Colors.textGray} />
                       <Text style={[styles.slotText, active && styles.slotTextActive]}>  {slot.label}</Text>
@@ -253,6 +271,9 @@ export default function DoctorOverviewScreen({ navigation, route }: Props) {
               style={[styles.bookBtn, !selectedSlot && styles.bookBtnDisabled]}
               activeOpacity={0.9}
               disabled={!selectedSlot}
+              accessibilityRole="button"
+              accessibilityLabel={t('doctors.makeAppointment')}
+              accessibilityState={{ disabled: !selectedSlot }}
               onPress={() =>
                 selectedSlot &&
                 navigation.navigate('CreateAppointment', {
@@ -314,7 +335,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   },
 
   body: { flex: 1 },
-  bodyContent: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
+  bodyContent: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: TAB_BAR_SPACE },
 
   nameRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   name: { fontSize: 26, fontWeight: '800', color: Colors.textDark, flexShrink: 1, fontFamily: 'Poppins_700Bold' },

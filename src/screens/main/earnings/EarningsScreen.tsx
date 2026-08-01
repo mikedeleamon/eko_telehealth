@@ -15,6 +15,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { formatMoney } from '../../../utils/format';
 import type { EarningItem, RevenueGranularity } from '../../../api/types';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -340,7 +341,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   cashOutBtnDisabled: { opacity: 0.5 },
   cashOutText: { fontSize: 14, fontWeight: '700', color: Colors.primary, fontFamily: 'Poppins_700Bold' },
 
-  list: { padding: 16, paddingBottom: 24, flexGrow: 1 },
+  list: { padding: 16, paddingBottom: TAB_BAR_SPACE, flexGrow: 1 },
 
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
   statCard: {

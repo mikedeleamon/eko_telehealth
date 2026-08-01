@@ -13,9 +13,12 @@ import {
   MOCK_EARNINGS,
   MOCK_MEDICAL_NOTES,
   MOCK_NOTIFICATIONS,
+  MOCK_PATIENT_CONDITIONS,
   MOCK_PATIENTS,
   MOCK_PRESCRIPTIONS,
+  MOCK_SYMPTOM_LOGS,
 } from '../../constants';
+import { ICD10_SUBSET } from '../../constants/icd10';
 import type {
   Appointment,
   AppNotification,
@@ -65,7 +68,14 @@ import type {
   PharmacyInput,
   PharmacyDirectoryEntry,
   GovIdStatus,
+  Icd10Code,
+  PatientCondition,
+  PatientConditionInput,
+  PatientConditionUpdate,
   PickedFile,
+  SymptomLog,
+  SymptomLogInput,
+  SymptomLogUpdate,
   ProviderState,
   Review,
   ReviewSummary,
@@ -107,6 +117,10 @@ let mockSpokenLanguages: string[] = ['English'];
 let mockPreferredCurrency = 'NGN';
 /** Login 2FA opt-in, editable via updateProfile — toggle it in Settings, then sign out and back in to see the code step. */
 let mockTwoFactorEnabled = false;
+/** The mock user's own profile photo, editable via updateAvatar — a local file uri (no R2 in mock mode). */
+let mockAvatar: string | null = null;
+/** The mock user's own phone number, editable via updateProfile. */
+let mockPhone: string | null = null;
 /** The mock doctor's recurring weekly working hours (scheduling foundation), editable via the Availability screen. Mon-Fri 9-5, matching the real backend's day-one backfill default. */
 let mockDoctorAvailability: AvailabilityBlock[] = [1, 2, 3, 4, 5].map((weekday) => ({
   id: `avail-${weekday}`,
@@ -220,6 +234,45 @@ const mockCallInvites: CallInvite[] = [
   },
 ];
 const mockMedicalNotes: MedicalNote[] = [...(MOCK_MEDICAL_NOTES as MedicalNote[])];
+const mockPatientConditions: PatientCondition[] = [...(MOCK_PATIENT_CONDITIONS as PatientCondition[])];
+const mockSymptomLogs: SymptomLog[] = [...(MOCK_SYMPTOM_LOGS as SymptomLog[])];
+
+function toPublicIcd10(entry: (typeof ICD10_SUBSET)[number]): Icd10Code {
+  const { code, description, chapter, category, isBillable } = entry;
+  return { code, description, chapter, category, isBillable };
+}
+
+/** Per-doctor ICD-10 shortlist (mock session is always doc-1). Seeded with a
+ *  few realistic entries so the Frequent tab isn't empty on first run. */
+interface MockCodeFavorite {
+  code: string;
+  useCount: number;
+  lastUsedAt: string;
+  pinned: boolean;
+}
+const mockCodeFavorites: MockCodeFavorite[] = [
+  { code: 'J06.9', useCount: 14, lastUsedAt: '2026-07-24T09:00:00.000Z', pinned: true },
+  { code: 'I10', useCount: 9, lastUsedAt: '2026-07-20T09:00:00.000Z', pinned: false },
+  { code: 'E11.9', useCount: 6, lastUsedAt: '2026-07-10T09:00:00.000Z', pinned: false },
+];
+
+/** Mirrors the real favorites bump on note finalize (spec §5.1). */
+function bumpCodeFavorite(code: string): void {
+  const existing = mockCodeFavorites.find((f) => f.code === code);
+  if (existing) {
+    existing.useCount += 1;
+    existing.lastUsedAt = new Date().toISOString();
+  } else {
+    mockCodeFavorites.push({ code, useCount: 1, lastUsedAt: new Date().toISOString(), pinned: false });
+  }
+}
+
+function bumpFavoritesForNote(note: Pick<MedicalNote, 'status' | 'primaryDiagnosis' | 'secondaryDiagnoses'>): void {
+  if (note.status !== 'final') return;
+  for (const dx of [note.primaryDiagnosis, ...(note.secondaryDiagnoses ?? [])]) {
+    if (dx?.code) bumpCodeFavorite(dx.code);
+  }
+}
 
 /**
  * Project full mock notes down to the patient-facing summary shape and sort
@@ -436,10 +489,12 @@ function buildMockSession(normalizedEmail: string): AuthSession {
       firstName: account.firstName,
       lastName: account.lastName,
       email: normalizedEmail || 'martin@ekotelehealth.com',
+      phone: mockPhone,
       accountType: account.accountType,
       spokenLanguages: mockSpokenLanguages,
       preferredCurrency: mockPreferredCurrency,
       twoFactorEnabled: mockTwoFactorEnabled,
+      avatar: mockAvatar,
     },
     accessToken: 'mock-access-token',
     refreshToken: 'mock-refresh-token',
@@ -654,6 +709,7 @@ export const mockApi = {
       createdAt: new Date().toISOString(),
     };
     mockMedicalNotes.push(note);
+    bumpFavoritesForNote(note);
     return note;
   },
 
@@ -667,6 +723,7 @@ export const mockApi = {
     if (!note) throw new Error('Record not found.');
     if ((note.status ?? 'final') === 'final') throw new Error('A finalized record cannot be edited.');
     Object.assign(note, input, { status: input.status ?? 'final', updatedAt: new Date().toISOString() });
+    bumpFavoritesForNote(note);
     return { ...note };
   },
 
@@ -688,6 +745,118 @@ export const mockApi = {
     };
     note.amendments = [...(note.amendments ?? []), amendment];
     return { ...note };
+  },
+
+  // ── Conditions (problem list) ─────────────────────────────────────────────
+
+  /** GET /practice/patients/:patientId/conditions */
+  async getConditions(patientId: string): Promise<PatientCondition[]> {
+    await delay();
+    return mockPatientConditions
+      .filter((c) => c.patientId === patientId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+
+  /**
+   * POST /practice/patients/:patientId/conditions — idempotent on (patient,
+   * code): mirrors the real backend, returning the existing active condition
+   * rather than duplicating it.
+   */
+  async addCondition(patientId: string, input: PatientConditionInput): Promise<PatientCondition> {
+    await delay(400);
+    const existing = input.diagnosis.code
+      ? mockPatientConditions.find(
+          (c) => c.patientId === patientId && !c.dependentId && c.diagnosis.code === input.diagnosis.code && c.clinicalStatus === 'active',
+        )
+      : undefined;
+    if (existing) return { ...existing };
+
+    const condition: PatientCondition = {
+      id: `cond-${Date.now()}`,
+      patientId,
+      diagnosis: input.diagnosis,
+      clinicalStatus: input.clinicalStatus ?? 'active',
+      onsetDate: input.onsetDate,
+      sourceNoteId: input.sourceNoteId,
+      addedByName: 'Dr. Sarah Johnson',
+      notes: input.notes,
+      createdAt: new Date().toISOString(),
+    };
+    mockPatientConditions.push(condition);
+    return condition;
+  },
+
+  /** PATCH /practice/conditions/:id — cannot change the code (D-condition). */
+  async updateCondition(id: string, input: PatientConditionUpdate): Promise<PatientCondition> {
+    await delay(300);
+    const condition = mockPatientConditions.find((c) => c.id === id);
+    if (!condition) throw new Error('Condition not found.');
+    Object.assign(condition, input, { updatedAt: new Date().toISOString() });
+    return { ...condition };
+  },
+
+  /** GET /me/conditions — the signed-in mock patient (pat-1)'s own problem list. */
+  async getMyConditions(): Promise<PatientCondition[]> {
+    await delay();
+    return mockPatientConditions
+      .filter((c) => c.patientId === 'pat-1' && !c.dependentId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+
+  /** GET /me/dependents/:id/conditions — a proxy's view of a dependent's problem list. */
+  async getDependentConditions(dependentId: string): Promise<PatientCondition[]> {
+    await delay();
+    return mockPatientConditions
+      .filter((c) => c.patientId === 'pat-1' && c.dependentId === dependentId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+
+  // ── Symptom logs ───────────────────────────────────────────────────────────
+
+  /** GET /me/symptoms — the signed-in mock patient (pat-1)'s own symptom log. */
+  async getMySymptoms(): Promise<SymptomLog[]> {
+    await delay();
+    return [...mockSymptomLogs].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+
+  /** POST /me/symptoms — suggestedCode already resolved by the api layer. */
+  async logSymptom(input: SymptomLogInput & { suggestedCode?: string }): Promise<SymptomLog> {
+    await delay(400);
+    const log: SymptomLog = {
+      id: `symlog-${Date.now()}`,
+      symptomKey: input.symptomKey,
+      suggestedCode: input.suggestedCode,
+      severity: input.severity as SymptomLog['severity'],
+      startedAt: input.startedAt,
+      appointmentId: input.appointmentId,
+      notes: input.notes,
+      createdAt: new Date().toISOString(),
+    };
+    mockSymptomLogs.push(log);
+    return log;
+  },
+
+  /** PATCH /me/symptoms/:id — severity, notes, resolvedAt only. */
+  async updateSymptom(id: string, input: SymptomLogUpdate): Promise<SymptomLog> {
+    await delay(300);
+    const log = mockSymptomLogs.find((l) => l.id === id);
+    if (!log) throw new Error('Symptom log not found.');
+    Object.assign(log, input);
+    return { ...log };
+  },
+
+  /** DELETE /me/symptoms/:id */
+  async removeSymptom(id: string): Promise<void> {
+    await delay(200);
+    const i = mockSymptomLogs.findIndex((l) => l.id === id);
+    if (i !== -1) mockSymptomLogs.splice(i, 1);
+  },
+
+  /** GET /practice/patients/:patientId/symptoms — only pat-1 has seed data in the mock world. */
+  async getPatientSymptoms(patientId: string): Promise<SymptomLog[]> {
+    await delay();
+    if (patientId !== 'pat-1') return [];
+    return [...mockSymptomLogs].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
   async getPrescriptions(patientId: string): Promise<Prescription[]> {
@@ -1322,20 +1491,26 @@ export const mockApi = {
     if (invite) invite.status = 'revoked';
   },
 
-  async updateProfile(input: { firstName?: string; lastName?: string; phone?: string; spokenLanguages?: string[]; preferredCurrency?: string; twoFactorEnabled?: boolean }): Promise<User> {
+  async updateProfile(input: { firstName?: string; lastName?: string; phone?: string; spokenLanguages?: string[]; preferredCurrency?: string; twoFactorEnabled?: boolean; avatar?: string }): Promise<User> {
     await delay(500);
     if (input.spokenLanguages !== undefined) mockSpokenLanguages = input.spokenLanguages;
     if (input.preferredCurrency) mockPreferredCurrency = input.preferredCurrency;
     if (input.twoFactorEnabled !== undefined) mockTwoFactorEnabled = input.twoFactorEnabled;
+    if (input.phone) mockPhone = input.phone;
+    // Mock mode has no R2 — the picked file's local uri IS the avatar, which
+    // <Image source={{uri}}> renders just fine on-device.
+    if (input.avatar) mockAvatar = input.avatar;
     return {
       id: 'pat-1',
       firstName: input.firstName ?? 'Martin',
       lastName: input.lastName ?? 'Doe',
       email: 'martin@ekotelehealth.com',
+      phone: mockPhone,
       accountType: 'Patient',
       spokenLanguages: mockSpokenLanguages,
       preferredCurrency: mockPreferredCurrency,
       twoFactorEnabled: mockTwoFactorEnabled,
+      avatar: mockAvatar,
     };
   },
 
@@ -1478,6 +1653,57 @@ export const mockApi = {
     }, 2500);
 
     return message;
+  },
+
+  async searchIcd10(q: string, limit = 25): Promise<Icd10Code[]> {
+    await delay(150);
+    const query = q.trim().toLowerCase();
+    if (!query) return [];
+    return ICD10_SUBSET.filter(
+      (c) =>
+        c.code.toLowerCase().includes(query) ||
+        c.description.toLowerCase().includes(query) ||
+        c.synonyms.toLowerCase().includes(query),
+    )
+      .slice(0, limit)
+      .map(toPublicIcd10);
+  },
+
+  async getIcd10(code: string): Promise<Icd10Code | null> {
+    await delay(100);
+    const found = ICD10_SUBSET.find((c) => c.code === code);
+    return found ? toPublicIcd10(found) : null;
+  },
+
+  /** Ranked pinned-first, then recency-decayed frequency — mirrors the real
+   *  backend's `use_count * exp(-days_since_last_use / 60)`. */
+  async getCodeFavorites(): Promise<Icd10Code[]> {
+    await delay(200);
+    const now = Date.now();
+    const daysSince = (iso: string) => (now - new Date(iso).getTime()) / 86_400_000;
+    const ranked = [...mockCodeFavorites].sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      const scoreA = a.useCount * Math.exp(-daysSince(a.lastUsedAt) / 60);
+      const scoreB = b.useCount * Math.exp(-daysSince(b.lastUsedAt) / 60);
+      return scoreB - scoreA;
+    });
+    return ranked
+      .map((f) => ICD10_SUBSET.find((c) => c.code === f.code))
+      .filter((c): c is (typeof ICD10_SUBSET)[number] => !!c)
+      .map(toPublicIcd10);
+  },
+
+  async pinCode(code: string): Promise<void> {
+    await delay(150);
+    const existing = mockCodeFavorites.find((f) => f.code === code);
+    if (existing) existing.pinned = true;
+    else mockCodeFavorites.push({ code, useCount: 0, lastUsedAt: new Date().toISOString(), pinned: true });
+  },
+
+  async unpinCode(code: string): Promise<void> {
+    await delay(150);
+    const existing = mockCodeFavorites.find((f) => f.code === code);
+    if (existing) existing.pinned = false;
   },
 
   async getChatToken(): Promise<ChatTokenGrant> {

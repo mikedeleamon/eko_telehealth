@@ -8,6 +8,7 @@ import { useMyPayments } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { formatMoney } from '../../../utils/format';
 import type { PaymentReceipt } from '../../../api/types';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -114,7 +115,7 @@ export default function PaymentHistoryScreen({ navigation }: Props) {
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
   loader: { marginTop: 60 },
-  list: { padding: 16, paddingBottom: 24, flexGrow: 1 },
+  list: { padding: 16, paddingBottom: TAB_BAR_SPACE, flexGrow: 1 },
 
   summaryCard: {
     flexDirection: 'row', backgroundColor: Colors.surface, borderRadius: 16,

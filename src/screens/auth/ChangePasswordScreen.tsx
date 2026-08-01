@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput,
+  View, Text, StyleSheet, TouchableOpacity,
   StatusBar, KeyboardAvoidingView, Platform, ScrollView, Alert,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
@@ -12,6 +12,8 @@ import { useTheme, type ThemeColors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
 import { useTranslation } from '../../i18n/useTranslation';
+import EkoTextField from '../../components/common/EkoTextField';
+import EkoButton from '../../components/common/EkoButton';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -33,12 +35,6 @@ export default function ChangePasswordScreen({ navigation, route }: Props) {
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [currentFocused, setCurrentFocused] = useState(false);
-  const [newFocused, setNewFocused] = useState(false);
-  const [confirmFocused, setConfirmFocused] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handle = async () => {
@@ -95,63 +91,43 @@ export default function ChangePasswordScreen({ navigation, route }: Props) {
           {/* Current password — only when already signed in; the reset flows
               prove identity with the code instead. */}
           {!isReset && (
-            <View style={[styles.field, currentFocused && styles.fieldFocused]}>
-              <FontAwesome name="lock" size={18} color={currentFocused ? Colors.primary : Colors.textGray} style={styles.fieldIcon} />
-              <TextInput
-                style={styles.fieldInput}
-                placeholder={t('auth.currentPasswordPlaceholder')}
-                placeholderTextColor={Colors.textGray}
-                value={currentPass}
-                onChangeText={setCurrentPass}
-                onFocus={() => setCurrentFocused(true)}
-                onBlur={() => setCurrentFocused(false)}
-                secureTextEntry={!showCurrent}
-              />
-              <TouchableOpacity onPress={() => setShowCurrent(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <FontAwesome name={showCurrent ? 'eye' : 'eye-slash'} size={18} color={Colors.textGray} />
-              </TouchableOpacity>
-            </View>
+            <EkoTextField
+              pill
+              isPassword
+              icon="lock"
+              placeholder={t('auth.currentPasswordPlaceholder')}
+              value={currentPass}
+              onChangeText={setCurrentPass}
+            />
           )}
 
           {/* New password */}
-          <View style={[styles.field, newFocused && styles.fieldFocused]}>
-            <FontAwesome name="lock" size={18} color={newFocused ? Colors.primary : Colors.textGray} style={styles.fieldIcon} />
-            <TextInput
-              style={styles.fieldInput}
-              placeholder={t('auth.newPasswordPlaceholder')}
-              placeholderTextColor={Colors.textGray}
-              value={newPass}
-              onChangeText={setNewPass}
-              onFocus={() => setNewFocused(true)}
-              onBlur={() => setNewFocused(false)}
-              secureTextEntry={!showNew}
-            />
-            <TouchableOpacity onPress={() => setShowNew(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <FontAwesome name={showNew ? 'eye' : 'eye-slash'} size={18} color={Colors.textGray} />
-            </TouchableOpacity>
-          </View>
+          <EkoTextField
+            pill
+            isPassword
+            icon="lock"
+            placeholder={t('auth.newPasswordPlaceholder')}
+            value={newPass}
+            onChangeText={setNewPass}
+          />
 
           {/* Confirm password */}
-          <View style={[styles.field, confirmFocused && styles.fieldFocused]}>
-            <FontAwesome name="lock" size={18} color={confirmFocused ? Colors.primary : Colors.textGray} style={styles.fieldIcon} />
-            <TextInput
-              style={styles.fieldInput}
-              placeholder={t('auth.confirmPasswordPlaceholder')}
-              placeholderTextColor={Colors.textGray}
-              value={confirmPass}
-              onChangeText={setConfirmPass}
-              onFocus={() => setConfirmFocused(true)}
-              onBlur={() => setConfirmFocused(false)}
-              secureTextEntry={!showConfirm}
-            />
-            <TouchableOpacity onPress={() => setShowConfirm(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <FontAwesome name={showConfirm ? 'eye' : 'eye-slash'} size={18} color={Colors.textGray} />
-            </TouchableOpacity>
-          </View>
+          <EkoTextField
+            pill
+            isPassword
+            icon="lock"
+            placeholder={t('auth.confirmPasswordPlaceholder')}
+            value={confirmPass}
+            onChangeText={setConfirmPass}
+          />
 
-          <TouchableOpacity style={styles.submitBtn} onPress={handle} disabled={loading} activeOpacity={0.85}>
-            <Text style={styles.submitBtnText}>{loading ? t('auth.updating') : t('auth.changePasswordCta')}</Text>
-          </TouchableOpacity>
+          <EkoButton
+            title={t('auth.changePasswordCta')}
+            onPress={handle}
+            loading={loading}
+            disabled={loading}
+            style={styles.submitBtn}
+          />
 
           {/* Password rules card */}
           <View style={styles.rulesCard}>
@@ -187,25 +163,10 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
   },
 
-  field: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.field, borderRadius: 32,
-    paddingHorizontal: 20, height: 56, marginBottom: 16,
-    borderWidth: 1.5, borderColor: 'transparent',
-  },
-  fieldFocused: { borderColor: Colors.primary, backgroundColor: Colors.surface },
-  fieldIcon: { marginRight: 12 },
-  fieldInput: { flex: 1, fontSize: 15, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },
-
   submitBtn: {
-    backgroundColor: Colors.primary, borderRadius: 32, height: 56,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 28,
+    height: 56, marginBottom: 28,
     shadowColor: Colors.primary, shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
-  },
-  submitBtnText: {
-    color: Colors.white, fontSize: 15, fontWeight: '700',
-    letterSpacing: 0.8, fontFamily: 'Poppins_700Bold',
   },
 
   rulesCard: {

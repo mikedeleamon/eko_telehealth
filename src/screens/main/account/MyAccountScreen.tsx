@@ -11,6 +11,7 @@ import { useTheme, type ThemeColors } from '../../../theme';
 import { useAuth } from '../../../context/AuthContext';
 import Cross from '../../../components/common/Cross';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -19,9 +20,12 @@ interface Props {
 const MENU_ITEMS = [
   { icon: 'user', labelKey: 'account.editProfile', screen: 'EditProfile', color: '#5A5DED' },
   { icon: 'heartbeat', labelKey: 'account.patientOverview', screen: 'PatientOverview', color: '#F97653' },
-  { icon: 'medkit', labelKey: 'account.myHealth', screen: 'MyHealth', color: '#3FBE6E' },
+  { icon: 'heartbeat', labelKey: 'health.vitals', screen: 'Vitals', color: '#3FBE6E' },
   { icon: 'flask', labelKey: 'labs.title', screen: 'Labs', color: '#8E44AD' },
+  { icon: 'camera', labelKey: 'uploads.title', screen: 'ConditionUploads', color: '#FFA726' },
   { icon: 'file-text-o', labelKey: 'visitNotes.title', screen: 'VisitNotes', color: '#5C6BC0' },
+  { icon: 'list-alt', labelKey: 'conditions.title', screen: 'MyConditions', color: '#EF5350' },
+  { icon: 'stethoscope', labelKey: 'symptoms.title', screen: 'SymptomLog', color: '#26A69A' },
   { icon: 'shield', labelKey: 'account.insurance', screen: 'Insurance', color: '#00CAAE' },
   { icon: 'id-card', labelKey: 'account.verifyIdentity', screen: 'VerifyIdentity', color: '#009688' },
   { icon: 'medkit', labelKey: 'account.preferredPharmacy', screen: 'PreferredPharmacy', color: '#FF7043' },
@@ -76,9 +80,9 @@ export default function MyAccountScreen({ navigation }: Props) {
           </View>
           <View style={styles.userInfo}>
             <Text style={styles.userName}>
-              {user ? `${user.firstName} ${user.lastName}` : 'John Doe'}
+              {user ? `${user.firstName} ${user.lastName}` : t('account.defaultName')}
             </Text>
-            <Text style={styles.userEmail}>{user?.email ?? 'patient@ekotelehealth.com'}</Text>
+            <Text style={styles.userEmail}>{user?.email ?? t('account.defaultEmail')}</Text>
             <View style={styles.memberBadge}>
               <FontAwesome name={user?.accountType === 'Doctor' ? 'user-md' : 'check-circle'} size={11} color={Colors.green} />
               <Text style={styles.memberText}>  {user?.accountType === 'Doctor' ? t('account.doctorAccount') : t('account.patientAccount')}</Text>
@@ -154,7 +158,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
 
-  content: { padding: 16 },
+  content: { padding: 16, paddingBottom: TAB_BAR_SPACE },
 
   menuItem: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface,

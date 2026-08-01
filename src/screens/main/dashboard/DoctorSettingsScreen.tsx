@@ -11,6 +11,7 @@ import { useTheme, type ThemeColors } from '../../../theme';
 import { useAuth } from '../../../context/AuthContext';
 import Cross from '../../../components/common/Cross';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -134,7 +135,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
     width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center', justifyContent: 'center',
   },
-  content: { padding: 16 },
+  content: { paddingBottom: TAB_BAR_SPACE, padding: 16 },
   menuItem: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface,
     borderRadius: 18, padding: 14, marginBottom: 8,

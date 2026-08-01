@@ -84,6 +84,8 @@ export const MOCK_DOCTORS = [
     avatar: null,
     canProvideInHome: true,
     spokenLanguages: ['English', 'Igbo'],
+    patientCount: 1240,
+    yearsExperience: 9,
   },
   {
     id: '2',
@@ -99,6 +101,8 @@ export const MOCK_DOCTORS = [
     avatar: null,
     canProvideInHome: false,
     spokenLanguages: ['English', 'Yoruba', 'Pidgin'],
+    patientCount: 860,
+    yearsExperience: 6,
   },
   {
     id: '3',
@@ -114,6 +118,8 @@ export const MOCK_DOCTORS = [
     avatar: null,
     canProvideInHome: false,
     spokenLanguages: ['English', 'Yoruba'],
+    patientCount: 3100,
+    yearsExperience: 14,
   },
   {
     id: '4',
@@ -129,6 +135,8 @@ export const MOCK_DOCTORS = [
     avatar: null,
     canProvideInHome: false,
     spokenLanguages: ['English'],
+    patientCount: 640,
+    yearsExperience: 18,
   },
   {
     id: '5',
@@ -144,6 +152,8 @@ export const MOCK_DOCTORS = [
     avatar: null,
     canProvideInHome: true,
     spokenLanguages: ['English', 'Hausa', 'Pidgin'],
+    patientCount: 4200,
+    yearsExperience: 11,
   },
 ];
 
@@ -326,9 +336,77 @@ export const MOCK_MEDICAL_NOTES = [
     subjective: "Two days of sore throat, fever to 38.6°C, and difficulty swallowing. No cough. Appetite reduced.",
     objective: 'Temp 38.4°C. Tonsils erythematous with exudate. Tender anterior cervical nodes. Rapid strep positive.',
     assessment: 'Streptococcal pharyngitis.',
-    primaryDiagnosis: 'Streptococcal pharyngitis',
+    primaryDiagnosis: { code: 'J02.0', description: 'Streptococcal pharyngitis', codeSystem: 'icd10cm', status: 'confirmed' },
     plan: 'Started amoxicillin liquid 250mg three times daily for 5 days. Rest, fluids, and paracetamol for fever. Return if not improving in 48 hours.',
     createdAt: '2026-07-22T11:25:00Z',
+  },
+];
+
+/**
+ * Seed problem-list entries (Phase 3). p1/p3 exercise the doctor-facing
+ * Conditions card; pat-1 exercises the patient-facing My Conditions screen,
+ * with one resolved entry to demo the "Show resolved" toggle.
+ */
+export const MOCK_PATIENT_CONDITIONS = [
+  {
+    id: 'cond-1', patientId: 'p1',
+    diagnosis: { code: 'I10', description: 'Essential (primary) hypertension', codeSystem: 'icd10cm' as const },
+    clinicalStatus: 'active' as const,
+    onsetDate: '2026-06-20',
+    sourceNoteId: 'note-3',
+    addedByName: 'Dr. Amara Okafor MD',
+    createdAt: '2026-06-20T10:20:00Z',
+  },
+  {
+    id: 'cond-2', patientId: 'p3',
+    diagnosis: { code: 'E11.65', description: 'Type 2 diabetes mellitus with hyperglycemia', label: 'Type 2 diabetes, worsening control', codeSystem: 'icd10cm' as const },
+    clinicalStatus: 'active' as const,
+    onsetDate: '2025-11-02',
+    sourceNoteId: 'note-4',
+    addedByName: 'Dr. Amara Okafor MD',
+    createdAt: '2026-06-12T15:00:00Z',
+  },
+  {
+    id: 'cond-3', patientId: 'pat-1',
+    diagnosis: { code: 'J30.9', description: 'Allergic rhinitis, unspecified', label: 'Seasonal allergic rhinitis', codeSystem: 'icd10cm' as const },
+    clinicalStatus: 'active' as const,
+    onsetDate: '2025-03-01',
+    sourceNoteId: 'note-6',
+    addedByName: 'Dr. Amara Okafor MD',
+    createdAt: '2026-07-04T10:20:00Z',
+  },
+  {
+    id: 'cond-4', patientId: 'pat-1',
+    diagnosis: { code: 'J20.9', description: 'Acute bronchitis, unspecified', codeSystem: 'icd10cm' as const },
+    clinicalStatus: 'resolved' as const,
+    onsetDate: '2025-12-10',
+    resolvedDate: '2026-01-05',
+    addedByName: 'Dr. Amara Okafor MD',
+    createdAt: '2025-12-10T09:00:00Z',
+  },
+];
+
+/**
+ * Seed symptom logs (Phase 4) for the signed-in mock patient (pat-1). The
+ * unresolved sore_throat entry is what demoes the DiagnosisPicker's "For this
+ * patient" candidates band — see suggestedCode on symptoms.sore_throat in
+ * src/constants/symptoms.ts.
+ */
+export const MOCK_SYMPTOM_LOGS = [
+  {
+    id: 'symlog-1', symptomKey: 'sore_throat', suggestedCode: 'R07.0',
+    severity: 3, startedAt: '2026-07-25', notes: 'Worse when swallowing.',
+    createdAt: '2026-07-25T18:30:00Z',
+  },
+  {
+    id: 'symlog-2', symptomKey: 'fatigue', suggestedCode: 'R53.83',
+    severity: 2, startedAt: '2026-07-20',
+    createdAt: '2026-07-20T08:15:00Z',
+  },
+  {
+    id: 'symlog-3', symptomKey: 'rash', suggestedCode: 'R21',
+    severity: 2, startedAt: '2026-06-01', resolvedAt: '2026-06-10T12:00:00Z',
+    createdAt: '2026-06-01T09:00:00Z',
   },
 ];
 
@@ -509,18 +587,4 @@ export const TIME_SLOTS = [
   '9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM',
   '11:00 AM', '11:30 AM', '2:00 PM', '2:30 PM',
   '3:00 PM', '3:30 PM', '4:00 PM', '4:30 PM',
-];
-
-export const MY_CHART_ITEMS = [
-  { id: '1', label: 'Appointments', icon: 'calendar' },
-  { id: '2', label: 'Health Summary', icon: 'heartbeat' },
-  { id: '3', label: 'Medications', icon: 'medkit' },
-  { id: '4', label: 'Messages', icon: 'envelope' },
-  { id: '5', label: 'Find Care', icon: 'search' },
-  { id: '6', label: 'Billing', icon: 'credit-card' },
-  { id: '7', label: 'Test Results', icon: 'flask' },
-  { id: '8', label: 'Todo', icon: 'check-square-o' },
-  // Patient uploads of a medical condition (SOW 1.6) — photos and documents
-  // their treating providers can see, distinct from a lab report.
-  { id: '9', label: 'My Uploads', icon: 'camera' },
 ];

@@ -12,6 +12,7 @@ import { useDoctors } from '../../../hooks/queries';
 import RatingStars from '../../../components/common/RatingStars';
 import Cross from '../../../components/common/Cross';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -159,7 +160,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   },
   recentText: { flex: 1, fontSize: 15, color: Colors.textDark, fontFamily: 'Poppins_400Regular' },
 
-  resultList: { padding: 16, paddingBottom: 24 },
+  resultList: { padding: 16, paddingBottom: TAB_BAR_SPACE },
   resultCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface,
     borderRadius: 18, padding: 14, marginBottom: 12,

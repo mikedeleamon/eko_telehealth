@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
-  Modal, KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
+import SheetModal from '../common/SheetModal';
 import { FontAwesome } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../theme';
@@ -11,7 +12,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../i18n/useTranslation';
 import { useMedicalNotes, usePracticeAppointments } from '../../hooks/queries';
 import { MONTH_NAMES } from '../../utils/format';
-import type { Appointment, MedicalNote, MedicalNoteInput, NoteAmendment, PatientSummary } from '../../api/types';
+import DiagnosisPicker from './DiagnosisPicker';
+import type { Appointment, CodedDiagnosis, MedicalNote, MedicalNoteInput, NoteAmendment, PatientSummary } from '../../api/types';
 
 /** "Jun 10, 2026 · 3:10 PM" from an ISO timestamp, without relying on Intl. */
 function formatAmendmentTime(iso: string): string {
@@ -88,8 +90,10 @@ export default function MedicalNotes({ patient, note, onSave, saving = false, on
     objective: note?.objective ?? '',
     plan: note?.plan ?? '',
   });
-  const [primaryDiagnosis, setPrimaryDiagnosis] = useState(note?.primaryDiagnosis ?? '');
-  const [secondaryDiagnoses, setSecondaryDiagnoses] = useState<string[]>(note?.secondaryDiagnoses ?? []);
+  const [primaryDiagnosis, setPrimaryDiagnosis] = useState<CodedDiagnosis | null>(note?.primaryDiagnosis ?? null);
+  const [secondaryDiagnoses, setSecondaryDiagnoses] = useState<CodedDiagnosis[]>(note?.secondaryDiagnoses ?? []);
+  const [pickerTarget, setPickerTarget] = useState<'primary' | 'secondary' | null>(null);
+  const [freeTextMode, setFreeTextMode] = useState(false);
 
   // Amendments trail (final records only).
   const [amendments, setAmendments] = useState<NoteAmendment[]>(note?.amendments ?? []);
@@ -132,16 +136,21 @@ export default function MedicalNotes({ patient, note, onSave, saving = false, on
   );
 
   const setTextSection = (key: TextKey, value: string) => setText((prev) => ({ ...prev, [key]: value }));
-  const setSecondary = (i: number, value: string) =>
-    setSecondaryDiagnoses((prev) => prev.map((d, idx) => (idx === i ? value : d)));
-  const addSecondary = () => setSecondaryDiagnoses((prev) => [...prev, '']);
   const removeSecondary = (i: number) => setSecondaryDiagnoses((prev) => prev.filter((_, idx) => idx !== i));
 
+  const closePicker = () => setPickerTarget(null);
+  const selectDiagnosis = (dx: CodedDiagnosis) => {
+    if (pickerTarget === 'primary') setPrimaryDiagnosis(dx);
+    else if (pickerTarget === 'secondary') setSecondaryDiagnoses((prev) => [...prev, dx]);
+    closePicker();
+  };
+
   // A visit must be linked; a draft needs at least a reason; finalizing also
-  // requires a primary diagnosis (the minimum for a real assessment).
+  // requires a primary diagnosis (D3: coding is optional, a diagnosis is not).
   const hasVisit = creating ? !!appointment : true;
   const canDraft = hasVisit && reason.trim().length > 0;
-  const canFinalize = canDraft && primaryDiagnosis.trim().length > 0;
+  const canFinalize = canDraft && !!primaryDiagnosis;
+  const uncodedCount = [primaryDiagnosis, ...secondaryDiagnoses].filter((d): d is CodedDiagnosis => !!d && !d.code).length;
 
   const pickAppointment = (a: Appointment) => {
     setAppointment(a);
@@ -157,9 +166,9 @@ export default function MedicalNotes({ patient, note, onSave, saving = false, on
     reason: reason.trim(),
     subjective: text.subjective.trim(),
     objective: text.objective.trim(),
-    assessment: primaryDiagnosis.trim(),
-    primaryDiagnosis: primaryDiagnosis.trim(),
-    secondaryDiagnoses: secondaryDiagnoses.map((d) => d.trim()).filter(Boolean),
+    assessment: primaryDiagnosis ? (primaryDiagnosis.label ?? primaryDiagnosis.description) : '',
+    primaryDiagnosis: primaryDiagnosis ?? undefined,
+    secondaryDiagnoses,
     plan: text.plan.trim(),
     status,
   });
@@ -211,12 +220,16 @@ export default function MedicalNotes({ patient, note, onSave, saving = false, on
         note!.primaryDiagnosis ? (
           <View style={styles.readCard}>
             <Text style={styles.dxLabel}>{t('patients.primaryDiagnosis')}</Text>
-            <Text style={styles.readText}>{note!.primaryDiagnosis || '—'}</Text>
+            <Text style={styles.readText}>{note!.primaryDiagnosis.label ?? note!.primaryDiagnosis.description}</Text>
+            {!!note!.primaryDiagnosis.code && <Text style={styles.readDxCode}>{note!.primaryDiagnosis.code}</Text>}
             {note!.secondaryDiagnoses && note!.secondaryDiagnoses.length > 0 ? (
               <>
                 <Text style={[styles.dxLabel, { marginTop: 10 }]}>{t('patients.secondaryDiagnosis')}</Text>
                 {note!.secondaryDiagnoses.map((d, i) => (
-                  <Text key={i} style={styles.readText}>• {d}</Text>
+                  <View key={i} style={styles.readDxItem}>
+                    <Text style={styles.readText}>• {d.label ?? d.description}</Text>
+                    {!!d.code && <Text style={styles.readDxCode}>{d.code}</Text>}
+                  </View>
                 ))}
               </>
             ) : null}
@@ -230,44 +243,65 @@ export default function MedicalNotes({ patient, note, onSave, saving = false, on
         <>
           <Text style={styles.helper}>{t('patients.assessmentHelper')}</Text>
           <Text style={styles.dxLabel}>{t('patients.primaryDiagnosis')}</Text>
-          <View style={styles.inputWrap}>
-            <TextInput
-              style={styles.input}
-              placeholder={t('patients.primaryDiagnosisPlaceholder')}
-              placeholderTextColor={Colors.textGray}
-              value={primaryDiagnosis}
-              onChangeText={setPrimaryDiagnosis}
+
+          {freeTextMode ? (
+            <View style={styles.inputWrap}>
+              <TextInput
+                style={styles.input}
+                placeholder={t('patients.primaryDiagnosisPlaceholder')}
+                placeholderTextColor={Colors.textGray}
+                value={primaryDiagnosis?.description ?? ''}
+                onChangeText={(val) => setPrimaryDiagnosis(val.trim() ? { description: val } : null)}
+                accessibilityLabel={t('patients.primaryDiagnosis')}
+              />
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.dxPickerRow}
+              onPress={() => setPickerTarget('primary')}
+              accessibilityRole="button"
               accessibilityLabel={t('patients.primaryDiagnosis')}
-            />
-          </View>
+            >
+              {primaryDiagnosis ? (
+                <View style={styles.dxPickerRowText}>
+                  <Text style={styles.dxPickerValue}>{primaryDiagnosis.label ?? primaryDiagnosis.description}</Text>
+                  {!!primaryDiagnosis.code && <Text style={styles.dxPickerCode}>{primaryDiagnosis.code}</Text>}
+                </View>
+              ) : (
+                <Text style={styles.appointmentPlaceholder}>{t('patients.primaryDiagnosisPlaceholder')}</Text>
+              )}
+              <FontAwesome name="chevron-right" size={13} color={Colors.textGray} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            onPress={() => setFreeTextMode((v) => !v)}
+            style={styles.addDxLink}
+            accessibilityRole="button"
+          >
+            <Text style={styles.addDxText}>{freeTextMode ? t('diagnosis.codeSearchInstead') : t('diagnosis.freeTextInstead')}</Text>
+          </TouchableOpacity>
 
           {secondaryDiagnoses.length > 0 && (
             <Text style={styles.dxLabel}>{t('patients.secondaryDiagnosis')}</Text>
           )}
-          {secondaryDiagnoses.map((d, i) => (
-            <View key={i} style={styles.secondaryRow}>
-              <View style={[styles.inputWrap, styles.secondaryInputWrap]}>
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('patients.secondaryDiagnosisPlaceholder')}
-                  placeholderTextColor={Colors.textGray}
-                  value={d}
-                  onChangeText={(val) => setSecondary(i, val)}
-                  accessibilityLabel={`${t('patients.secondaryDiagnosis')} ${i + 1}`}
-                />
-              </View>
-              <TouchableOpacity
-                onPress={() => removeSecondary(i)}
-                style={styles.removeDx}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityRole="button"
-                accessibilityLabel={t('patients.removeDiagnosis')}
-              >
-                <FontAwesome name="times-circle" size={20} color={Colors.textGray} />
-              </TouchableOpacity>
+          {secondaryDiagnoses.length > 0 && (
+            <View style={styles.dxChipsWrap}>
+              {secondaryDiagnoses.map((d, i) => (
+                <View key={i} style={styles.dxChip}>
+                  <Text style={styles.dxChipText} numberOfLines={1}>{d.label ?? d.description}</Text>
+                  <TouchableOpacity
+                    onPress={() => removeSecondary(i)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('patients.removeDiagnosis')}
+                  >
+                    <FontAwesome name="times-circle" size={16} color={Colors.textGray} />
+                  </TouchableOpacity>
+                </View>
+              ))}
             </View>
-          ))}
-          <TouchableOpacity onPress={addSecondary} style={styles.addDxLink} accessibilityRole="button">
+          )}
+          <TouchableOpacity onPress={() => setPickerTarget('secondary')} style={styles.addDxLink} accessibilityRole="button">
             <Text style={styles.addDxText}>{t('patients.addSecondaryDiagnosis')}</Text>
           </TouchableOpacity>
         </>
@@ -437,7 +471,7 @@ export default function MedicalNotes({ patient, note, onSave, saving = false, on
       </ScrollView>
 
       {/* Appointment picker sheet */}
-      <Modal visible={pickerOpen} transparent animationType="slide" onRequestClose={() => setPickerOpen(false)}>
+      <SheetModal visible={pickerOpen} onRequestClose={() => setPickerOpen(false)}>
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setPickerOpen(false)}>
           <TouchableOpacity style={styles.sheet} activeOpacity={1} onPress={() => {}}>
             <View style={styles.grabber} />
@@ -487,10 +521,10 @@ export default function MedicalNotes({ patient, note, onSave, saving = false, on
             )}
           </TouchableOpacity>
         </TouchableOpacity>
-      </Modal>
+      </SheetModal>
 
       {/* Save confirmation — records are immutable once finalized. */}
-      <Modal visible={confirmOpen} transparent animationType="fade" onRequestClose={() => setConfirmOpen(false)}>
+      <SheetModal visible={confirmOpen} variant="fade" onRequestClose={() => setConfirmOpen(false)}>
         <View style={styles.confirmOverlay}>
           <View style={styles.confirmCard}>
             <View style={styles.confirmIcon}>
@@ -498,6 +532,9 @@ export default function MedicalNotes({ patient, note, onSave, saving = false, on
             </View>
             <Text style={styles.confirmTitle}>{t('patients.confirmSaveTitle')}</Text>
             <Text style={styles.confirmBody}>{t('patients.confirmSaveBody')}</Text>
+            {uncodedCount > 0 && (
+              <Text style={styles.confirmWarning}>{t('diagnosis.noCodeWarning', { count: uncodedCount })}</Text>
+            )}
             <View style={styles.confirmActions}>
               <TouchableOpacity style={styles.confirmCancel} onPress={() => setConfirmOpen(false)} accessibilityRole="button">
                 <Text style={styles.confirmCancelText}>{t('common.cancel')}</Text>
@@ -512,7 +549,16 @@ export default function MedicalNotes({ patient, note, onSave, saving = false, on
             </View>
           </View>
         </View>
-      </Modal>
+      </SheetModal>
+
+      <DiagnosisPicker
+        visible={pickerTarget !== null}
+        onClose={closePicker}
+        onSelect={selectDiagnosis}
+        selected={[primaryDiagnosis, ...secondaryDiagnoses].filter((d): d is CodedDiagnosis => !!d)}
+        patientId={patient.id}
+        appointmentId={note?.appointmentId ?? appointment?.id}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -542,11 +588,28 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   fieldIcon: { marginRight: 10 },
 
   dxLabel: { fontSize: 12, fontWeight: '700', color: Colors.textGray, marginBottom: 6, marginLeft: 2, fontFamily: 'Poppins_600SemiBold' },
-  secondaryRow: { flexDirection: 'row', alignItems: 'center' },
-  secondaryInputWrap: { flex: 1 },
-  removeDx: { paddingLeft: 10, paddingBottom: 16 },
   addDxLink: { paddingVertical: 4, marginBottom: 16 },
   addDxText: { fontSize: 14, color: Colors.primary, fontWeight: '700', fontFamily: 'Poppins_600SemiBold' },
+
+  readDxCode: { fontSize: 11, color: Colors.textGray, marginTop: 2, fontFamily: 'monospace' },
+  readDxItem: { marginTop: 2 },
+
+  dxPickerRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: Colors.field, borderRadius: 12,
+    paddingHorizontal: 16, minHeight: 50, marginBottom: 4,
+  },
+  dxPickerRowText: { flex: 1, paddingVertical: 10, paddingRight: 10 },
+  dxPickerValue: { fontSize: 14, color: Colors.textDark, fontFamily: 'Poppins_500Medium' },
+  dxPickerCode: { fontSize: 11, color: Colors.textGray, marginTop: 2, fontFamily: 'monospace' },
+
+  dxChipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  dxChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: Colors.bgGray, borderRadius: 16,
+    paddingHorizontal: 12, paddingVertical: 7, maxWidth: '100%',
+  },
+  dxChipText: { fontSize: 13, color: Colors.textDark, fontFamily: 'Poppins_500Medium', flexShrink: 1 },
 
   appointmentField: {
     flexDirection: 'row', alignItems: 'center',
@@ -604,7 +667,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   amendmentSaveBtn: { paddingHorizontal: 24 },
   addAmendmentBtn: { marginTop: 4 },
 
-  overlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: Colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     padding: 24, paddingBottom: 36, maxHeight: '70%',
@@ -642,7 +705,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   },
 
   // Confirm modal
-  confirmOverlay: { flex: 1, backgroundColor: Colors.overlay, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  confirmOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   confirmCard: {
     backgroundColor: Colors.surface, borderRadius: 20, padding: 24, width: '100%', alignItems: 'center',
   },
@@ -652,6 +715,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   },
   confirmTitle: { fontSize: 18, fontWeight: '800', color: Colors.textDark, textAlign: 'center', fontFamily: 'Poppins_700Bold' },
   confirmBody: { fontSize: 14, color: Colors.textMedium, textAlign: 'center', lineHeight: 21, marginTop: 8, marginBottom: 20, fontFamily: 'Poppins_400Regular' },
+  confirmWarning: { fontSize: 13, color: Colors.warning, textAlign: 'center', lineHeight: 19, marginTop: -12, marginBottom: 20, fontFamily: 'Poppins_500Medium' },
   confirmActions: { flexDirection: 'row', alignItems: 'center', gap: 12, alignSelf: 'stretch' },
   confirmCancel: { flex: 1, alignItems: 'center', justifyContent: 'center', height: 50, borderRadius: 25, borderWidth: 1.5, borderColor: Colors.borderGray },
   confirmCancelText: { fontSize: 15, color: Colors.textMedium, fontWeight: '600', fontFamily: 'Poppins_600SemiBold' },

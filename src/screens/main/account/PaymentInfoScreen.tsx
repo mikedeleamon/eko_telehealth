@@ -11,6 +11,7 @@ import EkoButton from '../../../components/common/EkoButton';
 import { useBanks, usePayoutMethod, useSavePayoutMethod } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import type { PayoutMethodInput, PayoutRail } from '../../../api/types';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -171,7 +172,7 @@ export default function PaymentInfoScreen({ navigation }: Props) {
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
   loader: { marginTop: 60 },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 20, paddingBottom: TAB_BAR_SPACE },
   subtitle: { fontSize: 13, color: Colors.textGray, lineHeight: 19, marginBottom: 20 },
 
   currentCard: {

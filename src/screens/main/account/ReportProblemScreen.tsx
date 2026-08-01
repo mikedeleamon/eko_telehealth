@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
 import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import EkoTextField from '../../../components/common/EkoTextField';
@@ -9,9 +10,11 @@ import EkoButton from '../../../components/common/EkoButton';
 import { useComplaints, useSubmitComplaint } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import type { Complaint, ComplaintCategory } from '../../../api/types';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
+  route: RouteProp<any>;
 }
 
 const CATEGORIES: ComplaintCategory[] = ['billing', 'appointment', 'provider', 'technical', 'other'];
@@ -21,8 +24,12 @@ const CATEGORIES: ComplaintCategory[] = ['billing', 'appointment', 'provider', '
  * from SettingsScreen, which both AccountStack and SettingsStack register).
  * A trackable alternative to the static "Contact Us" text on AboutUsScreen:
  * a report here goes to the admin queue and the filer sees its resolution.
+ *
+ * `route.params.prefillSubject`/`prefillDescription` seed the form when
+ * reached from a "this looks wrong" affordance elsewhere (e.g. My Conditions)
+ * so the filer doesn't have to re-type what they're pointing at.
  */
-export default function ReportProblemScreen({ navigation }: Props) {
+export default function ReportProblemScreen({ navigation, route }: Props) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
@@ -30,8 +37,8 @@ export default function ReportProblemScreen({ navigation }: Props) {
   const submitComplaint = useSubmitComplaint();
 
   const [category, setCategory] = useState<ComplaintCategory>('other');
-  const [subject, setSubject] = useState('');
-  const [description, setDescription] = useState('');
+  const [subject, setSubject] = useState(route.params?.prefillSubject ?? '');
+  const [description, setDescription] = useState(route.params?.prefillDescription ?? '');
 
   const submit = async () => {
     if (subject.trim().length < 2) return Alert.alert('', t('report.valSubject'));
@@ -155,7 +162,7 @@ function ReportCard({ complaint, onPress }: { complaint: Complaint; onPress: () 
 
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 20, paddingBottom: TAB_BAR_SPACE },
   intro: {
     fontSize: 13, color: Colors.textGray, lineHeight: 20,
     marginBottom: 20, fontFamily: 'Poppins_400Regular',

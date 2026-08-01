@@ -12,6 +12,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useCreateAppointment, useCurrencies, useDependents, useNextAvailableMatch } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { convertFeeDisplay } from '../../../utils/format';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -160,6 +161,8 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
               <TouchableOpacity
                 style={[styles.forChip, dependentId === null && styles.forChipActive]}
                 onPress={() => setDependentId(null)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: dependentId === null }}
               >
                 <Text style={[styles.forChipText, dependentId === null && styles.forChipTextActive]}>{t('appointments.myself')}</Text>
               </TouchableOpacity>
@@ -168,6 +171,8 @@ export default function CreateAppointmentScreen({ navigation, route }: Props) {
                   key={d.id}
                   style={[styles.forChip, dependentId === d.id && styles.forChipActive]}
                   onPress={() => setDependentId(d.id)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: dependentId === d.id }}
                 >
                   <Text style={[styles.forChipText, dependentId === d.id && styles.forChipTextActive]}>
                     {d.firstName}
@@ -243,7 +248,7 @@ function Row({ icon, label, value }: { icon: string; label: string; value: strin
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
   body: { flex: 1 },
-  content: { padding: 20 },
+  content: { paddingBottom: TAB_BAR_SPACE, padding: 20 },
   doctorCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.primaryFaded,
     borderRadius: 14, padding: 14, marginBottom: 16,

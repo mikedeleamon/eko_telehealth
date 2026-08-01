@@ -6,7 +6,8 @@ import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import { useVisitNotes } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
-import type { PatientVisitNote } from '../../../api/types';
+import type { CodedDiagnosis, PatientVisitNote } from '../../../api/types';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -28,7 +29,7 @@ export default function VisitNotesScreen({ navigation }: Props) {
   const { data: notes, isLoading } = useVisitNotes();
 
   const renderNote = ({ item }: { item: PatientVisitNote }) => {
-    const diagnoses = [item.primaryDiagnosis, ...(item.secondaryDiagnoses ?? [])].filter(Boolean) as string[];
+    const diagnoses = [item.primaryDiagnosis, ...(item.secondaryDiagnoses ?? [])].filter(Boolean) as CodedDiagnosis[];
     return (
       <View style={styles.card}>
         <View style={styles.cardHead}>
@@ -51,7 +52,18 @@ export default function VisitNotesScreen({ navigation }: Props) {
             <View style={styles.chips}>
               {diagnoses.map((d, i) => (
                 <View key={`${item.id}-dx-${i}`} style={[styles.chip, i === 0 && styles.chipPrimary]}>
-                  <Text style={[styles.chipText, i === 0 && styles.chipTextPrimary]}>{d}</Text>
+                  <Text style={[styles.chipText, i === 0 && styles.chipTextPrimary]}>{d.label ?? d.description}</Text>
+                  {d.status === 'provisional' && (
+                    <Text style={styles.dxStatusSuspected}>{t('visitNotes.suspected')}</Text>
+                  )}
+                  {d.status === 'ruled_out' && (
+                    <Text style={styles.dxStatusRuledOut}>{t('visitNotes.ruledOut')}</Text>
+                  )}
+                  {!!d.code && (
+                    <Text style={styles.dxCode}>
+                      {t('visitNotes.clinicalCode')}: {d.code}
+                    </Text>
+                  )}
                 </View>
               ))}
             </View>
@@ -102,7 +114,7 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   emptyTitle: { fontSize: 16, color: Colors.textDark, marginTop: 14, fontFamily: 'Poppins_600SemiBold' },
   emptyBody: { fontSize: 13, color: Colors.textMedium, marginTop: 6, textAlign: 'center', lineHeight: 19, fontFamily: 'Poppins_400Regular' },
 
-  list: { padding: 20, paddingBottom: 40 },
+  list: { padding: 20, paddingBottom: TAB_BAR_SPACE },
   card: {
     backgroundColor: Colors.surface, borderRadius: 16, padding: 16, marginBottom: 14,
     borderWidth: 1, borderColor: Colors.borderGray,
@@ -127,6 +139,9 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   chipPrimary: { backgroundColor: Colors.primaryFaded, borderColor: Colors.primaryFaded },
   chipText: { fontSize: 12, color: Colors.textMedium, fontFamily: 'Poppins_400Regular' },
   chipTextPrimary: { color: Colors.primary, fontFamily: 'Poppins_600SemiBold' },
+  dxCode: { fontSize: 10, color: Colors.textGray, marginTop: 2, fontFamily: 'monospace' },
+  dxStatusSuspected: { fontSize: 10, color: Colors.warning, marginTop: 2, fontFamily: 'Poppins_600SemiBold' },
+  dxStatusRuledOut: { fontSize: 10, color: Colors.textGray, marginTop: 2, fontFamily: 'Poppins_600SemiBold', textDecorationLine: 'line-through' },
 
   footnote: {
     fontSize: 12, color: Colors.textMedium, lineHeight: 18, marginTop: 6,

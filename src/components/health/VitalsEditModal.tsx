@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import SheetModal from '../common/SheetModal';
 import { Colors } from '../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../theme';
 import EkoTextField from '../common/EkoTextField';
@@ -17,7 +18,7 @@ interface Props {
 
 /**
  * Shared vitals-entry form — used identically by the patient's own
- * self-report (MyHealthScreen) and a doctor recording a roster patient's
+ * self-report (PatientOverviewScreen) and a doctor recording a roster patient's
  * vitals (PatientProfileScreen). Same 6 fields either way.
  */
 export default function VitalsEditModal({ visible, initial, saving, onSave, onClose }: Props) {
@@ -54,7 +55,7 @@ export default function VitalsEditModal({ visible, initial, saving, onSave, onCl
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <SheetModal visible={visible} onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
           <TouchableOpacity style={styles.sheet} activeOpacity={1} onPress={() => {}}>
@@ -72,13 +73,13 @@ export default function VitalsEditModal({ visible, initial, saving, onSave, onCl
           </TouchableOpacity>
         </TouchableOpacity>
       </KeyboardAvoidingView>
-    </Modal>
+    </SheetModal>
   );
 }
 
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   flex: { flex: 1 },
-  overlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: Colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     padding: 24, paddingBottom: 36, maxHeight: '85%',

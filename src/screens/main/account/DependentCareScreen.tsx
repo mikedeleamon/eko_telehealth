@@ -15,6 +15,7 @@ import {
 } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import type { Dependent, Doctor } from '../../../api/types';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -176,7 +177,7 @@ export default function DependentCareScreen({ navigation, route }: Props) {
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
   loader: { marginTop: 60 },
-  content: { padding: 16, paddingBottom: 32 },
+  content: { padding: 16, paddingBottom: TAB_BAR_SPACE },
   sectionTitle: {
     fontSize: 13, fontWeight: '700', color: Colors.textGray, marginBottom: 10, marginTop: 8,
     textTransform: 'uppercase', letterSpacing: 0.6,

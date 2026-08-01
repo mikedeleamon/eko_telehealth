@@ -13,6 +13,7 @@ import EkoButton from '../../../components/common/EkoButton';
 import { useAddPrescription } from '../../../hooks/queries';
 import type { PatientSummary, PrescriptionInput } from '../../../api/types';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -263,7 +264,7 @@ function ChipField({
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgLight },
   flex: { flex: 1 },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 20, paddingBottom: TAB_BAR_SPACE },
 
   missing: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   missingText: { fontSize: 16, color: Colors.textGray, fontFamily: 'Poppins_400Regular' },

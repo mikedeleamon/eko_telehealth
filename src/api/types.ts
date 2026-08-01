@@ -25,6 +25,8 @@ export interface User {
   firstName: string;
   lastName: string;
   email: string;
+  /** Normalized MSISDN, or null until the account holder sets one. */
+  phone: string | null;
   /** The account's stored type. See {@link AccountType}. */
   accountType: UserRole;
   /**
@@ -41,6 +43,8 @@ export interface User {
   preferredCurrency: string;
   /** Login 2FA opt-in — when true, /auth/login returns a TwoFactorChallenge instead of a session. */
   twoFactorEnabled: boolean;
+  /** Profile photo URL, or null until one is uploaded via api.auth.updateAvatar. */
+  avatar: string | null;
 }
 
 export interface AuthSession {
@@ -95,6 +99,9 @@ export interface Doctor {
    * backend's column default.
    */
   providerType?: AppointmentProviderType;
+  /** Self-reported, admin-editable profile stats shown on DoctorOverviewScreen. */
+  patientCount: number;
+  yearsExperience: number;
 }
 
 /**
@@ -208,12 +215,20 @@ export interface Conversation {
   unread: number;
 }
 
+export interface ChatAttachment {
+  url: string;
+  name: string;
+  mimeType: string;
+  kind: 'image' | 'file';
+}
+
 export interface ChatMessage {
   id: string;
   conversationId: string;
   text: string;
   fromMe: boolean;
   time: string;
+  attachment?: ChatAttachment;
 }
 
 export interface AppNotification {
@@ -286,6 +301,117 @@ export interface NoteAmendment {
  * appends {@link NoteAmendment}s to the locked record instead (enforced
  * server-side, mirrored here).
  */
+/** Terminology a coded value came from. Only ICD-10-CM ships in v1. */
+export type CodeSystem = 'icd10cm';
+
+/**
+ * A diagnosis as recorded on a clinical record. `description` is the canonical
+ * terminology text COPIED AT WRITE TIME — a later ICD-10 revision must never
+ * change what a signed note said. `label` is the clinician's own phrasing when
+ * they overrode it, and is what renders when present.
+ *
+ * `code` is optional: a record may carry a diagnosis that was never coded
+ * (legacy free-text records, or a clinician who could not find the code and
+ * finalized anyway). Such a record is valid and displays normally.
+ */
+export interface CodedDiagnosis {
+  code?: string;
+  description: string;
+  label?: string;
+  codeSystem?: CodeSystem;
+  /** Provider certainty. Drives patient-facing wording. */
+  status?: 'confirmed' | 'provisional' | 'ruled_out';
+}
+
+/** A code as it comes back from search — reference data, not a record. */
+export interface Icd10Code {
+  code: string;
+  description: string;
+  chapter?: string;
+  category?: string;
+  /** Leaf codes only. Non-billable parents are shown with a warning. */
+  isBillable: boolean;
+}
+
+/** Clinical status of an entry on the patient's problem list. */
+export type ConditionStatus = 'active' | 'resolved' | 'inactive';
+
+/**
+ * A coded, ongoing condition on the patient's problem list — persists across
+ * visits, unlike a diagnosis recorded on one note. Provider-authored only;
+ * patients see this read-only (see `patients.myConditions` / My Conditions).
+ */
+export interface PatientCondition {
+  id: string;
+  patientId: string;
+  /** Set when the condition belongs to the account holder's dependent. */
+  dependentId?: string;
+  dependentName?: string;
+  diagnosis: CodedDiagnosis;
+  clinicalStatus: ConditionStatus;
+  /** ISO date (YYYY-MM-DD), both optional — onset is often unknown. */
+  onsetDate?: string;
+  resolvedDate?: string;
+  /** Provenance: the visit note that introduced this condition, if any. */
+  sourceNoteId?: string;
+  addedByName: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface PatientConditionInput {
+  diagnosis: CodedDiagnosis;
+  clinicalStatus?: ConditionStatus;   // defaults 'active'
+  onsetDate?: string;
+  sourceNoteId?: string;
+  notes?: string;
+}
+
+export interface PatientConditionUpdate {
+  clinicalStatus?: ConditionStatus;
+  resolvedDate?: string;
+  onsetDate?: string;
+  notes?: string;
+}
+
+/**
+ * Patient-reported symptom. NEVER a diagnosis — see D4. Deliberately has no
+ * `label` field: the server doesn't localize, so the display label is
+ * resolved at render time from the bundled catalog (src/constants/symptoms.ts)
+ * + useTranslation(), never cached — a language switch shows correctly
+ * without a refetch.
+ */
+export interface SymptomLog {
+  id: string;
+  /** Stable key into the curated symptom catalog, e.g. 'sore_throat'. */
+  symptomKey: string;
+  /** Candidate code for the provider's picker. Never shown to the patient. */
+  suggestedCode?: string;
+  severity?: 1 | 2 | 3 | 4 | 5;
+  /** ISO date the patient says it started. */
+  startedAt: string;
+  /** Set when the patient logged this against a specific upcoming visit. */
+  appointmentId?: string;
+  notes?: string;
+  resolvedAt?: string;
+  createdAt: string;
+}
+
+export interface SymptomLogInput {
+  symptomKey: string;
+  severity?: 1 | 2 | 3 | 4 | 5;
+  startedAt: string;
+  appointmentId?: string;
+  notes?: string;
+}
+
+export interface SymptomLogUpdate {
+  severity?: 1 | 2 | 3 | 4 | 5;
+  notes?: string;
+  resolvedAt?: string;
+}
+
 /**
  * A visit note as the PATIENT sees it (GET /me/notes) — deliberately not the
  * full SOAP record. Subjective, objective, assessment and the amendment trail
@@ -302,8 +428,8 @@ export interface PatientVisitNote {
   doctorSpecialty: string;
   /** Why the patient came, as recorded by the provider. */
   reason: string;
-  primaryDiagnosis?: string;
-  secondaryDiagnoses?: string[];
+  primaryDiagnosis?: CodedDiagnosis;
+  secondaryDiagnoses?: CodedDiagnosis[];
   /** What to do next — the part written to be acted on. */
   plan: string;
   /** ISO timestamp; lists sort on this, not the display date. */
@@ -335,9 +461,9 @@ export interface MedicalNote {
   /** Free-text assessment (legacy) — mirrors the primary diagnosis for new records. */
   assessment: string;
   /** Structured assessment: the principal diagnosis. */
-  primaryDiagnosis?: string;
+  primaryDiagnosis?: CodedDiagnosis;
   /** Additional diagnoses, in order. */
-  secondaryDiagnoses?: string[];
+  secondaryDiagnoses?: CodedDiagnosis[];
   plan: string;
   /**
    * 'draft' records are still editable by their author; 'final' records are
@@ -362,8 +488,8 @@ export interface MedicalNoteInput {
   subjective: string;
   objective: string;
   assessment: string;
-  primaryDiagnosis?: string;
-  secondaryDiagnoses?: string[];
+  primaryDiagnosis?: CodedDiagnosis;
+  secondaryDiagnoses?: CodedDiagnosis[];
   plan: string;
   /** 'draft' saves a resumable draft; 'final' locks the record. Defaults to 'final'. */
   status?: 'draft' | 'final';

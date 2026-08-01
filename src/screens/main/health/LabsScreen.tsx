@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, Modal,
-  KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
 } from 'react-native';
+import SheetModal from '../../../components/common/SheetModal';
 import { FontAwesome } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -16,6 +16,7 @@ import { useTranslation } from '../../../i18n/useTranslation';
 import { MONTH_NAMES } from '../../../utils/format';
 import { canOrderLabs as canOrderLabsCapability } from '../../../utils/providerCapabilities';
 import type { LabFlag, LabInput, LabResult, LabStatus, PatientSummary, PickedFile } from '../../../api/types';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -177,7 +178,7 @@ export default function LabsScreen({ navigation, route }: Props) {
       )}
 
       {/* Add-lab sheet */}
-      <Modal visible={formOpen} transparent animationType="slide" onRequestClose={() => setFormOpen(false)}>
+      <SheetModal visible={formOpen} onRequestClose={() => setFormOpen(false)}>
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.overlay}>
             <View style={styles.sheet}>
@@ -300,7 +301,7 @@ export default function LabsScreen({ navigation, route }: Props) {
             </View>
           </View>
         </KeyboardAvoidingView>
-      </Modal>
+      </SheetModal>
     </View>
   );
 }
@@ -439,9 +440,9 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   attachment: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   attachmentText: { flex: 1, fontSize: 12, color: Colors.primary, fontWeight: '600', fontFamily: 'Poppins_600SemiBold' },
 
-  footer: { padding: 16, backgroundColor: Colors.bgLight, borderTopWidth: 1, borderTopColor: Colors.borderGray },
+  footer: { paddingBottom: TAB_BAR_SPACE, padding: 16, backgroundColor: Colors.bgLight, borderTopWidth: 1, borderTopColor: Colors.borderGray },
 
-  overlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: Colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     padding: 24, paddingBottom: 30, maxHeight: '90%',

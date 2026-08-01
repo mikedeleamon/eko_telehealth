@@ -11,6 +11,7 @@ import { sanitizePhoneInput, isValidPhone } from '../../../utils/format';
 import { usePharmacy, usePharmacyDirectory, useSavePharmacy } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
 import type { PharmacyInput } from '../../../api/types';
+import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -129,7 +130,7 @@ export default function PreferredPharmacyScreen({ navigation }: Props) {
 
 const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 20, paddingBottom: TAB_BAR_SPACE },
   chipLabel: {
     fontSize: 13, fontWeight: '600', color: Colors.textMedium,
     marginBottom: 8, marginLeft: 2, fontFamily: 'Poppins_600SemiBold',

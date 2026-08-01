@@ -6,9 +6,10 @@ import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import EkoHeader from '../../../components/common/EkoHeader';
 import MedicalNotes from '../../../components/medical/MedicalNotes';
-import { useAddMedicalNote, useAddNoteAmendment, useUpdateMedicalNote } from '../../../hooks/queries';
+import AddToConditionsSheet from '../../../components/medical/AddToConditionsSheet';
+import { useAddMedicalNote, useAddNoteAmendment, usePatientConditions, useUpdateMedicalNote } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
-import type { MedicalNote as MedicalNoteType, MedicalNoteInput, PatientSummary } from '../../../api/types';
+import type { CodedDiagnosis, MedicalNote as MedicalNoteType, MedicalNoteInput, PatientSummary } from '../../../api/types';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -28,18 +29,36 @@ export default function MedicalNotesScreen({ navigation, route }: Props) {
   const addNote = useAddMedicalNote(patient?.id ?? '');
   const updateNote = useUpdateMedicalNote(patient?.id ?? '');
   const addAmendment = useAddNoteAmendment(patient?.id ?? '');
+  const { data: existingConditions } = usePatientConditions(patient?.id);
   // Track which button is mid-flight so only its spinner shows.
   const [pending, setPending] = useState<'draft' | 'final' | null>(null);
+  // Set instead of navigating back immediately on finalize when there are
+  // confirmed, coded diagnoses worth offering to the problem list (spec §6.3).
+  const [conditionSheet, setConditionSheet] = useState<{ candidates: CodedDiagnosis[]; sourceNoteId?: string } | null>(null);
+
+  /** Confirmed, coded diagnoses on this note not already an active condition. */
+  const candidateConditions = (input: MedicalNoteInput): CodedDiagnosis[] => {
+    const activeCodes = new Set((existingConditions ?? []).filter((c) => c.clinicalStatus === 'active').map((c) => c.diagnosis.code));
+    return [input.primaryDiagnosis, ...(input.secondaryDiagnoses ?? [])].filter(
+      (dx): dx is CodedDiagnosis => !!dx?.code && dx.status === 'confirmed' && !activeCodes.has(dx.code),
+    );
+  };
 
   // A draft (existing note that isn't final) is updated in place; a brand-new
   // record is created. Both paths carry the status set by the form.
   const persist = async (input: MedicalNoteInput, which: 'draft' | 'final') => {
     setPending(which);
     try {
-      if (note && (note.status ?? 'final') !== 'final') {
-        await updateNote.mutateAsync({ noteId: note.id, input });
-      } else {
-        await addNote.mutateAsync(input);
+      const saved =
+        note && (note.status ?? 'final') !== 'final'
+          ? await updateNote.mutateAsync({ noteId: note.id, input })
+          : await addNote.mutateAsync(input);
+      if (which === 'final') {
+        const candidates = candidateConditions(input);
+        if (candidates.length > 0) {
+          setConditionSheet({ candidates, sourceNoteId: saved.id });
+          return;
+        }
       }
       navigation.goBack();
     } catch (err) {
@@ -83,6 +102,17 @@ export default function MedicalNotesScreen({ navigation, route }: Props) {
           amendmentSaving={addAmendment.isPending}
         />
       ) : null}
+
+      <AddToConditionsSheet
+        visible={!!conditionSheet}
+        patientId={patient?.id ?? ''}
+        sourceNoteId={conditionSheet?.sourceNoteId}
+        candidates={conditionSheet?.candidates ?? []}
+        onDone={() => {
+          setConditionSheet(null);
+          navigation.goBack();
+        }}
+      />
     </View>
   );
 }
