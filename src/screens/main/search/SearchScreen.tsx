@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, StatusBar, Platform,
+  View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, StatusBar, Platform, ActivityIndicator, Animated,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,6 +9,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
 import { useDoctors } from '../../../hooks/queries';
+import { useDebounced } from '../../../hooks/useDebounced';
+import { useCollapsingHeader, CollapsingHeaderSection } from '../../../components/common/CollapsingHeader';
 import RatingStars from '../../../components/common/RatingStars';
 import Cross from '../../../components/common/Cross';
 import { useTranslation } from '../../../i18n/useTranslation';
@@ -27,13 +29,21 @@ export default function SearchScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
 
-  const { data: doctors = [] } = useDoctors();
-  const results = query.length > 1
-    ? doctors.filter(d =>
-        d.name.toLowerCase().includes(query.toLowerCase()) ||
-        d.specialty.toLowerCase().includes(query.toLowerCase())
-      )
-    : [];
+  // Search runs server-side — /doctors already takes a `query` param and can
+  // match on fields the client never holds. Debounced so a word typed at speed
+  // is one request, and gated at 2 chars so the first keystroke doesn't ask the
+  // server for the whole roster.
+  const debouncedQuery = useDebounced(query.trim(), 300);
+  const active = debouncedQuery.length > 1;
+  const { data, isFetching } = useDoctors(active ? { query: debouncedQuery } : undefined);
+  // When inactive this hook is the plain roster fetch other screens already
+  // share — reused for cache warmth, but never rendered as a "result".
+  const results = active ? data ?? [] : [];
+  // True from the first typed character until the matching response lands —
+  // covers the debounce gap too, so "No results" can never flash at someone
+  // mid-word before their query has even been sent.
+  const searching = query.trim().length > 1 && (!active || isFetching);
+  const { onScroll, progress } = useCollapsingHeader();
 
   return (
     <View style={styles.container}>
@@ -54,7 +64,10 @@ export default function SearchScreen({ navigation }: Props) {
         <Cross size={26} opacity={0.05} rotation={-18} style={{ bottom: 10, left: 24 }} />
         <Cross size={22} opacity={0.04} rotation={14} style={{ top: 4, right: 170 }} />
         <Cross size={20} opacity={0.04} rotation={-12} style={{ bottom: 52, right: 24 }} />
-        <Text style={styles.headerTitle}>{t('search.header')}</Text>
+        {/* Title retracts on scroll; the search field stays pinned. */}
+        <CollapsingHeaderSection progress={progress}>
+          <Text style={styles.headerTitle}>{t('search.header')}</Text>
+        </CollapsingHeaderSection>
 
         <View style={styles.searchBar}>
           <FontAwesome name="search" size={15} color={Colors.textGray} />
@@ -89,8 +102,10 @@ export default function SearchScreen({ navigation }: Props) {
           ))}
         </View>
       ) : (
-        <FlatList
+        <Animated.FlatList
           data={results}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <TouchableOpacity
@@ -114,10 +129,14 @@ export default function SearchScreen({ navigation }: Props) {
           )}
           contentContainerStyle={styles.resultList}
           ListEmptyComponent={
-            <View style={styles.noResult}>
-              <FontAwesome name="search" size={40} color={Colors.textLight} />
-              <Text style={styles.noResultText}>{t('search.noResultsFor', { query })}</Text>
-            </View>
+            searching ? (
+              <ActivityIndicator style={styles.searchLoader} color={Colors.primary} />
+            ) : (
+              <View style={styles.noResult}>
+                <FontAwesome name="search" size={40} color={Colors.textLight} />
+                <Text style={styles.noResultText}>{t('search.noResultsFor', { query })}</Text>
+              </View>
+            )
           }
         />
       )}
@@ -180,5 +199,6 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   resultFee: { fontSize: 18, fontWeight: '800', color: Colors.primary, fontFamily: 'Poppins_700Bold' },
   resultFeeLabel: { fontSize: 10, color: Colors.textGray, fontFamily: 'Poppins_400Regular' },
   noResult: { alignItems: 'center', marginTop: 50 },
+  searchLoader: { marginTop: 50 },
   noResultText: { fontSize: 15, color: Colors.textGray, marginTop: 12, fontFamily: 'Poppins_400Regular' },
 });

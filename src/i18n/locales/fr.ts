@@ -678,7 +678,6 @@ const fr: TranslationSchema = {
     profileUpdatedFull: 'Profil mis à jour avec succès.',
     couldNotUpdateProfile: 'Impossible de mettre à jour le profil',
     profilePhoto: 'Photo de profil',
-    photoSoon: 'L’envoi de photo arrive bientôt.',
     takePhoto: 'Prendre une photo',
     chooseFromLibrary: 'Choisir dans la bibliothèque',
     couldNotUpdateAvatar: 'Impossible de mettre à jour la photo',

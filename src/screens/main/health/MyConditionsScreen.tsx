@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme, type ThemeColors } from '../../../theme';
@@ -22,7 +22,7 @@ export default function MyConditionsScreen({ navigation }: Props) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
-  const { data: conditions, isLoading } = useMyConditions();
+  const { data: conditions, isLoading, isRefetching, refetch } = useMyConditions();
   const [showResolved, setShowResolved] = useState(false);
 
   const { active, resolved } = useMemo(() => {
@@ -55,7 +55,13 @@ export default function MyConditionsScreen({ navigation }: Props) {
           <Text style={styles.emptyText}>{t('conditions.emptyState')}</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />
+          }
+        >
           {active.map((c) => (
             <ConditionCard key={c.id} condition={c} onReportWrong={() => reportWrong(c)} />
           ))}

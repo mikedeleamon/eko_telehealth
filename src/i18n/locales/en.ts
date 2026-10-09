@@ -690,7 +690,6 @@ const en = {
     profileUpdatedFull: 'Profile updated successfully.',
     couldNotUpdateProfile: 'Could not update profile',
     profilePhoto: 'Profile Photo',
-    photoSoon: 'Photo upload is coming soon.',
     takePhoto: 'Take Photo',
     chooseFromLibrary: 'Choose from Library',
     couldNotUpdateAvatar: 'Could not update photo',

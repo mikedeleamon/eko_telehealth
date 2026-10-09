@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -31,7 +31,7 @@ export default function ReviewsScreen({ navigation, route }: Props) {
 
   // With a doctor param this is that doctor's public reviews (+ write form);
   // opened bare (doctor settings menu) it lists all published reviews.
-  const { data: reviews = [] } = useReviews(doctor?.name);
+  const { data: reviews = [], isRefetching, refetch } = useReviews(doctor?.name);
   const { data: summary } = useReviewSummary(doctor?.name);
   const submitMutation = useSubmitReview();
 
@@ -63,6 +63,9 @@ export default function ReviewsScreen({ navigation, route }: Props) {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <ReviewCard review={item} />}
         contentContainerStyle={styles.list}
+        refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />
+          }
         ListHeaderComponent={<SummaryHeader summary={summary} count={reviews.length} />}
         ListEmptyComponent={<Text style={styles.empty}>{t('reviews.noReviews')}</Text>}
         ListFooterComponent={

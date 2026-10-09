@@ -31,7 +31,10 @@
         "android.permission.BLUETOOTH",
         "android.permission.BLUETOOTH_CONNECT",
         "android.permission.BLUETOOTH_ADMIN",
-        "android.permission.WAKE_LOCK"
+        "android.permission.WAKE_LOCK",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -53,6 +56,12 @@
           "cameraPermission": "Eko Telehealth lets you photograph a condition so your provider can see it before your visit."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "5c7779d3-228c-40da-82d0-5d5993234c03"
+      }
+    },
+    "owner": "mikeamon"
   }
 }

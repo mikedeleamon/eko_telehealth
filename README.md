@@ -1,6 +1,35 @@
 # Eko Telehealth
 
 A telehealth app for a great cause — built with React Native and Expo.
+Eko Telehealth connects patients (in Lagos and the diaspora) with
+independent, verified doctors and other providers for video, clinic, and
+home visits.
+
+---
+
+## Features
+
+- **Search & booking** — find providers by specialty, category, location,
+  and language; book video, clinic, or home visits, or "book next
+  available."
+- **Video, audio & chat** — in-app calls and messaging powered by
+  [Stream](https://getstream.io).
+- **Payments** — checkout via Flutterwave (NGN, Nigerian bank rails) or
+  PayPal (international/diaspora), with promo codes and fee breakdowns.
+- **Health records** — visit notes, ICD-10-coded diagnoses and conditions,
+  prescriptions with pharmacy referral, lab results, vitals/biometrics, and
+  uploaded documents.
+- **Dependent / proxy care** — book and manage care for a child, parent, or
+  other dependent from your own account.
+- **Provider tools** — availability & schedule, patient roster, medical
+  notes (SOAP), prescribing, earnings & payouts, peer reviews / case
+  conferences.
+- **Reviews & ratings**, in-app support/complaint threads, and admin-editable
+  content (About Us, Terms, Privacy Policy) via a CMS.
+- **Localization** — English and French, switchable in Settings (see
+  `src/i18n/`).
+- **Theming** — light, dark, or system, switchable in Settings (see
+  `src/theme/`).
 
 ---
 
@@ -109,14 +138,21 @@ eko_telehealth/
 │   ├── constants/      # App-wide constants (colors, mock/demo data, etc.)
 │   ├── context/        # React context providers (auth, etc.)
 │   ├── hooks/          # React Query hooks + useCall (call lifecycle)
+│   ├── i18n/           # i18next setup + EN/FR locale files
 │   ├── navigation/     # Stack and tab navigators
 │   ├── screens/        # Screen components grouped by flow
-│   ├── services/       # Provider-agnostic messaging + video services (mock/Twilio)
-│   └── store/          # Zustand stores (persisted auth session)
+│   ├── services/       # Provider-agnostic messaging + video services (mock/Stream)
+│   ├── store/          # Zustand stores (persisted auth session, locale, theme)
+│   ├── theme/          # Light/dark palettes + useTheme()
+│   └── utils/          # Formatting and other shared helpers
 ├── assets/             # Images, fonts, and other static assets
+├── docs/               # Feature specs (e.g. ICD-10 integration)
 ├── ios/                # Native iOS project (generated — `npx expo prebuild`)
 ├── App.tsx             # App entry point
 ├── app.json            # Expo configuration
+├── TERMS_OF_SERVICE.md
+├── PRIVACY_POLICY.md
+├── LICENSE
 └── package.json
 ```
 
@@ -138,10 +174,23 @@ every flow is demoable out of the box.
    npx expo prebuild -p ios --clean && npm run ios
    ```
 
-The backend itself (Express on Railway) wires in Supabase, Stream, payments
-via Flutterwave + PayPal, and email via Resend. The full list of backend
-endpoints the app expects, plus provider setup steps, is in
+The backend itself (Express on Railway) wires in Supabase (database),
+Stream (chat/video), payments via Flutterwave + PayPal, email via Resend,
+and file storage via Cloudflare R2. The full list of backend endpoints the
+app expects, plus provider setup steps, is in
 `Eko_Telehealth_Integration_Guide.pdf` (repo root's parent folder).
+
+---
+
+## Demo accounts
+
+In mock mode (the default), sign in with any password using:
+
+- `martin@ekotelehealth.com` — Patient
+- `dr.johnson@ekotelehealth.com` — Doctor
+
+Any other email defaults to a Patient account, so arbitrary demo sign-ins
+work too.
 
 ---
 
@@ -166,3 +215,15 @@ npm start -- --clear
 ```bash
 rm -rf node_modules && npm install
 ```
+
+---
+
+## Legal
+
+- [Terms of Service](TERMS_OF_SERVICE.md)
+- [Privacy Policy](PRIVACY_POLICY.md)
+- [License](LICENSE)
+
+These are living documents drafted from the app's actual features — review
+them before relying on them for a public launch (see the notes at the top
+of each file).

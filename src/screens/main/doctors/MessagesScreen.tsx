@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Platform, RefreshControl } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
@@ -17,7 +17,7 @@ export default function MessagesScreen({ navigation }: Props) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
-  const { data: convList = [] } = useConversations();
+  const { data: convList = [], isRefetching, refetch } = useConversations();
   const { data: doctors = [] } = useDoctors();
   const conversations = convList.map((c) => ({
     ...c,
@@ -63,6 +63,9 @@ export default function MessagesScreen({ navigation }: Props) {
         )}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <FontAwesome name="comments-o" size={46} color={Colors.textLight} />

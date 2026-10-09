@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, StatusBar, Platform,
+  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, StatusBar, Platform, RefreshControl, Animated,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,6 +11,7 @@ import { useTheme, type ThemeColors } from '../../../theme';
 import { usePatients } from '../../../hooks/queries';
 import Cross from '../../../components/common/Cross';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { useCollapsingHeader, CollapsingHeaderSection } from '../../../components/common/CollapsingHeader';
 import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
@@ -24,7 +25,8 @@ export default function PatientsScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
 
-  const { data: patients = [] } = usePatients();
+  const { data: patients = [], isRefetching, refetch } = usePatients();
+  const { onScroll, progress } = useCollapsingHeader();
   const data = patients.filter(
     (p) =>
       !search ||
@@ -48,7 +50,10 @@ export default function PatientsScreen({ navigation }: Props) {
         <Cross size={46} opacity={0.06} rotation={-16} style={{ bottom: 40, right: 104 }} />
         <Cross size={36} opacity={0.05} rotation={22} style={{ top: 16, right: 90 }} />
 
-        <Text style={styles.headerTitle}>{t('patients.myPatients')}</Text>
+        {/* Title retracts on scroll; the search bar stays pinned. */}
+        <CollapsingHeaderSection progress={progress}>
+          <Text style={styles.headerTitle}>{t('patients.myPatients')}</Text>
+        </CollapsingHeaderSection>
 
         <View style={styles.searchBar}>
           <FontAwesome name="search" size={15} color={Colors.textGray} />
@@ -69,8 +74,10 @@ export default function PatientsScreen({ navigation }: Props) {
         </View>
       </LinearGradient>
 
-      <FlatList
+      <Animated.FlatList
         data={data}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TouchableOpacity
@@ -97,6 +104,9 @@ export default function PatientsScreen({ navigation }: Props) {
         )}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <FontAwesome name="users" size={44} color={Colors.textLight} />

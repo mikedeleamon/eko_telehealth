@@ -1,5 +1,3 @@
-export const APP_NAME = 'Eko Telehealth';
-
 export const TUTORIAL_DATA = [
   {
     id: '1',
@@ -22,8 +20,6 @@ export const TUTORIAL_DATA = [
 ];
 
 export const GENDER_OPTIONS = ['Male', 'Female', 'Others'];
-
-export const DOCTOR_CATEGORIES = ['Primary Care', 'Eye Doctor', 'OBGYN'];
 
 // Relationship options for adding a dependent (with "Other" fallback in the UI).
 export const RELATIONSHIP_OPTIONS = ['Child', 'Spouse', 'Parent', 'Sibling', 'Grandparent', 'Ward'];
@@ -61,12 +57,6 @@ export const SPECIALTY_CHIPS = [
   { label: 'OBGYN', count: 5, color: '#00CAAE' },
   { label: 'Cardiology', count: 3, color: '#3B82F6' },
   { label: 'Dermatology', count: 7, color: '#F5A623' },
-];
-
-export const APPOINTMENT_TYPES = [
-  { label: 'Video Visit', icon: 'video-camera' },
-  { label: 'Clinic Visit', icon: 'hospital-o' },
-  { label: 'Home Visit', icon: 'home' },
 ];
 
 export const MOCK_DOCTORS = [
@@ -581,10 +571,4 @@ export const MOCK_EARNINGS = [
   { id: 'ern-9', kind: 'earning', title: 'Augustine Watts', date: 'Jun 9, 2026', time: '11:30 AM', amount: 7500, status: 'settled', visitType: 'Clinic Visit' },
   { id: 'ern-10', kind: 'earning', title: 'Emeka Obi', date: 'May 27, 2026', time: '10:00 AM', amount: 11250, status: 'settled', visitType: 'Video Visit' },
   { id: 'ern-11', kind: 'earning', title: 'Ngozi Nwosu', date: 'May 14, 2026', time: '2:00 PM', amount: 11250, status: 'settled', visitType: 'Video Visit' },
-];
-
-export const TIME_SLOTS = [
-  '9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM',
-  '11:00 AM', '11:30 AM', '2:00 PM', '2:30 PM',
-  '3:00 PM', '3:30 PM', '4:00 PM', '4:30 PM',
 ];

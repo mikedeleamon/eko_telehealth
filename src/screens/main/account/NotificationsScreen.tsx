@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
@@ -24,7 +24,7 @@ export default function NotificationsScreen({ navigation }: Props) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
-  const { data: notifications = [], isLoading } = useNotifications();
+  const { data: notifications = [], isLoading, isRefetching, refetch } = useNotifications();
   return (
     <View style={styles.container}>
       <EkoHeader title={t('account.notifications')} onBack={() => navigation.goBack()} />
@@ -47,6 +47,9 @@ export default function NotificationsScreen({ navigation }: Props) {
             </View>
           )}
           contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />
+          }
           ListEmptyComponent={
             <View style={styles.empty}>
               <FontAwesome name="bell-slash-o" size={44} color={Colors.textLight} />

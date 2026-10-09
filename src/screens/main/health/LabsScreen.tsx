@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, RefreshControl,
 } from 'react-native';
 import SheetModal from '../../../components/common/SheetModal';
 import { FontAwesome } from '@expo/vector-icons';
@@ -59,7 +59,7 @@ export default function LabsScreen({ navigation, route }: Props) {
   const patient = route.params?.patient as PatientSummary | undefined;
   const patientId = patient?.id; // undefined → the signed-in patient's own labs
 
-  const { data: labs = [], isLoading } = useLabs(patientId);
+  const { data: labs = [], isLoading, isRefetching, refetch } = useLabs(patientId);
   const addLab = useAddLab(patientId);
   const removeLab = useRemoveLab(patientId);
   // Only relevant in doctor context (patient present) — a patient logging
@@ -155,6 +155,9 @@ export default function LabsScreen({ navigation, route }: Props) {
           data={labs}
           keyExtractor={(l) => l.id}
           contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />
+          }
           ListHeaderComponent={
             <Text style={styles.subtitle}>
               {patient ? t('labs.patientSubtitle', { name: patient.name }) : t('labs.mySubtitle')}

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, Image,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, Image, KeyboardAvoidingView, Platform, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import SheetModal from '../../../components/common/SheetModal';
 import { FontAwesome } from '@expo/vector-icons';
@@ -43,7 +42,7 @@ export default function ConditionUploadsScreen({ navigation, route }: Props) {
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
 
-  const { data: uploads = [], isLoading } = useDocuments('condition');
+  const { data: uploads = [], isLoading, isRefetching, refetch } = useDocuments('condition');
   const { data: appointments = [] } = useAppointments();
   const upload = useUploadDocument();
   const removeUpload = useRemoveDocument();
@@ -134,6 +133,9 @@ export default function ConditionUploadsScreen({ navigation, route }: Props) {
           data={uploads}
           keyExtractor={(d) => d.id}
           contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />
+          }
           ListHeaderComponent={<Text style={styles.note}>{t('uploads.note')}</Text>}
           ListEmptyComponent={
             <View style={styles.empty}>

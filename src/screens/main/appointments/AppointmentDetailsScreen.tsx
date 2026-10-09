@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import * as ExpoCalendar from 'expo-calendar';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -65,9 +65,15 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
   // Live data, not a one-time route-param snapshot — so a check-in/no-show
   // mutation is reflected here without a manual refetch hack. Mirrors how
   // `doctor` is already resolved just below.
-  const { data: patientAppointments = [] } = useAppointments(!isDoctor);
-  const { data: practiceAppointments = [] } = usePracticeAppointments(isDoctor);
+  const { data: patientAppointments = [], isRefetching: patientRefetching, refetch: refetchPatient } =
+    useAppointments(!isDoctor);
+  const { data: practiceAppointments = [], isRefetching: practiceRefetching, refetch: refetchPractice } =
+    usePracticeAppointments(isDoctor);
   const source = isDoctor ? practiceAppointments : patientAppointments;
+  // Only one of the two queries is enabled for a given role, so the pull has to
+  // target whichever one is actually feeding `source`.
+  const refreshing = isDoctor ? practiceRefetching : patientRefetching;
+  const onRefresh = () => (isDoctor ? refetchPractice() : refetchPatient());
   const appointment = source.find((a) => a.id === paramAppointment.id) ?? paramAppointment;
 
   const { doctor: doctorName, specialty, date, time, startAt, type = 'Video Visit', status = 'upcoming' } = appointment;
@@ -211,7 +217,13 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
     <View style={styles.container}>
       <EkoHeader title={t('appointments.details')} onBack={() => navigation.goBack()} />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+        }
+      >
         {/* Doctor hero card */}
         <View style={styles.doctorCard}>
           <View style={styles.avatar}>

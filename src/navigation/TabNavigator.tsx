@@ -10,6 +10,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
 import {
     GlassView,
     GlassContainer,
@@ -395,6 +396,38 @@ function AccountNavigator() {
                 name='PrivacyPolicy'
                 component={PrivacyPolicyScreen}
             />
+
+            {/* Booking chain. Peer Review (second opinion) and Dependent Care
+                both push DoctorOverview as a slot-picker and forward their
+                flags into CreateAppointment — without these the buttons hit no
+                navigator and silently do nothing. Mirrors SearchStack, which
+                carries the same chain for the same reason. */}
+            <AccountStack.Screen
+                name='DoctorOverview'
+                component={DoctorOverviewScreen}
+            />
+            <AccountStack.Screen
+                name='CreateAppointment'
+                component={CreateAppointmentScreen}
+            />
+            <AccountStack.Screen
+                name='AppointmentConfirmed'
+                component={AppointmentConfirmedScreen}
+            />
+            <AccountStack.Screen
+                name='Chat'
+                component={ChatScreen}
+            />
+            <AccountStack.Screen
+                name='VideoCall'
+                component={VideoCallScreen}
+                options={{ presentation: 'fullScreenModal' }}
+            />
+            <AccountStack.Screen
+                name='AudioCall'
+                component={AudioCallScreen}
+                options={{ presentation: 'fullScreenModal' }}
+            />
         </AccountStack.Navigator>
     );
 }
@@ -592,6 +625,15 @@ function EarningsNavigator() {
                 name='Chat'
                 component={ChatScreen}
             />
+            {/* Chat's header offers a "join the visit" video button whenever the
+                thread has a joinable appointment, so a stack carrying Chat needs
+                VideoCall too. Audio is deliberately absent — nothing reachable
+                from Earnings routes to it. */}
+            <EarningsStack.Screen
+                name='VideoCall'
+                component={VideoCallScreen}
+                options={{ presentation: 'fullScreenModal' }}
+            />
         </EarningsStack.Navigator>
     );
 }
@@ -648,7 +690,13 @@ function TabBarContent({ state, navigation, items }: any) {
                         key={route.key}
                         style={tabStyles.tab}
                         onPress={() => {
-                            if (!focused) navigation.navigate(route.name);
+                            if (focused) return;
+                            // Selection feedback, not impact — this is a
+                            // discrete pick from a set, and it fires only on an
+                            // actual change so re-tapping the current tab stays
+                            // silent. No-ops on devices without a Taptic Engine.
+                            Haptics.selectionAsync().catch(() => {});
+                            navigation.navigate(route.name);
                         }}
                         activeOpacity={0.7}
                         accessibilityRole='tab'

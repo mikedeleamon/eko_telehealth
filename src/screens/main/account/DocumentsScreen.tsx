@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import SheetModal from '../../../components/common/SheetModal';
 import { FontAwesome } from '@expo/vector-icons';
@@ -45,7 +45,7 @@ export default function DocumentsScreen({ navigation }: Props) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
-  const { data: documents = [], isLoading } = useDocuments();
+  const { data: documents = [], isLoading, isRefetching, refetch } = useDocuments();
   const uploadDoc = useUploadDocument();
   const removeDoc = useRemoveDocument();
 
@@ -119,6 +119,9 @@ export default function DocumentsScreen({ navigation }: Props) {
           data={documents}
           keyExtractor={(d) => d.id}
           contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />
+          }
           ListHeaderComponent={<Text style={styles.note}>{t('documents.verifiedNote')}</Text>}
           ListEmptyComponent={
             <View style={styles.empty}>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Platform, Alert, RefreshControl, Animated } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +12,7 @@ import AppointmentCard from '../../../components/appointments/AppointmentCard';
 import Cross from '../../../components/common/Cross';
 import { useAuth } from '../../../context/AuthContext';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { useCollapsingHeader, CollapsingHeaderSection } from '../../../components/common/CollapsingHeader';
 import { TAB_BAR_SPACE } from '../../../constants/layout';
 
 interface Props {
@@ -26,10 +27,18 @@ export default function AppointmentsScreen({ navigation }: Props) {
   const { isDoctor } = useAuth();
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
 
-  const { data: appointments = [] } = useAppointments();
-  const { data: practiceAppointments = [] } = usePracticeAppointments(isDoctor);
+  const { data: appointments = [], isRefetching, refetch } = useAppointments();
+  const { data: practiceAppointments = [], isRefetching: practiceRefetching, refetch: refetchPractice } =
+    usePracticeAppointments(isDoctor);
   const { data: callInvites = [] } = useMyCallInvites();
   const decision = useAppointmentDecision();
+
+  // A doctor's list is fed by the practice query, a patient's by their own, so
+  // the pull has to refresh whichever one is actually backing this render.
+  const refreshing = isDoctor ? practiceRefetching : isRefetching;
+  const onRefresh = () => (isDoctor ? refetchPractice() : refetch());
+
+  const { onScroll, progress } = useCollapsingHeader();
 
   // Doctors read their own practice list; patients read theirs. Both come back
   // in the same shape, with `doctor` holding the counterparty's name.
@@ -80,7 +89,10 @@ export default function AppointmentsScreen({ navigation }: Props) {
         <Cross size={26} opacity={0.05} rotation={-18} style={{ bottom: 12, left: 24 }} />
         <Cross size={22} opacity={0.04} rotation={14} style={{ top: 4, right: 170 }} />
         <Cross size={20} opacity={0.04} rotation={-12} style={{ bottom: 56, right: 24 }} />
-        <Text style={styles.headerTitle}>{t('appointments.title')}</Text>
+        {/* Title retracts on scroll; the Upcoming/History tabs stay pinned. */}
+        <CollapsingHeaderSection progress={progress}>
+          <Text style={styles.headerTitle}>{t('appointments.title')}</Text>
+        </CollapsingHeaderSection>
 
         <View style={styles.tabRow}>
           <TouchableOpacity
@@ -102,8 +114,10 @@ export default function AppointmentsScreen({ navigation }: Props) {
         </View>
       </LinearGradient>
 
-      <FlatList
+      <Animated.FlatList
         data={data}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <AppointmentCard
@@ -118,6 +132,9 @@ export default function AppointmentsScreen({ navigation }: Props) {
         )}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+        }
         ListHeaderComponent={
           // Visits someone invited this user to sit in on (conference). A guest
           // has no appointment of their own, so without this there is nothing

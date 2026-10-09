@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme, type ThemeColors } from '../../../theme';
@@ -26,7 +26,7 @@ export default function VisitNotesScreen({ navigation }: Props) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
-  const { data: notes, isLoading } = useVisitNotes();
+  const { data: notes, isLoading, isRefetching, refetch } = useVisitNotes();
 
   const renderNote = ({ item }: { item: PatientVisitNote }) => {
     const diagnoses = [item.primaryDiagnosis, ...(item.secondaryDiagnoses ?? [])].filter(Boolean) as CodedDiagnosis[];
@@ -101,6 +101,9 @@ export default function VisitNotesScreen({ navigation }: Props) {
           renderItem={renderNote}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />
+          }
           ListFooterComponent={<Text style={styles.footnote}>{t('visitNotes.footnote')}</Text>}
         />
       )}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  ScrollView, StatusBar, Platform, Alert, ActivityIndicator,
+  ScrollView, StatusBar, Platform, Alert, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -42,9 +42,17 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
   const chips = [{ label: 'All', count: null, color: Colors.primary }, ...SPECIALTY_CHIPS];
   const chipLabel = (l: string) => (l === 'All' ? t('doctors.all') : l);
 
-  const { data: doctors = [] } = useDoctors();
-  const { data: appointments = [] } = useAppointments();
-  const { data: conversationList = [] } = useConversations();
+  const { data: doctors = [], isRefetching: doctorsRefetching, refetch: refetchDoctors } = useDoctors();
+  const { data: appointments = [], refetch: refetchAppointments } = useAppointments();
+  const { data: conversationList = [], refetch: refetchConversations } = useConversations();
+
+  // The home screen renders all three lists, so a pull refreshes all three and
+  // reports busy off the doctors query — the slowest and most visible of them.
+  const onRefresh = () => {
+    refetchDoctors();
+    refetchAppointments();
+    refetchConversations();
+  };
 
   // "Book Next Available" — flexible provider selection. Needs a specific
   // specialty to search within; matching across "All" doesn't make clinical
@@ -178,7 +186,13 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
         </View>
       </LinearGradient>
 
-      <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.body}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={doctorsRefetching} onRefresh={onRefresh} tintColor={Colors.primary} />
+        }
+      >
         {/* Specialty chips */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('doctors.topSpecialties')}</Text>

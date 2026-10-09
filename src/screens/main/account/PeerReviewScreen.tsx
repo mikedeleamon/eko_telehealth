@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../../../constants/Colors';
 import { useTheme, type ThemeColors } from '../../../theme';
@@ -26,7 +26,7 @@ export default function PeerReviewScreen({ navigation }: Props) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
-  const { data: doctors, isLoading } = useDoctors();
+  const { data: doctors, isLoading, isRefetching, refetch } = useDoctors();
 
   const request = (doctor: Doctor) => {
     // DoctorOverview is the slot-picker — a peer review still needs a real
@@ -67,6 +67,9 @@ export default function PeerReviewScreen({ navigation }: Props) {
             </View>
           )}
           contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />
+          }
         />
       )}
     </View>

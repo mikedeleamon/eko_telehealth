@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -47,7 +47,7 @@ export default function DependentCareScreen({ navigation, route }: Props) {
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
   const dependent = route.params?.dependent as Dependent | undefined;
-  const { data: appointments, isLoading } = useAppointments();
+  const { data: appointments, isLoading, isRefetching, refetch } = useAppointments();
   const { data: doctors } = useDoctors();
   const { data: prescriptions } = useDependentPrescriptions(dependent?.id);
   const { data: labs } = useDependentLabs(dependent?.id);
@@ -86,7 +86,13 @@ export default function DependentCareScreen({ navigation, route }: Props) {
       {isLoading ? (
         <ActivityIndicator style={styles.loader} color={Colors.primary} />
       ) : (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />
+          }
+        >
           {careTeam.length > 0 && (
             <>
               <Text style={styles.sectionTitle}>{t('account.careTeamTitle')}</Text>
