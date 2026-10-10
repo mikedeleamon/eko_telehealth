@@ -103,12 +103,14 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
 
   const feeDisplay = appointment.fee ?? doctor.fee ?? '₦15,000';
 
-  // Doctors are paid the fee minus platform commission (and VAT, for Video
-  // Visits) — the breakdown comes from the settled payment on the server,
-  // never computed locally, since the platform's rates are admin-managed and
-  // can change (see backend lib/pricing.ts). Only fetched once a payment
-  // could actually exist to break down — checked_in is still a settled,
-  // paid visit, so it stays eligible too (only the status label changed).
+  // Doctors are paid the fee minus the platform commission. VAT (Video Visits
+  // only) is added on top of the PATIENT's bill and is never withheld from
+  // the doctor — it's shown for information, not deducted. The breakdown
+  // comes from the settled payment on the server, never computed locally,
+  // since the platform's rates are admin-managed and can change (see backend
+  // lib/pricing.ts). Only fetched once a payment could actually exist to break
+  // down — checked_in is still a settled, paid visit, so it stays eligible too
+  // (only the status label changed).
   const { data: breakdown } = useAppointmentBreakdown(appointment.id, isDoctor && isConfirmedOrCheckedIn);
   const feeSymbol = splitFee(feeDisplay)?.symbol ?? '₦';
   const feeBreakdown =
@@ -177,10 +179,8 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
         return;
       }
       const start = new Date(startAt);
-      // Consultation length isn't stored per-appointment (only per availability
-      // block, at booking time) — 30 minutes is a reasonable default for the
-      // calendar entry rather than adding a column just for this.
-      const end = new Date(start.getTime() + 30 * 60 * 1000);
+      // Bookings store their length now; older ones fall back to 30 minutes.
+      const end = new Date(start.getTime() + (appointment.durationMinutes ?? 30) * 60 * 1000);
       await ExpoCalendar.createEventAsync(targetCalendar.id, {
         title: t('appointments.calendarEventTitle', { doctor: doctor.name }),
         startDate: start,
@@ -263,9 +263,9 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
               {feeBreakdown.hasVat && (
                 <DetailRow
                   icon="university"
-                  label={t('appointments.vat', { rate: feeBreakdown.vatRate })}
-                  value={`− ${feeBreakdown.vat}`}
-                  valueColor={Colors.textMedium}
+                  label={t('appointments.vatPaidByPatient', { rate: feeBreakdown.vatRate })}
+                  value={feeBreakdown.vat}
+                  valueColor={Colors.textGray}
                 />
               )}
               <DetailRow
@@ -289,6 +289,17 @@ export default function AppointmentDetailsScreen({ navigation, route }: Props) {
             <Text style={styles.reasonText}>{appointment.reason}</Text>
           </View>
         ) : null}
+
+        {/* A visit the doctor booked for the patient lands straight at "payment
+            required" without the patient ever asking — say where it came from. */}
+        {awaitingPayment && appointment.scheduledByDoctor && !isDoctor && (
+          <View style={[styles.notice, { backgroundColor: Colors.accent + '14' }]}>
+            <FontAwesome name="calendar-plus-o" size={14} color={Colors.accent} />
+            <Text style={styles.noticeText}>
+              {'  '}{t('appointments.scheduledByDoctorNotice', { doctor: doctor.name ?? t('appointments.theDoctor') })}
+            </Text>
+          </View>
+        )}
 
         {/* What the patient is waiting on, in plain words. Patient-facing only —
             the doctor is the one who approves, so it doesn't apply to them. */}

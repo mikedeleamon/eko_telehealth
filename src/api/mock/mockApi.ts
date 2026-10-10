@@ -8,7 +8,6 @@ import {
   MOCK_APPOINTMENTS,
   MOCK_CONVERSATIONS,
   MOCK_DOCTORS,
-  MOCK_DOCTOR_APPOINTMENTS,
   MOCK_DOCTOR_SCHEDULE,
   MOCK_EARNINGS,
   MOCK_MEDICAL_NOTES,
@@ -39,9 +38,12 @@ import type {
   CreateAppointmentInput,
   Currency,
   Doctor,
+  DoctorScheduleInput,
+  TimeOffBlock,
+  TimeOffInput,
+  TimeOffResult,
   AppointmentStatus,
   Dependent,
-  DoctorAgendaItem,
   DoctorEarnings,
   EarningItem,
   Insurance,
@@ -129,6 +131,97 @@ let mockDoctorAvailability: AvailabilityBlock[] = [1, 2, 3, 4, 5].map((weekday) 
   endMinute: 17 * 60,
   slotMinutes: 60,
 }));
+/**
+ * The mock doctor's practice appointments (GET /practice/appointments).
+ * Mutable so accept/decline and doctor-scheduled visits stick for the session.
+ */
+const mockDoctorSchedule: Appointment[] = (MOCK_DOCTOR_SCHEDULE as Appointment[]).map((a) => ({ ...a }));
+let mockScheduleSeq = 100;
+
+/** Local midnight `dayOffset` days from today. */
+function mockMidnight(dayOffset: number): Date {
+  const d = new Date();
+  d.setDate(d.getDate() + dayOffset);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+/**
+ * Blocked time ("block out availability"). Seeded with a lunch hour today and
+ * a two-day conference next week so the scheduler shows both kinds.
+ */
+let mockTimeOff: TimeOffBlock[] = [
+  {
+    id: 'off-1',
+    startAt: new Date(mockMidnight(0).getTime() + 13 * 3_600_000).toISOString(),
+    endAt: new Date(mockMidnight(0).getTime() + 14 * 3_600_000).toISOString(),
+    allDay: false,
+    reason: 'Lunch break',
+  },
+  { id: 'off-2', startAt: mockMidnight(7).toISOString(), endAt: mockMidnight(9).toISOString(), allDay: true, reason: 'Medical conference' },
+];
+
+const MINUTE_MS = 60_000;
+/** Half-open [aStart, aEnd) vs [bStart, bEnd), epoch ms — touching ranges don't overlap. Mirrors the backend. */
+const rangesOverlap = (aStart: number, aEnd: number, bStart: number, bEnd: number) => aStart < bEnd && bStart < aEnd;
+/** Local calendar date of an instant as YYYY-MM-DD. */
+function localYmd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+/** YYYY-MM-DD + minute-of-day → local Date. */
+function localAt(date: string, minute = 0): Date {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y, m - 1, d, Math.floor(minute / 60), minute % 60, 0, 0);
+}
+
+/**
+ * The mock doctor's open slots on a date — mirrors backend getAvailableSlots:
+ * working hours for that weekday, minus booked visits (by real overlap, so a
+ * two-hour visit takes out both slots it spans), minus blocked time, minus
+ * anything already past.
+ */
+function mockOpenSlots(date: string): AvailabilitySlot[] {
+  const weekday = localAt(date).getDay();
+  const now = Date.now();
+  const booked = mockDoctorSchedule.filter((a) => a.startAt && a.status !== 'cancelled' && a.status !== 'declined');
+  const slots: AvailabilitySlot[] = [];
+  for (const block of mockDoctorAvailability.filter((b) => b.weekday === weekday)) {
+    for (let minute = block.startMinute; minute + block.slotMinutes <= block.endMinute; minute += block.slotMinutes) {
+      const start = localAt(date, minute).getTime();
+      if (start <= now) continue;
+      const end = start + block.slotMinutes * MINUTE_MS;
+      const taken = booked.some((a) => {
+        const s = new Date(a.startAt!).getTime();
+        return rangesOverlap(start, end, s, s + (a.durationMinutes ?? block.slotMinutes) * MINUTE_MS);
+      });
+      if (taken) continue;
+      if (mockTimeOff.some((t) => rangesOverlap(start, end, new Date(t.startAt).getTime(), new Date(t.endAt).getTime()))) continue;
+      slots.push({ startAt: new Date(start).toISOString(), label: formatClock(new Date(start)), durationMinutes: block.slotMinutes });
+    }
+  }
+  return slots.sort((a, b) => a.startAt.localeCompare(b.startAt));
+}
+
+/** Mirrors backend contiguousDurations: the lengths a visit from `startAt` can run across back-to-back open slots. */
+function mockContiguousDurations(slots: AvailabilitySlot[], startAt: string): number[] {
+  const byStart = new Map(slots.map((s) => [s.startAt, s]));
+  const durations: number[] = [];
+  let total = 0;
+  let cursor = byStart.get(startAt);
+  while (cursor) {
+    const length = cursor.durationMinutes ?? 60;
+    total += length;
+    durations.push(total);
+    cursor = byStart.get(new Date(new Date(cursor.startAt).getTime() + length * MINUTE_MS).toISOString());
+  }
+  return durations;
+}
+
+/** Doctor-scoped row shape — adds the patient's age from the roster, as the backend does. */
+function withPatientAge(a: Appointment): Appointment {
+  const roster = a.patientId ? (MOCK_PATIENTS as PatientSummary[]).find((p) => p.userId === a.patientId) : undefined;
+  return { ...a, patientAge: roster?.age };
+}
+
 /** Admin-editable prose (task 2.2), mirroring the backend's seeded content_blocks. */
 const MOCK_CONTENT_BLOCKS: ContentBlock[] = [
   {
@@ -465,7 +558,8 @@ function summarizeEarnings(): DoctorEarnings {
         if (at.getFullYear() === now.getFullYear() && at.getMonth() === now.getMonth()) thisMonth += item.amount;
       }
     } else {
-      balance -= item.amount;
+      // A failed withdrawal never left — it stays spendable, as on the backend.
+      if (item.status !== 'failed') balance -= item.amount;
       if (item.status === 'pending') pending += item.amount;
     }
   }
@@ -596,8 +690,11 @@ export const mockApi = {
    * shows the same 9-5 hourly slots, no collision checking against
    * MOCK_APPOINTMENTS since those store display strings, not real instants.
    */
-  async getDoctorAvailabilitySlots(_doctorId: string, date: string): Promise<AvailabilitySlot[]> {
+  async getDoctorAvailabilitySlots(doctorId: string, date: string): Promise<AvailabilitySlot[]> {
     await delay(300);
+    // The signed-in mock doctor's own profile follows their real hours,
+    // bookings and blocked time, like the backend does for every doctor.
+    if (doctorId === 'doc-1') return mockOpenSlots(date);
     const [year, month, day] = date.split('-').map(Number);
     const now = new Date();
     const slots: AvailabilitySlot[] = [];
@@ -679,21 +776,128 @@ export const mockApi = {
     return MOCK_PATIENTS as PatientSummary[];
   },
 
-  async getDoctorAgenda(): Promise<DoctorAgendaItem[]> {
-    await delay();
-    return MOCK_DOCTOR_APPOINTMENTS as DoctorAgendaItem[];
-  },
-
   async getDoctorAppointments(): Promise<Appointment[]> {
     await delay();
-    return MOCK_DOCTOR_SCHEDULE as Appointment[];
+    return mockDoctorSchedule.map(withPatientAge);
   },
 
-  /** Mock accept/decline — echoes the requested status back to the caller. */
+  /** Mock accept/decline/no-show — updates the session's schedule so the change shows everywhere. */
   async decideAppointment(id: string, status: AppointmentStatus): Promise<Appointment> {
     await delay(400);
-    const found = (MOCK_DOCTOR_SCHEDULE as Appointment[]).find((a) => a.id === id);
-    return { ...(found ?? (MOCK_DOCTOR_SCHEDULE[0] as Appointment)), id, status };
+    const found = mockDoctorSchedule.find((a) => a.id === id);
+    if (!found) return { ...(mockDoctorSchedule[0] as Appointment), id, status };
+    found.status = status;
+    return withPatientAge({ ...found });
+  },
+
+  /** GET /practice/slots — the mock doctor's own open slots for a date. */
+  async getOwnOpenSlots(date: string): Promise<AvailabilitySlot[]> {
+    await delay(300);
+    return mockOpenSlots(date);
+  },
+
+  /**
+   * POST /practice/appointments — mirrors the backend: only a roster patient
+   * with an app account can be booked, the start must be an open slot, a
+   * longer visit must run across back-to-back open slots, and it lands at
+   * pending_payment (the patient's payment confirms it).
+   */
+  async scheduleDoctorAppointment(input: DoctorScheduleInput): Promise<Appointment> {
+    await delay(600);
+    const patient = (MOCK_PATIENTS as PatientSummary[]).find((p) => p.id === input.patientId);
+    if (!patient) throw new Error('Patient not found');
+    if (!patient.userId) {
+      throw new Error(`${patient.name} doesn't have an Eko account yet, so a visit can't be booked or billed for them in the app.`);
+    }
+    const start = new Date(input.startAt);
+    const daySlots = mockOpenSlots(localYmd(start));
+    const slot = daySlots.find((s) => s.startAt === start.toISOString());
+    if (!slot) throw new Error('That time is no longer open. Pick another slot.');
+    const durationMinutes = input.durationMinutes ?? slot.durationMinutes ?? 60;
+    if (!mockContiguousDurations(daySlots, slot.startAt).includes(durationMinutes)) {
+      throw new Error("That visit length doesn't fit your open time from this start. Pick one of the offered lengths.");
+    }
+    const dependent = input.dependentId ? patient.dependents?.find((d) => d.id === input.dependentId) : undefined;
+    const appointment: Appointment = {
+      id: `s${++mockScheduleSeq}`,
+      doctor: patient.name,
+      patientId: patient.userId,
+      patientName: dependent ? `${dependent.firstName} ${dependent.lastName}` : patient.name,
+      specialty: 'Consultation',
+      date: start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+      time: formatClock(start),
+      startAt: start.toISOString(),
+      durationMinutes,
+      type: input.type,
+      status: 'pending_payment',
+      fee: '₦15,000',
+      reason: input.reason?.trim() || undefined,
+      dependentId: input.dependentId,
+      scheduledByDoctor: true,
+    };
+    mockDoctorSchedule.unshift(appointment);
+    return withPatientAge(appointment);
+  },
+
+  /** GET /practice/time-off — blocks overlapping the inclusive local date range (default: yesterday → a year out). */
+  async getTimeOff(range: { from?: string; to?: string }): Promise<TimeOffBlock[]> {
+    await delay(300);
+    const from = range.from ? localAt(range.from).getTime() : mockMidnight(-1).getTime();
+    const to = (range.to ? localAt(range.to) : mockMidnight(365)).getTime() + 24 * 60 * MINUTE_MS;
+    return mockTimeOff
+      .filter((t) => rangesOverlap(from, to, new Date(t.startAt).getTime(), new Date(t.endAt).getTime()))
+      .sort((a, b) => a.startAt.localeCompare(b.startAt));
+  },
+
+  /** POST /practice/time-off — same rules as the backend; reports visits already inside the block instead of cancelling them. */
+  async addTimeOff(input: TimeOffInput): Promise<TimeOffResult> {
+    await delay(500);
+    const endDate = input.endDate ?? input.startDate;
+    if (endDate < input.startDate) throw new Error('The end date must be on or after the start date.');
+    const hasWindow = input.startMinute != null || input.endMinute != null;
+    let start: Date;
+    let end: Date;
+    if (hasWindow) {
+      if (input.startMinute == null || input.endMinute == null) throw new Error('Give both a start and an end time, or block the whole day.');
+      if (endDate !== input.startDate) throw new Error('A time window can only cover a single day.');
+      if (input.endMinute <= input.startMinute) throw new Error('The end time must be after the start time.');
+      start = localAt(input.startDate, input.startMinute);
+      end = localAt(input.startDate, input.endMinute);
+    } else {
+      start = localAt(input.startDate);
+      end = new Date(localAt(endDate).getTime());
+      end.setDate(end.getDate() + 1);
+    }
+    if (end.getTime() <= Date.now()) throw new Error('That time has already passed.');
+    // Mirrors the backend: a block already wholly covered adds nothing.
+    if (mockTimeOff.some((t) => new Date(t.startAt).getTime() <= start.getTime() && new Date(t.endAt).getTime() >= end.getTime())) {
+      throw new Error('That time is already blocked.');
+    }
+    const block: TimeOffBlock = {
+      id: `off-${Date.now()}`,
+      startAt: start.toISOString(),
+      endAt: end.toISOString(),
+      allDay: !hasWindow,
+      reason: input.reason?.trim() || undefined,
+    };
+    mockTimeOff = [...mockTimeOff, block];
+    const live: AppointmentStatus[] = ['pending_approval', 'pending_payment', 'upcoming', 'checked_in'];
+    const conflicts = mockDoctorSchedule
+      .filter((a) => a.startAt && live.includes(a.status))
+      .filter((a) => {
+        const s = new Date(a.startAt!).getTime();
+        return rangesOverlap(s, s + (a.durationMinutes ?? 60) * MINUTE_MS, start.getTime(), end.getTime());
+      })
+      .sort((a, b) => a.startAt!.localeCompare(b.startAt!))
+      .map(withPatientAge);
+    return { block, conflicts };
+  },
+
+  /** DELETE /practice/time-off/:id */
+  async removeTimeOff(id: string): Promise<void> {
+    await delay(300);
+    if (!mockTimeOff.some((t) => t.id === id)) throw new Error('Blocked time not found');
+    mockTimeOff = mockTimeOff.filter((t) => t.id !== id);
   },
 
   async getMedicalNotes(patientId: string): Promise<MedicalNote[]> {
@@ -1154,6 +1358,16 @@ export const mockApi = {
     if (amount < MIN_CASHOUT) throw new Error(`The minimum withdrawal is ₦${MIN_CASHOUT.toLocaleString('en-US')}.`);
     if (amount > balance) throw new Error('Amount exceeds your available balance.');
     const now = new Date();
+    // Snapshot the destination the way the backend's payout row does
+    // (services/payouts.ts destinationLabel), so the Withdrawals table can
+    // show where it went even if the method changes later.
+    const method = mockPayoutMethod?.rail ?? 'flutterwave_bank';
+    const destination =
+      mockPayoutMethod?.rail === 'paypal'
+        ? (mockPayoutMethod.paypalEmail ?? 'PayPal')
+        : mockPayoutMethod
+          ? `${mockPayoutMethod.bankName ?? 'Bank'} ${mockPayoutMethod.accountNumberMasked ?? ''}`.trim()
+          : 'Guaranty Trust Bank ••••4321';
     mockEarnings.unshift({
       id: `wd-${Date.now()}`,
       kind: 'withdrawal',
@@ -1162,6 +1376,8 @@ export const mockApi = {
       time: formatClock(now),
       amount,
       status: 'pending',
+      method,
+      destination,
     });
     return summarizeEarnings();
   },
@@ -1418,7 +1634,7 @@ export const mockApi = {
   async getAppointmentBreakdown(appointmentId: string): Promise<FeeBreakdown> {
     await delay(300);
     const appt =
-      (MOCK_DOCTOR_SCHEDULE as Appointment[]).find((a) => a.id === appointmentId) ??
+      mockDoctorSchedule.find((a) => a.id === appointmentId) ??
       (MOCK_APPOINTMENTS as Appointment[]).find((a) => a.id === appointmentId);
     return mockFeeBreakdown(appt?.fee, appt?.type);
   },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, StatusBar, Platform, Alert, ActivityIndicator,
 } from 'react-native';
@@ -12,7 +12,6 @@ import { useTheme, type ThemeColors } from '../../../theme';
 import {
   useAppointmentDecision,
   useConversations,
-  useDoctorAgenda,
   usePracticeAppointments,
   useProviderState,
 } from '../../../hooks/queries';
@@ -21,6 +20,8 @@ import EkoButton from '../../../components/common/EkoButton';
 import { useAuth } from '../../../context/AuthContext';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { TAB_BAR_SPACE } from '../../../constants/layout';
+import { ACTIVE_STATUSES, type Appointment } from '../../../api/types';
+import { formatTime, placeAppointments, sameDay } from '../../../utils/schedule';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -29,24 +30,40 @@ interface Props {
 const STATUS_META: Record<string, { color: string; icon: string; tint: string | null }> = {
   confirmed: { color: Colors.blue, icon: 'check-circle', tint: null },
   cancelled: { color: Colors.red, icon: 'times-circle', tint: Colors.cardColors[3] },
-  rescheduled: { color: '#7C4DFF', icon: 'dot-circle-o', tint: null },
+  completed: { color: Colors.textGray, icon: 'check', tint: null },
   pending: { color: Colors.orange, icon: 'clock-o', tint: Colors.cardColors[0] },
 };
 
 /** Statuses the agenda filter offers, in display order. Labels come from i18n. */
-const AGENDA_STATUSES = ['confirmed', 'pending', 'rescheduled', 'cancelled'] as const;
+const AGENDA_STATUSES = ['confirmed', 'pending', 'completed', 'cancelled'] as const;
 const STATUS_LABEL_KEYS: Record<string, string> = {
   confirmed: 'dashboard.statusConfirmed',
   pending: 'dashboard.statusPending',
-  rescheduled: 'dashboard.statusRescheduled',
+  completed: 'dashboard.statusCompleted',
   cancelled: 'dashboard.statusCancelled',
 };
+
+/** The agenda's coarse status for a real appointment lifecycle state. */
+function agendaStatus(status: Appointment['status']): (typeof AGENDA_STATUSES)[number] {
+  switch (status) {
+    case 'upcoming':
+    case 'checked_in':
+      return 'confirmed';
+    case 'pending_approval':
+    case 'pending_payment':
+      return 'pending';
+    case 'past':
+      return 'completed';
+    default:
+      return 'cancelled'; // cancelled, declined, no_show
+  }
+}
 
 export default function DashboardScreen({ navigation }: Props) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const insets = useSafeAreaInsets();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   // Agenda status filter. Empty = show all; any subset filters Today's list.
@@ -64,7 +81,6 @@ export default function DashboardScreen({ navigation }: Props) {
   // practice queries would all return empty — don't fire them.
   const isLive = provider?.state === 'live';
   const { data: conversations = [] } = useConversations();
-  const { data: agenda = [] } = useDoctorAgenda(isLive);
   const { data: practiceAppointments = [] } = usePracticeAppointments(isLive);
   const decision = useAppointmentDecision();
   // useAppointmentDecision is a single shared mutation object for the whole
@@ -73,20 +89,32 @@ export default function DashboardScreen({ navigation }: Props) {
   // Accept/Decline get disabled.
   const [pendingId, setPendingId] = useState<string | null>(null);
   const unreadCount = conversations.reduce((n, c) => n + c.unread, 0);
-  const remaining = agenda.length;
+
+  // Today's visits, from the same appointments the Scheduler shows — so "My
+  // Day" and the Scheduler's day view can never disagree. (This used to read
+  // a separate demo-only list that nothing ever wrote to.)
+  const today = useMemo(
+    () => placeAppointments(practiceAppointments).filter(({ start }) => sameDay(start, new Date())),
+    [practiceAppointments],
+  );
+  const now = Date.now();
+  const remaining = today.filter(({ appointment, end }) => ACTIVE_STATUSES.includes(appointment.status) && end.getTime() > now).length;
+  const openScheduler = (focusDate?: Date) =>
+    navigation.navigate('SchedulerTab', { screen: 'Scheduler', params: { focusDate: (focusDate ?? new Date()).toISOString() } });
 
   // Real requests: appointments this doctor hasn't answered yet.
   const allRequests = practiceAppointments.filter((a) => a.status === 'pending_approval');
 
   // Search filters both lists by patient name. On doctor-scoped rows the
-  // counterparty name lives in `doctor` (requests) / `name` (agenda).
+  // counterparty name lives in `doctor`.
   const query = search.trim().toLowerCase();
   const requests = query
     ? allRequests.filter((a) => a.doctor.toLowerCase().includes(query))
     : allRequests;
-  const filteredAgenda = agenda.filter((a) => {
-    if (query && !a.name.toLowerCase().includes(query)) return false;
-    if (activeStatuses.length && !activeStatuses.includes(a.status)) return false;
+  const filteredAgenda = today.filter(({ appointment }) => {
+    const name = appointment.patientName ?? appointment.doctor;
+    if (query && !name.toLowerCase().includes(query)) return false;
+    if (activeStatuses.length && !activeStatuses.includes(agendaStatus(appointment.status))) return false;
     return true;
   });
 
@@ -133,7 +161,7 @@ export default function DashboardScreen({ navigation }: Props) {
               <View style={styles.badge}><Text style={styles.badgeText}>{unreadCount}</Text></View>
             )}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.avatarBtn} onPress={() => navigation.navigate('SettingsTab')}>
+          <TouchableOpacity style={styles.avatarBtn} onPress={() => navigation.navigate('SettingsTab', { screen: 'DoctorSettings' })} accessibilityRole="button" accessibilityLabel={t('tabs.settings')}>
             <FontAwesome name="user-md" size={18} color={Colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity
@@ -222,7 +250,7 @@ export default function DashboardScreen({ navigation }: Props) {
         <View style={styles.section}>
           <View style={styles.sectionRow}>
             <Text style={styles.sectionTitle}>{t('dashboard.requests')}</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('SchedulerTab')}>
+            <TouchableOpacity onPress={() => openScheduler()}>
               <Text style={styles.viewAll}>{t('dashboard.viewList')}</Text>
             </TouchableOpacity>
           </View>
@@ -280,37 +308,40 @@ export default function DashboardScreen({ navigation }: Props) {
         <View style={styles.section}>
           <View style={styles.sectionRow}>
             <Text style={styles.sectionTitle}>{t('dashboard.todaysAppointment')}</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('SchedulerTab')}>
+            <TouchableOpacity onPress={() => openScheduler()}>
               <Text style={styles.viewAll}>{t('dashboard.viewList')}</Text>
             </TouchableOpacity>
           </View>
 
-          {filteredAgenda.length === 0 && (query.length > 0 || filtersActive) ? (
+          {filteredAgenda.length === 0 ? (
             <Text style={styles.emptyRequests}>
               {query.length > 0
                 ? t('dashboard.noMatchesFor', { query: search.trim() })
-                : t('dashboard.noMatchingStatus')}
+                : filtersActive
+                  ? t('dashboard.noMatchingStatus')
+                  : t('dashboard.noAppointmentsToday')}
             </Text>
           ) : null}
-          {filteredAgenda.map((appt) => {
-            const meta = STATUS_META[appt.status] ?? STATUS_META.confirmed;
+          {filteredAgenda.map(({ appointment: appt, start }) => {
+            const meta = STATUS_META[agendaStatus(appt.status)] ?? STATUS_META.confirmed;
+            const typeLabel = t(`options.appointmentType.${appt.type}`, { defaultValue: appt.type });
             return (
               <TouchableOpacity
                 key={appt.id}
                 style={[styles.apptRow, meta.tint ? { backgroundColor: meta.tint } : null]}
                 activeOpacity={0.85}
-                onPress={() => navigation.navigate('SchedulerTab')}
+                onPress={() => openScheduler(start)}
               >
                 <View style={styles.apptAvatar}>
                   <FontAwesome name="user" size={18} color={Colors.primary} />
                 </View>
                 <View style={styles.apptInfo}>
-                  <Text style={styles.apptName}>{appt.name}</Text>
-                  <Text style={styles.apptType}>{appt.type.toUpperCase()}</Text>
+                  <Text style={styles.apptName}>{appt.patientName ?? appt.doctor}</Text>
+                  <Text style={styles.apptType}>{typeLabel.toUpperCase()}</Text>
                 </View>
                 <View style={styles.apptTimeWrap}>
                   <FontAwesome name={meta.icon as any} size={14} color={meta.color} />
-                  <Text style={styles.apptTime}>  {appt.time}</Text>
+                  <Text style={styles.apptTime}>  {formatTime(start, locale)}</Text>
                 </View>
               </TouchableOpacity>
             );

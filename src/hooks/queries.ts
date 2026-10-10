@@ -5,7 +5,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
-import type { AvailabilityBlock, CashoutInput, ComplaintInput, CreateAppointmentInput, DocumentCategory, LabInput, MedicalNoteInput, PatientBiometrics, PatientConditionInput, PatientConditionUpdate, PickedFile, PrescriptionInput, RevenueGranularity, SymptomLogInput, SymptomLogUpdate, VisitType } from '../api/types';
+import type { AvailabilityBlock, CashoutInput, ComplaintInput, CreateAppointmentInput, DoctorScheduleInput, DocumentCategory, TimeOffInput, LabInput, MedicalNoteInput, PatientBiometrics, PatientConditionInput, PatientConditionUpdate, PickedFile, PrescriptionInput, RevenueGranularity, SymptomLogInput, SymptomLogUpdate, VisitType } from '../api/types';
 import { searchIcd10 } from '../services/icd10';
 
 export const queryKeys = {
@@ -13,12 +13,14 @@ export const queryKeys = {
   doctor: (id: string) => ['doctors', id] as const,
   doctorAvailabilitySlots: (doctorId: string, date: string) => ['doctor-availability-slots', doctorId, date] as const,
   practiceAvailability: ['practice-availability'] as const,
+  /** The signed-in doctor's own open slots for a date — prefix ['own-slots'] invalidates every date. */
+  ownSlots: (date: string) => ['own-slots', date] as const,
+  timeOff: ['time-off'] as const,
   appointments: ['appointments'] as const,
   conversations: ['conversations'] as const,
   messages: (conversationId: string) => ['messages', conversationId] as const,
   notifications: ['notifications'] as const,
   patients: ['patients'] as const,
-  agenda: ['agenda'] as const,
   practiceAppointments: ['practice-appointments'] as const,
   medicalNotes: (patientId: string) => ['medical-notes', patientId] as const,
   icd10Search: (q: string) => ['icd10-search', q] as const,
@@ -72,7 +74,12 @@ export function useDoctors(params?: { category?: string; query?: string }) {
 }
 
 export function useDoctor(id: string) {
-  return useQuery({ queryKey: queryKeys.doctor(id), queryFn: () => api.doctors.get(id), enabled: !!id });
+  return useQuery({
+    queryKey: queryKeys.doctor(id),
+    // React Query rejects `undefined` as data, so "no such doctor" is null.
+    queryFn: async () => (await api.doctors.get(id)) ?? null,
+    enabled: !!id,
+  });
 }
 
 export function useAppointments(enabled = true) {
@@ -368,7 +375,8 @@ export function useAppointmentDecision() {
       decision === 'accept' ? api.practice.accept(id) : api.practice.decline(id, reason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.practiceAppointments });
-      qc.invalidateQueries({ queryKey: queryKeys.agenda });
+      // A declined request gives its slot back.
+      qc.invalidateQueries({ queryKey: ['own-slots'] });
     },
   });
 }
@@ -390,7 +398,6 @@ export function useMarkNoShow() {
     mutationFn: (id: string) => api.practice.markNoShow(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.practiceAppointments });
-      qc.invalidateQueries({ queryKey: queryKeys.agenda });
     },
   });
 }
@@ -404,7 +411,58 @@ export function useSaveDoctorAvailability() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (blocks: AvailabilityBlock[]) => api.practice.saveAvailability(blocks),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.practiceAvailability }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.practiceAvailability });
+      qc.invalidateQueries({ queryKey: ['own-slots'] });
+    },
+  });
+}
+
+/** The signed-in doctor's own open slots on a date (YYYY-MM-DD) — what a doctor-scheduled visit can start on. */
+export function useOwnOpenSlots(date: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.ownSlots(date),
+    queryFn: () => api.practice.slots(date),
+    enabled: enabled && !!date,
+  });
+}
+
+/** Doctor books a visit for a patient. It lands at pending_payment and takes its slot. */
+export function useScheduleAppointment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: DoctorScheduleInput) => api.practice.scheduleAppointment(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.practiceAppointments }),
+    // Refresh slots on failure too — a 409 usually means one was just taken.
+    onSettled: () => qc.invalidateQueries({ queryKey: ['own-slots'] }),
+  });
+}
+
+/** The signed-in doctor's blocked time, from yesterday through a year out. */
+export function useTimeOff(enabled = true) {
+  return useQuery({ queryKey: queryKeys.timeOff, queryFn: () => api.practice.timeOff(), enabled });
+}
+
+/** Block out time. Resolves with any visits already booked inside the block (they are not cancelled). */
+export function useAddTimeOff() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: TimeOffInput) => api.practice.addTimeOff(input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.timeOff });
+      qc.invalidateQueries({ queryKey: ['own-slots'] });
+    },
+  });
+}
+
+export function useRemoveTimeOff() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.practice.removeTimeOff(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.timeOff });
+      qc.invalidateQueries({ queryKey: ['own-slots'] });
+    },
   });
 }
 
@@ -711,11 +769,6 @@ export function useSubmitReview() {
       qc.invalidateQueries({ queryKey: ['review-summary'] });
     },
   });
-}
-
-export function useDoctorAgenda(enabled = true) {
-  // Gate on role at the call site: /practice/agenda 403s for non-doctors.
-  return useQuery({ queryKey: queryKeys.agenda, queryFn: api.practice.agenda, enabled });
 }
 
 /** The signed-in user's own filed reports (Settings → Report a Problem). */

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Platform,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Platform, LayoutAnimation,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,6 +22,15 @@ interface Props {
 }
 
 type PeriodKey = 'month' | 'quarter' | 'year';
+
+/**
+ * Splits a ledger display date ("Oct 7, 2026" or "Wed, Oct 7, 2026") into a
+ * day line and a year line, so the narrow table column stays two short lines.
+ */
+function splitDisplayDate(value: string): [string, string] {
+  const m = /([A-Za-z]{3,}\.? \d{1,2}), (\d{4})/.exec(value);
+  return m ? [m[1], m[2]] : [value, ''];
+}
 
 /** yyyy-mm-dd, the form both analysis endpoints parse. */
 const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -65,35 +74,30 @@ export default function EarningsScreen({ navigation }: Props) {
 
   const balance = earnings?.balance ?? 0;
   const items = earnings?.items ?? [];
+  const earningRows = items.filter((i) => i.kind === 'earning');
+  const withdrawalRows = items.filter((i) => i.kind === 'withdrawal');
 
-  const renderItem = ({ item }: { item: EarningItem }) => {
-    const isEarning = item.kind === 'earning';
-    return (
-      <View style={styles.row}>
-        <View style={[styles.rowIcon, { backgroundColor: (isEarning ? Colors.primary : Colors.textGray) + '18' }]}>
-          <FontAwesome
-            name={isEarning ? 'user' : 'arrow-up'}
-            size={16}
-            color={isEarning ? Colors.primary : Colors.textGray}
-          />
-        </View>
-        <View style={styles.rowInfo}>
-          <Text style={styles.rowTitle}>{isEarning ? item.title : t('earnings.withdrawal')}</Text>
-          <Text style={styles.rowMeta}>{item.date} · {item.time}</Text>
-        </View>
-        <View style={styles.rowRight}>
-          <Text style={[styles.rowAmount, { color: isEarning ? Colors.green : Colors.red }]}>
-            {isEarning ? '+' : '−'} {formatMoney('₦', item.amount)}
-          </Text>
-          {item.status === 'pending' ? (
-            <View style={styles.pendingPill}>
-              <Text style={styles.pendingText}>{t('earnings.pending')}</Text>
-            </View>
-          ) : null}
-        </View>
-      </View>
-    );
+  // Earnings open by default (it's what the tab is for); withdrawals start
+  // folded so the two tables don't run together.
+  const [open, setOpen] = useState({ earnings: true, withdrawals: false });
+  const toggle = (key: keyof typeof open) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
   };
+
+  // Totals. Revenue and fees are only totalled when every row has them — a
+  // legacy row without its payment split would otherwise make the totals stop
+  // adding up (revenue − fees ≠ net) with no visible reason.
+  const netTotal = earningRows.reduce((sum, i) => sum + (i.netAmount ?? i.amount), 0);
+  const splitComplete = earningRows.every((i) => i.grossAmount != null && i.platformFee != null);
+  const grossTotal = splitComplete ? earningRows.reduce((sum, i) => sum + (i.grossAmount ?? 0), 0) : null;
+  const feeTotal = splitComplete ? earningRows.reduce((sum, i) => sum + (i.platformFee ?? 0), 0) : null;
+  // A failed withdrawal never left the account, so it isn't money withdrawn.
+  const withdrawnTotal = withdrawalRows.filter((i) => i.status !== 'failed').reduce((sum, i) => sum + i.amount, 0);
+  const money = (n: number | null | undefined) => (n == null ? '—' : formatMoney('₦', n));
+
+  const methodLabel = (item: EarningItem) =>
+    item.method === 'paypal' ? t('earnings.methodPaypal') : item.method === 'flutterwave_bank' ? t('earnings.methodBank') : '—';
 
   return (
     <View style={styles.container}>
@@ -119,7 +123,7 @@ export default function EarningsScreen({ navigation }: Props) {
               <View style={styles.badge}><Text style={styles.badgeText}>{unreadCount}</Text></View>
             )}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.avatarBtn} onPress={() => navigation.navigate('SettingsTab')} accessibilityRole="button" accessibilityLabel={t('account.editProfile')}>
+          <TouchableOpacity style={styles.avatarBtn} onPress={() => navigation.navigate('SettingsTab', { screen: 'DoctorSettings' })} accessibilityRole="button" accessibilityLabel={t('tabs.settings')}>
             <FontAwesome name="user-md" size={18} color={Colors.primary} />
           </TouchableOpacity>
         </View>
@@ -143,14 +147,7 @@ export default function EarningsScreen({ navigation }: Props) {
         </View>
       </LinearGradient>
 
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <>
+      <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
             {/* Summary stats */}
             <View style={styles.statsRow}>
               <View style={styles.statCard}>
@@ -282,16 +279,159 @@ export default function EarningsScreen({ navigation }: Props) {
               )}
             </View>
 
-            <Text style={styles.sectionTitle}>{t('earnings.title')}</Text>
-          </>
-        }
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <FontAwesome name="line-chart" size={44} color={Colors.textLight} />
-            <Text style={styles.emptyText}>{t('earnings.noEarnings')}</Text>
-          </View>
-        }
-      />
+            {/* Earnings — one row per paid visit. */}
+            <ReportSection
+              title={t('earnings.earningsSection')}
+              summary={`${t('earnings.entriesCount', { count: earningRows.length })} · ${money(netTotal)}`}
+              icon="line-chart"
+              open={open.earnings}
+              onToggle={() => toggle('earnings')}
+            >
+              {earningRows.length === 0 ? (
+                <Text style={styles.tableEmpty}>{t('earnings.noEarnings')}</Text>
+              ) : (
+                <>
+                  <View style={[styles.tr, styles.thead]}>
+                    <Text style={[styles.th, styles.colDate]}>{t('earnings.colAppointmentDate')}</Text>
+                    <Text style={[styles.th, styles.colName]}>{t('earnings.colPatientName')}</Text>
+                    <Text style={[styles.th, styles.colMoney, styles.right]}>{t('earnings.colPaidRevenue')}</Text>
+                    <Text style={[styles.th, styles.colFee, styles.right]}>{t('earnings.colPlatformFees')}</Text>
+                    <Text style={[styles.th, styles.colMoney, styles.right]}>{t('earnings.colNet')}</Text>
+                  </View>
+                  {earningRows.map((item, i) => {
+                    const [dayLine, yearLine] = splitDisplayDate(item.appointmentDate ?? item.date);
+                    return (
+                      <View key={item.id} style={[styles.tr, i % 2 === 1 && styles.trAlt]}>
+                        <View style={styles.colDate}>
+                          <Text style={styles.td}>{dayLine}</Text>
+                          {yearLine ? <Text style={styles.tdSub}>{yearLine}</Text> : null}
+                        </View>
+                        <Text style={[styles.td, styles.colName]} numberOfLines={2}>{item.patientName ?? item.title}</Text>
+                        <Text style={[styles.td, styles.colMoney, styles.right]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                          {money(item.grossAmount)}
+                        </Text>
+                        <Text style={[styles.td, styles.tdMuted, styles.colFee, styles.right]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                          {money(item.platformFee)}
+                        </Text>
+                        <View style={[styles.colMoney, styles.alignEnd]}>
+                          <Text style={[styles.td, styles.tdNet]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                            {money(item.netAmount ?? item.amount)}
+                          </Text>
+                          {item.status === 'pending' ? <Text style={styles.tagPending}>{t('earnings.pending')}</Text> : null}
+                        </View>
+                      </View>
+                    );
+                  })}
+                  <View style={[styles.tr, styles.tfoot]}>
+                    <Text style={[styles.tdTotal, styles.colDate]}>{t('earnings.total')}</Text>
+                    <View style={styles.colName} />
+                    <Text style={[styles.tdTotal, styles.colMoney, styles.right]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                      {money(grossTotal)}
+                    </Text>
+                    <Text style={[styles.tdTotal, styles.colFee, styles.right]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                      {money(feeTotal)}
+                    </Text>
+                    <Text style={[styles.tdTotal, styles.tdNet, styles.colMoney, styles.right]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                      {money(netTotal)}
+                    </Text>
+                  </View>
+                  <Text style={styles.footnote}>{t('earnings.earningsFootnote')}</Text>
+                </>
+              )}
+            </ReportSection>
+
+            {/* Withdrawals — money moved out to the doctor's bank or PayPal. */}
+            <ReportSection
+              title={t('earnings.withdrawalsSection')}
+              summary={`${t('earnings.entriesCount', { count: withdrawalRows.length })} · ${money(withdrawnTotal)}`}
+              icon="university"
+              open={open.withdrawals}
+              onToggle={() => toggle('withdrawals')}
+            >
+              {withdrawalRows.length === 0 ? (
+                <Text style={styles.tableEmpty}>{t('earnings.noWithdrawals')}</Text>
+              ) : (
+                <>
+                  <View style={[styles.tr, styles.thead]}>
+                    <Text style={[styles.th, styles.colWDate]}>{t('earnings.colDate')}</Text>
+                    <Text style={[styles.th, styles.colMethod]}>{t('earnings.colMethod')}</Text>
+                    <Text style={[styles.th, styles.colAmount, styles.right]}>{t('earnings.colAmount')}</Text>
+                  </View>
+                  {withdrawalRows.map((item, i) => {
+                    const [dayLine, yearLine] = splitDisplayDate(item.date);
+                    const failed = item.status === 'failed';
+                    return (
+                      <View key={item.id} style={[styles.tr, i % 2 === 1 && styles.trAlt]}>
+                        <View style={styles.colWDate}>
+                          <Text style={styles.td}>{dayLine}</Text>
+                          {yearLine ? <Text style={styles.tdSub}>{yearLine}</Text> : null}
+                        </View>
+                        <View style={styles.colMethod}>
+                          <Text style={styles.td}>{methodLabel(item)}</Text>
+                          {/* Middle-truncated so the account's last digits (or the
+                              email's domain) stay visible on a narrow phone. */}
+                          {item.destination ? (
+                            <Text style={styles.tdSub} numberOfLines={1} ellipsizeMode="middle">{item.destination}</Text>
+                          ) : null}
+                        </View>
+                        <View style={[styles.colAmount, styles.alignEnd]}>
+                          <Text style={[styles.td, styles.tdOut, failed && styles.tdStruck]} numberOfLines={1}>
+                            {money(item.amount)}
+                          </Text>
+                          {item.status === 'pending' ? <Text style={styles.tagPending}>{t('earnings.pending')}</Text> : null}
+                          {failed ? <Text style={styles.tagFailed}>{t('earnings.failed')}</Text> : null}
+                        </View>
+                      </View>
+                    );
+                  })}
+                  <View style={[styles.tr, styles.tfoot]}>
+                    <Text style={[styles.tdTotal, styles.colWDate]}>{t('earnings.total')}</Text>
+                    <View style={styles.colMethod} />
+                    <Text style={[styles.tdTotal, styles.colAmount, styles.right]} numberOfLines={1}>
+                      {money(withdrawnTotal)}
+                    </Text>
+                  </View>
+                </>
+              )}
+            </ReportSection>
+      </ScrollView>
+    </View>
+  );
+}
+
+/** A collapsible report block: tappable header with a one-line summary, body shown when open. */
+function ReportSection({
+  title, summary, icon, open, onToggle, children,
+}: {
+  title: string;
+  summary: string;
+  icon: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  const Colors = useTheme();
+  const styles = makeStyles(Colors);
+  return (
+    <View style={styles.reportCard}>
+      <TouchableOpacity
+        style={styles.reportHead}
+        onPress={onToggle}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={`${title}, ${summary}`}
+      >
+        <View style={styles.reportIcon}>
+          <FontAwesome name={icon as any} size={15} color={Colors.primary} />
+        </View>
+        <View style={styles.reportHeadText}>
+          <Text style={styles.reportTitle}>{title}</Text>
+          <Text style={styles.reportSummary}>{summary}</Text>
+        </View>
+        <FontAwesome name={open ? 'chevron-up' : 'chevron-down'} size={13} color={Colors.textGray} />
+      </TouchableOpacity>
+      {open ? <View style={styles.reportBody}>{children}</View> : null}
     </View>
   );
 }
@@ -393,31 +533,49 @@ const makeStyles = (Colors: ThemeColors) => StyleSheet.create({
   breakdownValue: { fontSize: 13.5, fontWeight: '700', color: Colors.textDark, fontFamily: 'Poppins_600SemiBold' },
   breakdownCount: { fontSize: 11, color: Colors.textGray, marginTop: 1, fontFamily: 'Poppins_400Regular' },
 
-  sectionTitle: { fontSize: 18, fontWeight: '800', color: Colors.textDark, marginBottom: 12, fontFamily: 'Poppins_700Bold' },
-
-  row: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface,
-    borderRadius: 16, padding: 14, marginBottom: 10,
+  // Collapsible report sections
+  reportCard: {
+    backgroundColor: Colors.surface, borderRadius: 18, marginBottom: 14, overflow: 'hidden',
     ...Platform.select({
       ios: { shadowColor: 'rgba(0,0,0,0.05)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 6 },
       android: { elevation: 1 },
     }),
   },
-  rowIcon: {
-    width: 44, height: 44, borderRadius: 22,
-    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+  reportHead: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
+  reportIcon: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primaryFaded,
+    alignItems: 'center', justifyContent: 'center',
   },
-  rowInfo: { flex: 1 },
-  rowTitle: { fontSize: 15, fontWeight: '700', color: Colors.textDark, fontFamily: 'Poppins_600SemiBold' },
-  rowMeta: { fontSize: 12, color: Colors.textGray, marginTop: 2, fontFamily: 'Poppins_400Regular' },
-  rowRight: { alignItems: 'flex-end' },
-  rowAmount: { fontSize: 15, fontWeight: '800', fontFamily: 'Poppins_700Bold' },
-  pendingPill: {
-    backgroundColor: Colors.orange + '1F', borderRadius: 8,
-    paddingHorizontal: 8, paddingVertical: 2, marginTop: 4,
-  },
-  pendingText: { fontSize: 10, color: Colors.orange, fontWeight: '700', fontFamily: 'Poppins_600SemiBold' },
+  reportHeadText: { flex: 1 },
+  reportTitle: { fontSize: 16, fontWeight: '800', color: Colors.textDark, fontFamily: 'Poppins_700Bold' },
+  reportSummary: { fontSize: 12, color: Colors.textGray, marginTop: 1, fontFamily: 'Poppins_400Regular' },
+  reportBody: { paddingHorizontal: 10, paddingBottom: 14 },
+  tableEmpty: { fontSize: 13, color: Colors.textGray, paddingHorizontal: 6, paddingBottom: 6, fontFamily: 'Poppins_400Regular' },
 
-  empty: { alignItems: 'center', marginTop: 60 },
-  emptyText: { fontSize: 15, color: Colors.textGray, marginTop: 12, fontFamily: 'Poppins_400Regular' },
+  // Tables — flex columns so five fit a phone's width without scrolling.
+  tr: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, paddingHorizontal: 6, gap: 6 },
+  trAlt: { backgroundColor: Colors.bgLight, borderRadius: 8 },
+  thead: { borderBottomWidth: 1, borderBottomColor: Colors.borderGray, paddingBottom: 8 },
+  tfoot: { borderTopWidth: 1, borderTopColor: Colors.borderGray, marginTop: 2 },
+  th: { fontSize: 10.5, fontWeight: '700', color: Colors.textGray, lineHeight: 14, fontFamily: 'Poppins_600SemiBold' },
+  td: { fontSize: 12, color: Colors.textDark, fontFamily: 'Poppins_500Medium' },
+  tdSub: { fontSize: 10.5, color: Colors.textGray, marginTop: 1, fontFamily: 'Poppins_400Regular' },
+  tdMuted: { color: Colors.textMedium },
+  tdNet: { fontWeight: '700', color: Colors.green, fontFamily: 'Poppins_700Bold' },
+  // Money that left the account — neutral, not the green of money earned.
+  tdOut: { fontWeight: '700', color: Colors.textDark, fontFamily: 'Poppins_700Bold' },
+  tdStruck: { color: Colors.textGray, textDecorationLine: 'line-through' },
+  tdTotal: { fontSize: 12, fontWeight: '800', color: Colors.textDark, fontFamily: 'Poppins_700Bold' },
+  right: { textAlign: 'right' },
+  alignEnd: { alignItems: 'flex-end' },
+  colDate: { flex: 0.95 },
+  colName: { flex: 1.3 },
+  colMoney: { flex: 1.15 },
+  colFee: { flex: 1.05 },
+  colWDate: { flex: 1 },
+  colMethod: { flex: 2 },
+  colAmount: { flex: 1.3 },
+  tagPending: { fontSize: 10, color: Colors.orange, fontWeight: '700', marginTop: 1, fontFamily: 'Poppins_600SemiBold' },
+  tagFailed: { fontSize: 10, color: Colors.red, fontWeight: '700', marginTop: 1, fontFamily: 'Poppins_600SemiBold' },
+  footnote: { fontSize: 11, color: Colors.textGray, lineHeight: 16, paddingHorizontal: 6, marginTop: 10, fontFamily: 'Poppins_400Regular' },
 });

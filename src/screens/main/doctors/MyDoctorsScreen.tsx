@@ -140,7 +140,7 @@ export default function MyDoctorsScreen({ navigation, route }: Props) {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.avatarBtn} onPress={() => navigation.navigate('AccountTab')} accessibilityRole="button" accessibilityLabel={t('tabs.account')}>
+            <TouchableOpacity style={styles.avatarBtn} onPress={() => navigation.navigate('AccountTab', { screen: 'MyAccount' })} accessibilityRole="button" accessibilityLabel={t('tabs.account')}>
               <FontAwesome name="user" size={16} color={Colors.primary} />
             </TouchableOpacity>
 

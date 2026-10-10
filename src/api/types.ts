@@ -133,6 +133,8 @@ export interface Appointment {
   time: string;
   /** ISO instant — real structured start time. Absent on legacy appointments booked before the slot model shipped. */
   startAt?: string;
+  /** How long the visit holds the doctor's time. Absent on appointments booked before durations were stored. */
+  durationMinutes?: number;
   type: VisitType;
   status: AppointmentStatus;
   /** Display fee, e.g. "₦15,000" — needed to prompt for payment. */
@@ -160,6 +162,66 @@ export interface Appointment {
   patientName?: string;
   /** Free text the patient gave at booking, shown on Appointment Details. */
   reason?: string;
+  /**
+   * The doctor booked this for the patient (Scheduler → New appointment)
+   * instead of the patient requesting it. It skips approval and starts at
+   * pending_payment — the patient paying is what confirms it.
+   */
+  scheduledByDoctor?: boolean;
+  /** Age of whoever the visit is for, on doctor-scoped schedules — from the roster or a dependent's DOB. */
+  patientAge?: number;
+}
+
+/** POST /practice/appointments — a doctor booking a visit for one of their patients. */
+export interface DoctorScheduleInput {
+  /** The doctor's roster id for the patient (PatientSummary.id). Must be linked to an app account. */
+  patientId: string;
+  /** ISO instant — one of the doctor's own open slots (GET /practice/slots). */
+  startAt: string;
+  type: VisitType;
+  reason?: string;
+  /** Defaults to the starting slot's length; longer only across consecutive open slots. */
+  durationMinutes?: number;
+  /** Book it for one of the patient's dependents. */
+  dependentId?: string;
+}
+
+/**
+ * A stretch of blocked time ("block out availability") — patients can't book
+ * into it. Whole days or a window on one day; the [startAt, endAt) instants
+ * are the source of truth either way.
+ */
+export interface TimeOffBlock {
+  id: string;
+  /** ISO instant. */
+  startAt: string;
+  /** ISO instant, exclusive. For a whole-day block this is the following midnight. */
+  endAt: string;
+  allDay: boolean;
+  /** Doctor-only note ("Vacation") — never shown to patients. */
+  reason?: string;
+}
+
+/** POST /practice/time-off — whole days (startDate..endDate) or a window on one day (startMinute..endMinute, Lagos local). */
+export interface TimeOffInput {
+  /** YYYY-MM-DD. */
+  startDate: string;
+  /** YYYY-MM-DD, inclusive. Defaults to startDate. Must equal it when a time window is given. */
+  endDate?: string;
+  /** Minutes since midnight. Omit both for whole days. */
+  startMinute?: number;
+  endMinute?: number;
+  reason?: string;
+}
+
+/**
+ * What POST /practice/time-off returns: the block, plus visits already booked
+ * inside it. Blocking stops new bookings but never cancels existing ones (some
+ * are paid), so these are left for the doctor to handle.
+ */
+export interface TimeOffResult {
+  block: TimeOffBlock;
+  conflicts: Appointment[];
 }
 
 export interface CreateAppointmentInput {
@@ -182,6 +244,8 @@ export interface AvailabilitySlot {
   startAt: string;
   /** "9:00 AM", Lagos local. */
   label: string;
+  /** The slot's length — its working-hours block's slot size. */
+  durationMinutes?: number;
 }
 
 /**
@@ -637,14 +701,6 @@ export interface LabInput {
   dependentId?: string;
 }
 
-export interface DoctorAgendaItem {
-  id: string;
-  name: string;
-  type: string;
-  time: string;
-  status: 'confirmed' | 'cancelled' | 'rescheduled' | 'pending';
-}
-
 export interface Review {
   id: string;
   author: string;
@@ -873,7 +929,23 @@ export interface EarningItem {
   time: string;
   /** Positive Naira amount; the `kind` decides the sign shown. */
   amount: number;
-  status: 'settled' | 'pending';
+  /** 'failed' only on a withdrawal the payment rail rejected — that money is back in the balance. */
+  status: 'settled' | 'pending' | 'failed';
+  // ── Reports-tab columns. Unset on legacy rows with nothing to join. ──
+  /** Earnings: the visit's date. */
+  appointmentDate?: string;
+  /** Earnings: who the visit was for — the dependent on a proxy booking. Falls back to `title`. */
+  patientName?: string;
+  /** Earnings: the consultation fee ("Paid Revenue"). VAT and the patient's service charge are never part of it. */
+  grossAmount?: number;
+  /** Earnings: the commission withheld ("Platform Fees"). grossAmount − platformFee = netAmount. */
+  platformFee?: number;
+  /** Earnings: what was credited ("Net") — equal to `amount`. */
+  netAmount?: number;
+  /** Withdrawals: the rail it was sent on. */
+  method?: PayoutRail;
+  /** Withdrawals: masked destination captured at payout time, e.g. "GTBank ••••4321". */
+  destination?: string;
 }
 
 /** GET /practice/earnings — the doctor's wallet: balance + ledger. */

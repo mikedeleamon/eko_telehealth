@@ -479,6 +479,25 @@ export default function PatientProfileScreen({ navigation, route }: Props) {
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Book this patient in. Only for a patient with an app account —
+              a walk-in has nobody to notify or bill. */}
+          {patient.userId ? (
+            <View style={styles.actionsRow}>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionSecondary]}
+                onPress={() => navigation.navigate('NewAppointment', { patientId: patient.id })}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={t('newAppointment.schedulePatient')}
+              >
+                <FontAwesome name='calendar-plus-o' size={16} color={Colors.primary} />
+                <Text style={styles.actionSecondaryText}>
+                  {t('newAppointment.schedulePatient')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
         </View>
       </ScrollView>
 

@@ -91,6 +91,11 @@ import PrescriptionHistoryScreen from '../screens/main/dashboard/PrescriptionHis
 import AddPrescriptionScreen from '../screens/main/dashboard/AddPrescriptionScreen';
 import DoctorSettingsScreen from '../screens/main/dashboard/DoctorSettingsScreen';
 
+// Doctor scheduler
+import SchedulerScreen from '../screens/main/scheduler/SchedulerScreen';
+import NewAppointmentScreen from '../screens/main/scheduler/NewAppointmentScreen';
+import TimeOffScreen from '../screens/main/scheduler/TimeOffScreen';
+
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
 const AppointmentsStack = createNativeStackNavigator();
@@ -101,6 +106,7 @@ const DashboardStack = createNativeStackNavigator();
 const PatientsStack = createNativeStackNavigator();
 const SettingsStack = createNativeStackNavigator();
 const EarningsStack = createNativeStackNavigator();
+const SchedulerStack = createNativeStackNavigator();
 
 function HomeNavigator() {
     return (
@@ -517,6 +523,12 @@ function PatientsNavigator() {
                 name='AddPrescription'
                 component={AddPrescriptionScreen}
             />
+            {/* A patient's profile → "Schedule visit". On success it hands
+                over to the Scheduler tab on the booked day. */}
+            <PatientsStack.Screen
+                name='NewAppointment'
+                component={NewAppointmentScreen}
+            />
             <PatientsStack.Screen
                 name='Chat'
                 component={ChatScreen}
@@ -532,6 +544,55 @@ function PatientsNavigator() {
                 options={{ presentation: 'fullScreenModal' }}
             />
         </PatientsStack.Navigator>
+    );
+}
+
+/**
+ * The doctor's Scheduler tab: day/month calendar, booking a patient in, and
+ * blocking out time. Patients keep the plain Visits list (AppointmentsNavigator).
+ */
+function SchedulerNavigator() {
+    return (
+        <SchedulerStack.Navigator screenOptions={{ headerShown: false }}>
+            <SchedulerStack.Screen
+                name='Scheduler'
+                component={SchedulerScreen}
+            />
+            <SchedulerStack.Screen
+                name='NewAppointment'
+                component={NewAppointmentScreen}
+            />
+            <SchedulerStack.Screen
+                name='TimeOff'
+                component={TimeOffScreen}
+            />
+            <SchedulerStack.Screen
+                name='AppointmentDetails'
+                component={AppointmentDetailsScreen}
+            />
+            <SchedulerStack.Screen
+                name='MedicalNotes'
+                component={MedicalNotesScreen}
+            />
+            <SchedulerStack.Screen
+                name='Messages'
+                component={MessagesScreen}
+            />
+            <SchedulerStack.Screen
+                name='Chat'
+                component={ChatScreen}
+            />
+            <SchedulerStack.Screen
+                name='VideoCall'
+                component={VideoCallScreen}
+                options={{ presentation: 'fullScreenModal' }}
+            />
+            <SchedulerStack.Screen
+                name='AudioCall'
+                component={AudioCallScreen}
+                options={{ presentation: 'fullScreenModal' }}
+            />
+        </SchedulerStack.Navigator>
     );
 }
 
@@ -658,7 +719,7 @@ const PATIENT_TABS: TabItem[] = [
 ];
 
 const DOCTOR_TABS: TabItem[] = [
-    { name: 'EarningsTab', labelKey: 'tabs.earnings', icon: 'money' },
+    { name: 'EarningsTab', labelKey: 'tabs.earnings', icon: 'bar-chart' },
     { name: 'PatientsTab', labelKey: 'tabs.patients', icon: 'user' },
     { name: 'DashboardTab', labelKey: 'tabs.dashboard', icon: 'dashboard' },
     { name: 'SchedulerTab', labelKey: 'tabs.scheduler', icon: 'calendar' },
@@ -669,6 +730,17 @@ const DOCTOR_TABS: TabItem[] = [
 // betas expose the class but crash on init, so isGlassEffectAPIAvailable()
 // guards that. Falls back to the systemChromeMaterial BlurView on iOS <26.
 // https://github.com/expo/expo/issues/40911
+/**
+ * Tabs that always open at their list, whatever was last open inside them —
+ * tapping "Settings" (or a patient's "Account") must land on the settings
+ * menu, not on Edit Profile from three visits ago. Other tabs keep their
+ * place, as tab bars normally do.
+ */
+const ALWAYS_ROOT_SCREEN: Record<string, string> = {
+    SettingsTab: 'DoctorSettings',
+    AccountTab: 'MyAccount',
+};
+
 const canUseLiquidGlass =
     Platform.OS === 'ios' &&
     isLiquidGlassAvailable() &&
@@ -690,13 +762,23 @@ function TabBarContent({ state, navigation, items }: any) {
                         key={route.key}
                         style={tabStyles.tab}
                         onPress={() => {
-                            if (focused) return;
+                            // Emit the standard event so the nested stack's own
+                            // listener can act on it: re-tapping the current
+                            // tab pops that tab back to its first screen, as on
+                            // any native tab bar. A custom bar has to opt in.
+                            const event = navigation.emit({
+                                type: 'tabPress',
+                                target: route.key,
+                                canPreventDefault: true,
+                            });
+                            if (focused || event.defaultPrevented) return;
                             // Selection feedback, not impact — this is a
                             // discrete pick from a set, and it fires only on an
                             // actual change so re-tapping the current tab stays
                             // silent. No-ops on devices without a Taptic Engine.
                             Haptics.selectionAsync().catch(() => {});
-                            navigation.navigate(route.name);
+                            const root = ALWAYS_ROOT_SCREEN[route.name];
+                            navigation.navigate(route.name, root ? { screen: root } : undefined);
                         }}
                         activeOpacity={0.7}
                         accessibilityRole='tab'
@@ -932,7 +1014,7 @@ export default function TabNavigator() {
                     />
                     <Tab.Screen
                         name='SchedulerTab'
-                        component={AppointmentsNavigator}
+                        component={SchedulerNavigator}
                     />
                     <Tab.Screen
                         name='SettingsTab'

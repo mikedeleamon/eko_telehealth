@@ -30,9 +30,12 @@ import type {
   Conversation,
   CreateAppointmentInput,
   Currency,
+  DoctorScheduleInput,
+  TimeOffBlock,
+  TimeOffInput,
+  TimeOffResult,
   Dependent,
   Doctor,
-  DoctorAgendaItem,
   DoctorEarnings,
   Insurance,
   LoginResult,
@@ -342,12 +345,6 @@ export const api = {
       });
     },
 
-    /** GET /practice/agenda */
-    agenda(): Promise<DoctorAgendaItem[]> {
-      if (env.useMockApi) return mockApi.getDoctorAgenda();
-      return request<DoctorAgendaItem[]>('/practice/agenda');
-    },
-
     /**
      * GET /practice/appointments — the doctor's own appointments.
      * `/appointments` is patient-scoped, so doctors need their own listing.
@@ -355,6 +352,41 @@ export const api = {
     appointments(): Promise<Appointment[]> {
       if (env.useMockApi) return mockApi.getDoctorAppointments();
       return request<Appointment[]>('/practice/appointments');
+    },
+
+    /**
+     * POST /practice/appointments — the doctor books a visit for one of their
+     * patients. Lands at pending_payment (no approval step); the patient's
+     * payment confirms it.
+     */
+    scheduleAppointment(input: DoctorScheduleInput): Promise<Appointment> {
+      if (env.useMockApi) return mockApi.scheduleDoctorAppointment(input);
+      return request<Appointment>('/practice/appointments', { method: 'POST', body: input });
+    },
+
+    /** GET /practice/slots?date=YYYY-MM-DD — the doctor's own open slots (what patients can book). */
+    slots(date: string): Promise<AvailabilitySlot[]> {
+      if (env.useMockApi) return mockApi.getOwnOpenSlots(date);
+      return request<{ date: string; slots: AvailabilitySlot[] }>(`/practice/slots?date=${date}`).then((r) => r.slots);
+    },
+
+    /** GET /practice/time-off?from=&to= — blocked time overlapping that inclusive date range (YYYY-MM-DD). */
+    timeOff(range: { from?: string; to?: string } = {}): Promise<TimeOffBlock[]> {
+      if (env.useMockApi) return mockApi.getTimeOff(range);
+      const query = new URLSearchParams(Object.entries(range).filter(([, v]) => !!v) as [string, string][]).toString();
+      return request<TimeOffBlock[]>(`/practice/time-off${query ? `?${query}` : ''}`);
+    },
+
+    /** POST /practice/time-off — block out time; returns any visits already booked inside it. */
+    addTimeOff(input: TimeOffInput): Promise<TimeOffResult> {
+      if (env.useMockApi) return mockApi.addTimeOff(input);
+      return request<TimeOffResult>('/practice/time-off', { method: 'POST', body: input });
+    },
+
+    /** DELETE /practice/time-off/:id — reopen blocked time. */
+    removeTimeOff(id: string): Promise<void> {
+      if (env.useMockApi) return mockApi.removeTimeOff(id);
+      return request<void>(`/practice/time-off/${id}`, { method: 'DELETE' });
     },
 
     /** POST /practice/appointments/:id/accept — accept; patient must then pay. */

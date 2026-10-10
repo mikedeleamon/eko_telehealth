@@ -9,7 +9,7 @@ import MedicalNotes from '../../../components/medical/MedicalNotes';
 import AddToConditionsSheet from '../../../components/medical/AddToConditionsSheet';
 import { useAddMedicalNote, useAddNoteAmendment, usePatientConditions, useUpdateMedicalNote } from '../../../hooks/queries';
 import { useTranslation } from '../../../i18n/useTranslation';
-import type { CodedDiagnosis, MedicalNote as MedicalNoteType, MedicalNoteInput, PatientSummary } from '../../../api/types';
+import type { Appointment, CodedDiagnosis, MedicalNote as MedicalNoteType, MedicalNoteInput, PatientSummary } from '../../../api/types';
 
 interface Props {
   navigation: NativeStackNavigationProp<any>;
@@ -26,6 +26,8 @@ export default function MedicalNotesScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const patient = route.params?.patient as PatientSummary;
   const note = route.params?.note as MedicalNoteType | undefined;
+  // Set when opened from a Scheduler card, so the new note starts linked to that visit.
+  const initialAppointment = route.params?.appointment as Appointment | undefined;
   const addNote = useAddMedicalNote(patient?.id ?? '');
   const updateNote = useUpdateMedicalNote(patient?.id ?? '');
   const addAmendment = useAddNoteAmendment(patient?.id ?? '');
@@ -100,6 +102,7 @@ export default function MedicalNotesScreen({ navigation, route }: Props) {
           savingDraft={pending === 'draft'}
           onAddAmendment={handleAddAmendment}
           amendmentSaving={addAmendment.isPending}
+          initialAppointment={initialAppointment}
         />
       ) : null}
 

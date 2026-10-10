@@ -222,32 +222,52 @@ export const MOCK_NOTIFICATIONS = [
 
 // ---- Doctor-side mock data ----
 
-// status drives the colored dot + soft row tint in the dashboard agenda
-export const MOCK_DOCTOR_APPOINTMENTS = [
-  { id: 'd1', name: 'Emeka Obi', type: 'Consultation', time: '12:30 pm', status: 'confirmed' },
-  { id: 'd2', name: 'Yusuf Ibrahim', type: 'First Visit', time: '11:30 am', status: 'cancelled' },
-  { id: 'd3', name: 'Bisi Alade', type: 'Consultation', time: '12:30 pm', status: 'rescheduled' },
-  { id: 'd4', name: 'Augustine Watts', type: 'Consultation', time: '10:30 am', status: 'pending' },
-  { id: 'd5', name: 'Emeka Obi', type: 'Consultation', time: '12:30 pm', status: 'confirmed' },
-];
+// ---- Relative dates for doctor-side demo data ----
+// The scheduler, My Day and Reports all key off "today", so data pinned to
+// fixed dates goes stale (an empty day view, ₦0 this month) the moment the
+// calendar moves past it. These anchor rows to whenever the app is running.
+const MOCK_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MOCK_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** Local time `dayOffset` days from today at hh:mm. */
+function mockAt(dayOffset: number, hour: number, minute = 0): Date {
+  const d = new Date();
+  d.setDate(d.getDate() + dayOffset);
+  d.setHours(hour, minute, 0, 0);
+  return d;
+}
+const mockDate = (d: Date) => `${MOCK_MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+const mockDayDate = (d: Date) => `${MOCK_WEEKDAYS[d.getDay()]}, ${mockDate(d)}`;
+function mockClock(d: Date): string {
+  const h = d.getHours() % 12 || 12;
+  return `${h}:${String(d.getMinutes()).padStart(2, '0')} ${d.getHours() >= 12 ? 'PM' : 'AM'}`;
+}
+/** The date/time/startAt trio an appointment row carries, from one instant. */
+const mockWhen = (d: Date) => ({ date: mockDayDate(d), time: mockClock(d), startAt: d.toISOString() });
 
 // Mock source for GET /practice/appointments — same shape as MOCK_APPOINTMENTS,
 // but `doctor` holds the patient's name and `specialty` the visit reason.
 // Includes pending requests so the Accept/Decline actions have real targets.
+// Live visits sit around today so the scheduler always has something to show;
+// past visits keep their fixed dates because SOAP notes and each patient's
+// lastVisit point at them.
 export const MOCK_DOCTOR_SCHEDULE = [
-  { id: 's1', doctor: 'Emeka Obi', patientId: 'p1', patientName: 'Emeka Obi', reason: 'Chest tightness after climbing stairs, started three days ago.', specialty: 'Consultation', date: 'Fri, Jul 24, 2026', time: '12:30 PM', type: 'Video Visit', status: 'pending_approval', fee: '₦15,000' },
-  { id: 's2', doctor: 'Yusuf Ibrahim', patientId: 'p2', specialty: 'First Visit', date: 'Fri, Jul 24, 2026', time: '11:30 AM', type: 'Clinic Visit', status: 'pending_approval', fee: '₦15,000' },
+  { id: 's1', doctor: 'Emeka Obi', patientId: 'p1', patientName: 'Emeka Obi', reason: 'Chest tightness after climbing stairs, started three days ago.', specialty: 'Consultation', ...mockWhen(mockAt(1, 12)), durationMinutes: 60, type: 'Video Visit', status: 'pending_approval', fee: '₦15,000' },
+  { id: 's2', doctor: 'Yusuf Ibrahim', patientId: 'p2', patientName: 'Yusuf Ibrahim', reason: 'Cough still lingering after the first course of treatment.', specialty: 'Follow-up', ...mockWhen(mockAt(3, 10)), durationMinutes: 60, type: 'Clinic Visit', status: 'pending_approval', fee: '₦15,000' },
   // Bisi has no MOCK_PATIENTS record, so her entry stays unmatched (no patientId).
-  { id: 's3', doctor: 'Bisi Alade', specialty: 'Consultation', date: 'Thu, Jul 23, 2026', time: '12:30 PM', type: 'Video Visit', status: 'pending_payment', fee: '₦15,000' },
-  { id: 's4', doctor: 'Ngozi Nwosu', patientId: 'p5', patientName: 'Ngozi Nwosu', reason: 'Follow-up on blood pressure medication started last month.', specialty: 'Follow-up', date: 'Tue, Jun 30, 2026', time: '3:00 PM', type: 'Video Visit', status: 'upcoming', fee: '₦15,000' },
-  { id: 's5', doctor: 'Augustine Watts', patientId: 'p4', specialty: 'Consultation', date: 'Jun 10, 2026', time: '10:30 AM', type: 'Clinic Visit', status: 'past', fee: '₦15,000' },
+  { id: 's3', doctor: 'Bisi Alade', specialty: 'Consultation', reason: 'Recurring skin rash on both forearms.', ...mockWhen(mockAt(0, 14)), durationMinutes: 60, type: 'Video Visit', status: 'pending_payment', fee: '₦15,000' },
+  { id: 's4', doctor: 'Ngozi Nwosu', patientId: 'p5', patientName: 'Ngozi Nwosu', reason: 'Follow-up on blood pressure medication started last month.', specialty: 'Follow-up', ...mockWhen(mockAt(0, 9)), durationMinutes: 60, type: 'Video Visit', status: 'upcoming', fee: '₦15,000' },
+  { id: 's5', doctor: 'Augustine Watts', patientId: 'p4', patientName: 'Augustine Watts', specialty: 'Consultation', ...mockWhen(new Date(2026, 5, 10, 10, 30)), durationMinutes: 60, type: 'Clinic Visit', status: 'past', fee: '₦15,000' },
   // Past visits (dates align with each patient's lastVisit) so every patient
   // has at least one appointment a SOAP note can link to.
-  { id: 's6', doctor: 'Emeka Obi', patientId: 'p1', specialty: 'Follow-up', date: 'Sat, Jun 20, 2026', time: '9:30 AM', type: 'Video Visit', status: 'past', fee: '₦15,000' },
-  { id: 's7', doctor: 'Yusuf Ibrahim', patientId: 'p2', specialty: 'First Visit', date: 'Mon, Jul 20, 2026', time: '10:00 AM', type: 'Clinic Visit', status: 'upcoming', fee: '₦15,000' },
-  { id: 's8', doctor: 'Alex Stewart', patientId: 'p3', specialty: 'Consultation', date: 'Fri, Jun 12, 2026', time: '2:00 PM', type: 'Video Visit', status: 'past', fee: '₦15,000' },
-  { id: 's9', doctor: 'Ngozi Nwosu', patientId: 'p5', specialty: 'Antenatal Visit', date: 'Fri, May 29, 2026', time: '11:00 AM', type: 'Clinic Visit', status: 'past', fee: '₦15,000' },
-  { id: 's10', doctor: 'Tunde Bakare', patientId: 'p6', specialty: 'Annual Physical', date: 'Thu, May 14, 2026', time: '3:30 PM', type: 'Clinic Visit', status: 'past', fee: '₦15,000' },
+  { id: 's6', doctor: 'Emeka Obi', patientId: 'p1', patientName: 'Emeka Obi', specialty: 'Follow-up', ...mockWhen(new Date(2026, 5, 20, 9, 30)), durationMinutes: 60, type: 'Video Visit', status: 'past', fee: '₦15,000' },
+  { id: 's7', doctor: 'Yusuf Ibrahim', patientId: 'p2', patientName: 'Yusuf Ibrahim', reason: 'New patient consultation — persistent cough for two weeks.', specialty: 'First Visit', ...mockWhen(mockAt(0, 11)), durationMinutes: 60, type: 'Clinic Visit', status: 'upcoming', fee: '₦15,000' },
+  { id: 's8', doctor: 'Alex Stewart', patientId: 'p3', patientName: 'Alex Stewart', specialty: 'Consultation', ...mockWhen(new Date(2026, 5, 12, 14, 0)), durationMinutes: 60, type: 'Video Visit', status: 'past', fee: '₦15,000' },
+  { id: 's9', doctor: 'Ngozi Nwosu', patientId: 'p5', patientName: 'Ngozi Nwosu', specialty: 'Antenatal Visit', ...mockWhen(new Date(2026, 4, 29, 11, 0)), durationMinutes: 60, type: 'Clinic Visit', status: 'past', fee: '₦15,000' },
+  { id: 's10', doctor: 'Tunde Bakare', patientId: 'p6', patientName: 'Tunde Bakare', specialty: 'Annual Physical', ...mockWhen(new Date(2026, 4, 14, 15, 30)), durationMinutes: 60, type: 'Clinic Visit', status: 'past', fee: '₦15,000' },
+  { id: 's11', doctor: 'Augustine Watts', patientId: 'p4', patientName: 'Augustine Watts', reason: 'Migraine follow-up — reviewing the propranolol dose.', specialty: 'Follow-up', ...mockWhen(mockAt(0, 15)), durationMinutes: 60, type: 'Video Visit', status: 'checked_in', fee: '₦15,000' },
+  // A two-slot home visit the doctor booked themselves.
+  { id: 's12', doctor: 'Alex Stewart', patientId: 'p3', patientName: 'Alex Stewart', reason: 'Home review of blood sugar log and foot check.', specialty: 'Follow-up', ...mockWhen(mockAt(5, 10)), durationMinutes: 120, type: 'Home Visit', status: 'pending_payment', fee: '₦15,000', scheduledByDoctor: true },
 ];
 
 // Seed SOAP visit notes. Authors mix the logged-in mock doctor (doc-1, whose
@@ -552,23 +572,45 @@ export const MOCK_PATIENTS = [
 ];
 
 /**
- * Doctor earnings ledger. Earning amounts are take-home (consultation fee minus
- * the 25% taxes & fees shown on AppointmentDetails, e.g. ₦15,000 fee → ₦11,250).
+ * Doctor earnings ledger, relative to today (see mockAt above).
+ *
+ * Each earning mirrors the backend's split (lib/pricing.ts): the patient pays
+ * the consultation fee (grossAmount), the platform withholds its 17.5%
+ * commission (platformFee), and the provider is credited the rest (amount /
+ * netAmount). VAT is on the patient's bill and never comes out of the
+ * provider's share. The fee went from ₦12,000 to ₦15,000 about two months
+ * ago, so the older rows carry the old price.
  * The mock derives the balance / month / pending totals from these rows.
  */
 // Earlier months are seeded deliberately: the earnings analysis (SOW 1.18)
 // compares a range against the preceding one, and a ledger that starts this
 // month would make every trend read "no prior data" in mock mode.
+function mockEarning(id: string, patientName: string, dayOffset: number, hour: number, minute: number, fee: number, visitType: string) {
+  const at = mockAt(-dayOffset, hour, minute);
+  const platformFee = Math.round(fee * 0.175);
+  return {
+    id, kind: 'earning', title: patientName, date: mockDate(at), time: mockClock(at), amount: fee - platformFee, status: 'settled', visitType,
+    appointmentDate: mockDate(at), patientName, grossAmount: fee, platformFee, netAmount: fee - platformFee,
+  };
+}
+function mockWithdrawal(id: string, dayOffset: number, hour: number, minute: number, amount: number, method: 'flutterwave_bank' | 'paypal', destination: string) {
+  const at = mockAt(-dayOffset, hour, minute);
+  return { id, kind: 'withdrawal', title: 'Withdrawal', date: mockDate(at), time: mockClock(at), amount, status: 'settled', method, destination };
+}
 export const MOCK_EARNINGS = [
-  { id: 'ern-1', kind: 'earning', title: 'Emeka Obi', date: 'Jul 18, 2026', time: '10:00 AM', amount: 11250, status: 'settled', visitType: 'Video Visit' },
-  { id: 'ern-2', kind: 'earning', title: 'Alex Stewart', date: 'Jul 17, 2026', time: '2:30 PM', amount: 15000, status: 'settled', visitType: 'Home Visit' },
-  { id: 'ern-3', kind: 'withdrawal', title: 'Withdrawal', date: 'Jul 16, 2026', time: '9:15 AM', amount: 25000, status: 'settled' },
-  { id: 'ern-4', kind: 'earning', title: 'Ngozi Nwosu', date: 'Jul 15, 2026', time: '11:00 AM', amount: 7500, status: 'settled', visitType: 'Clinic Visit' },
-  { id: 'ern-5', kind: 'earning', title: 'Augustine Watts', date: 'Jul 12, 2026', time: '3:00 PM', amount: 11250, status: 'settled', visitType: 'Video Visit' },
-  { id: 'ern-6', kind: 'earning', title: 'Emeka Obi', date: 'Jul 8, 2026', time: '10:30 AM', amount: 11250, status: 'settled', visitType: 'Video Visit' },
-  { id: 'ern-7', kind: 'earning', title: 'Ngozi Nwosu', date: 'Jun 24, 2026', time: '9:30 AM', amount: 11250, status: 'settled', visitType: 'Video Visit' },
-  { id: 'ern-8', kind: 'earning', title: 'Alex Stewart', date: 'Jun 17, 2026', time: '4:00 PM', amount: 15000, status: 'settled', visitType: 'Home Visit' },
-  { id: 'ern-9', kind: 'earning', title: 'Augustine Watts', date: 'Jun 9, 2026', time: '11:30 AM', amount: 7500, status: 'settled', visitType: 'Clinic Visit' },
-  { id: 'ern-10', kind: 'earning', title: 'Emeka Obi', date: 'May 27, 2026', time: '10:00 AM', amount: 11250, status: 'settled', visitType: 'Video Visit' },
-  { id: 'ern-11', kind: 'earning', title: 'Ngozi Nwosu', date: 'May 14, 2026', time: '2:00 PM', amount: 11250, status: 'settled', visitType: 'Video Visit' },
+  mockEarning('ern-1', 'Emeka Obi', 1, 10, 0, 15000, 'Video Visit'),
+  mockEarning('ern-2', 'Alex Stewart', 2, 14, 30, 15000, 'Home Visit'),
+  mockWithdrawal('ern-3', 3, 9, 15, 25000, 'flutterwave_bank', 'Guaranty Trust Bank ••••4321'),
+  mockEarning('ern-4', 'Ngozi Nwosu', 4, 11, 0, 15000, 'Clinic Visit'),
+  mockEarning('ern-5', 'Augustine Watts', 6, 15, 0, 15000, 'Video Visit'),
+  mockEarning('ern-6', 'Emeka Obi', 9, 10, 30, 15000, 'Video Visit'),
+  mockEarning('ern-7', 'Ngozi Nwosu', 20, 9, 30, 15000, 'Video Visit'),
+  mockEarning('ern-8', 'Alex Stewart', 27, 16, 0, 15000, 'Home Visit'),
+  mockWithdrawal('ern-12', 30, 12, 0, 40000, 'paypal', 'dr.johnson@ekotelehealth.com'),
+  mockEarning('ern-9', 'Augustine Watts', 35, 11, 30, 15000, 'Clinic Visit'),
+  mockEarning('ern-10', 'Emeka Obi', 48, 10, 0, 15000, 'Video Visit'),
+  mockEarning('ern-11', 'Ngozi Nwosu', 62, 14, 0, 12000, 'Video Visit'),
+  mockEarning('ern-13', 'Tunde Bakare', 75, 15, 30, 12000, 'Clinic Visit'),
+  mockWithdrawal('ern-14', 80, 9, 45, 30000, 'flutterwave_bank', 'Guaranty Trust Bank ••••4321'),
+  mockEarning('ern-15', 'Yusuf Ibrahim', 95, 10, 0, 12000, 'Clinic Visit'),
 ];

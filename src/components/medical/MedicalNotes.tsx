@@ -40,6 +40,8 @@ interface Props {
   /** Append an amendment to the locked record. Returns the updated record. */
   onAddAmendment?: (text: string) => Promise<MedicalNote | void> | void;
   amendmentSaving?: boolean;
+  /** Pre-links a new note to this visit — set when the doctor opens notes from a Scheduler card. */
+  initialAppointment?: Appointment;
 }
 
 /** The three free-text SOAP sections; Assessment is rendered specially between O and P. */
@@ -67,7 +69,7 @@ const LINKABLE_STATUS_ICONS: Record<string, string> = {
  * of Secondary Diagnoses. Saving is a two-step commit: Save Draft keeps it
  * editable; Save (behind a confirmation) locks it permanently.
  */
-export default function MedicalNotes({ patient, note, onSave, saving = false, onSaveDraft, savingDraft = false, onAddAmendment, amendmentSaving = false }: Props) {
+export default function MedicalNotes({ patient, note, onSave, saving = false, onSaveDraft, savingDraft = false, onAddAmendment, amendmentSaving = false, initialAppointment }: Props) {
   const Colors = useTheme();
   const styles = makeStyles(Colors);
   const { t } = useTranslation();
@@ -81,10 +83,11 @@ export default function MedicalNotes({ patient, note, onSave, saving = false, on
   const editingDraft = !!note && !isFinal;
   const editable = !readOnly;
 
-  const [appointment, setAppointment] = useState<Appointment | null>(null);
+  const preselected = !note && initialAppointment && LINKABLE_STATUSES.includes(initialAppointment.status) ? initialAppointment : null;
+  const [appointment, setAppointment] = useState<Appointment | null>(preselected);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [reason, setReason] = useState(note?.reason ?? '');
+  const [reason, setReason] = useState(note?.reason ?? preselected?.reason ?? preselected?.specialty ?? '');
   const [text, setText] = useState<Record<TextKey, string>>({
     subjective: note?.subjective ?? '',
     objective: note?.objective ?? '',
@@ -127,8 +130,11 @@ export default function MedicalNotes({ patient, note, onSave, saving = false, on
   const { data: existingNotes = [] } = useMedicalNotes(creating ? patient.id : '');
 
   const linkable = useMemo(
-    () => schedule.filter((a) => a.patientId === patient.id && LINKABLE_STATUSES.includes(a.status)),
-    [schedule, patient.id],
+    // Appointments carry the patient's ACCOUNT id; `patient` is a roster entry
+    // whose own id is a different id space (they only coincide in mock data).
+    // A walk-in with no linked account has no visits to link.
+    () => schedule.filter((a) => !!patient.userId && a.patientId === patient.userId && LINKABLE_STATUSES.includes(a.status)),
+    [schedule, patient.userId],
   );
   const notedAppointmentIds = useMemo(
     () => new Set(existingNotes.filter((n) => n.doctorId === user?.id && (n.status ?? 'final') === 'final').map((n) => n.appointmentId)),
